@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ven Sông Vinh - Real-time Task & Budget Management</title>
+    <!-- CSS and Icons -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header>
+            <div class="brand">
+                <i class="fa-solid fa-mountain-city brand-icon"></i>
+                <div>
+                    <h1>DỰ ÁN: VEN SÔNG VINH</h1>
+                    <p>Hệ thống Quản lý Tiến độ & Ngân sách Thời gian thực (Harness 5 Layers)</p>
+                </div>
+            </div>
+            <div class="system-status">
+                <div class="status-dot" id="ws-status-dot"></div>
+                <span id="ws-status-text">Đang kết nối WebSocket...</span>
+            </div>
+        </header>
+
+        <!-- Red Alert Panel -->
+        <div class="red-alert-panel" id="red-alert-panel">
+            <div class="red-alert-header">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>BÁO ĐỘNG ĐỎ - CHỐT CHẶN VƯỢT NGÂN SÁCH (HARD BUDGET GATE)</span>
+            </div>
+            <div class="red-alert-body" id="red-alert-message">
+                Cảnh báo! Có yêu cầu giải ngân vượt hạn mức ngân sách tổng được phê duyệt. Hệ thống đã khóa tính năng duyệt chi cho mã tương ứng.
+            </div>
+        </div>
+
+        <!-- Layer 1: Memory & Stats Row -->
+        <div class="stats-grid">
+            <div class="panel stat-card budget">
+                <div class="stat-header">
+                    <span>Tổng Ngân Sách Dự Án</span>
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div class="stat-value" id="stat-total-budget">0.00 Trđ</div>
+                <span style="font-size: 0.75rem; color: var(--text-secondary);">Phân bổ WBS từ file Excel</span>
+            </div>
+
+            <div class="panel stat-card spending">
+                <div class="stat-header">
+                    <span>Lũy Kế Thực Chi Đã Duyệt</span>
+                    <i class="fa-solid fa-credit-card"></i>
+                </div>
+                <div class="stat-value" id="stat-total-spent" style="color: var(--secondary);">0.00 Trđ</div>
+                <span style="font-size: 0.75rem; color: var(--text-secondary);" id="spending-percentage">0.00% giải ngân</span>
+            </div>
+
+            <div class="panel stat-card remaining">
+                <div class="stat-header">
+                    <span>Ngân Sách Còn Lại</span>
+                    <i class="fa-solid fa-sack-dollar"></i>
+                </div>
+                <div class="stat-value" id="stat-remaining" style="color: var(--success);">0.00 Trđ</div>
+                <span style="font-size: 0.75rem; color: var(--text-secondary);">Khả dụng giải ngân</span>
+            </div>
+
+            <div class="panel stat-card progress">
+                <div class="stat-header">
+                    <span>Tiến Độ Trung Bình Dự Án</span>
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <div class="stat-value" id="stat-progress" style="color: var(--warning);">0.00%</div>
+                <span style="font-size: 0.75rem; color: var(--text-secondary);" id="tasks-status-summary">0 tasks hoàn thành</span>
+            </div>
+        </div>
+
+        <!-- Charts and Financial Risks -->
+        <div class="dashboard-middle">
+            <!-- S-Curve Chart Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title"><i class="fa-solid fa-chart-area"></i> Đường Cong lũy kế S-Curve (Kế hoạch vs Thực tế)</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Đơn vị: Triệu VND</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="sCurveChart"></canvas>
+                </div>
+            </div>
+
+            <!-- AI Risk Observability Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title" style="color: #a855f7;"><i class="fa-solid fa-brain"></i> AI CFO - Đánh Giá Rủi Ro Tài Chính (Gemini Pro)</span>
+                    <button class="btn secondary-btn" style="padding: 4px 10px; font-size: 0.75rem;" onclick="refreshRiskReport()"><i class="fa-solid fa-arrows-rotate"></i> Quét</button>
+                </div>
+                <div class="risk-scroll" id="ai-risk-report">
+                    <p style="color: var(--text-secondary); text-align: center; margin-top: 50px;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Đang tải đánh giá rủi ro dự án...
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- WBS & Tasks Table -->
+        <div class="panel wbs-section">
+            <div class="panel-header" style="margin-bottom: 10px;">
+                <span class="panel-title"><i class="fa-solid fa-sitemap"></i> Cấu trúc Phân rã Công việc (WBS) & Tiến độ 4 Giai đoạn</span>
+            </div>
+            
+            <div class="filter-bar">
+                <div class="phase-filters" id="phase-filters-container">
+                    <button class="filter-btn active" onclick="changePhase(1)">Giai đoạn 1: Pháp lý & Thiết kế</button>
+                    <button class="filter-btn" onclick="changePhase(2)">Giai đoạn 2: Thi công xây dựng</button>
+                    <button class="filter-btn" onclick="changePhase(3)">Giai đoạn 3: Nghiệm thu bàn giao</button>
+                    <button class="filter-btn" onclick="changePhase(4)">Giai đoạn 4: Cấp bìa sổ hồng</button>
+                </div>
+                <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()">
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">STT / Cấp</th>
+                            <th style="width: 140px;">Mã Ngân Sách</th>
+                            <th>Nội dung công việc</th>
+                            <th style="width: 180px;">Công ty / Phòng ban</th>
+                            <th style="width: 120px;">KPI Trọng Yếu</th>
+                            <th style="width: 150px;">Ngân Sách Tổng</th>
+                            <th style="width: 120px;">Tiến Độ</th>
+                            <th style="width: 110px;">Trạng Thái</th>
+                            <th style="width: 70px;">Sửa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tasks-table-body">
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Đang tải cơ sở dữ liệu công việc...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- AI Assistant & Spending Management Grid -->
+        <div class="bottom-controls-grid">
+            <!-- AI Text Command Update -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title" style="color: #a855f7;"><i class="fa-solid fa-robot"></i> Cập Nhật Tiến Độ Bằng Ngôn Ngữ Tự Nhiên (Gemini AI)</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary);">
+                    Nhập văn bản báo cáo thô của ban chỉ huy. AI sẽ tự động phân tích mã WBS, cập nhật tiến độ lên 100% (Done) và điền điều kiện ghi nhận.
+                </p>
+                <div class="ai-input-wrapper">
+                    <textarea class="ai-textarea" id="ai-text-input" placeholder="Ví dụ: Hôm nay ban thiết kế đã hoàn thành phê duyệt nhiệm vụ khảo sát địa hình tỷ lệ 1/500 mã 6.1.1"></textarea>
+                </div>
+                <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="ai-status-output" style="font-size: 0.8rem; color: var(--secondary);"></span>
+                    <button class="btn" onclick="sendAICommand()"><i class="fa-solid fa-paper-plane"></i> Gửi AI Xử Lý</button>
+                </div>
+            </div>
+
+            <!-- Add Spending Request Form -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title"><i class="fa-solid fa-file-invoice-dollar"></i> Đề Xuất Giải Ngân Chi Phí Phát Sinh</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="spend-task-id">Mã số Task (Database ID)</label>
+                        <input type="number" class="form-control" id="spend-task-id" placeholder="Ví dụ: 12">
+                    </div>
+                    <div class="form-group">
+                        <label for="spend-amount">Số tiền đề xuất chi (Trđ)</label>
+                        <input type="number" step="0.01" class="form-control" id="spend-amount" placeholder="Ví dụ: 150.5">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="spend-user">Người đề xuất cập nhật</label>
+                        <input type="text" class="form-control" id="spend-user" placeholder="Ví dụ: Ban QLDA">
+                    </div>
+                    <div class="form-group">
+                        <label for="spend-doc">Chứng từ kèm theo (Link MC)</label>
+                        <input type="text" class="form-control" id="spend-doc" placeholder="Ví dụ: http://mc.com/invoice123">
+                    </div>
+                </div>
+                <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                    <button class="btn" onclick="submitSpending()"><i class="fa-solid fa-check"></i> Duyệt Chi (Hard Gate Check)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for task quick edit -->
+    <div id="edit-task-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:100; justify-content:center; align-items:center;">
+        <div class="panel" style="width: 400px; max-width: 90%;">
+            <div class="panel-header">
+                <span class="panel-title"><i class="fa-solid fa-pen-to-square"></i> Cập Nhật Tiến Độ</span>
+                <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeEditModal()"></i>
+            </div>
+            <input type="hidden" id="edit-id">
+            <div class="form-group">
+                <label id="edit-task-title" style="font-weight: 600; margin-bottom: 10px; color:#fff;"></label>
+            </div>
+            <div class="form-group">
+                <label for="edit-progress">Tiến độ (%)</label>
+                <input type="number" id="edit-progress" class="form-control" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label for="edit-status">Trạng thái</label>
+                <select id="edit-status" class="form-control">
+                    <option value="Todo">Todo</option>
+                    <option value="In-Progress">In-Progress</option>
+                    <option value="Done">Done</option>
+                    <option value="Delayed">Delayed</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit-cond">Điều kiện ghi nhận kết quả</label>
+                <input type="text" id="edit-cond" class="form-control" placeholder="Mô tả chứng từ/kết quả bàn giao">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn secondary-btn" onclick="closeEditModal()">Hủy</button>
+                <button class="btn" onclick="saveTaskProgress()">Lưu Thay Đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Frontend logic with WS and APIs -->
+    <script>
+        let currentPhase = 1;
+        let sCurveChart = null;
+        let ws = null;
+
+        // On document load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchStats();
+            fetchTasks(currentPhase);
+            renderSCurveChart();
+            refreshRiskReport();
+            setupWebSocket();
+        });
+
+        // Setup WebSocket client
+        function setupWebSocket() {
+            const loc = window.location;
+            let wsUri = "";
+            if (loc.protocol === "https:") {
+                wsUri = "wss:";
+            } else {
+                wsUri = "ws:";
+            }
+            wsUri += "//" + loc.host + "/ws";
+            
+            ws = new WebSocket(wsUri);
+
+            ws.onopen = () => {
+                document.getElementById('ws-status-dot').style.backgroundColor = '#10b981';
+                document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #10b981';
+                document.getElementById('ws-status-text').innerText = 'Kết nối Real-time Online';
+                console.log("WebSocket connected.");
+            };
+
+            ws.onclose = () => {
+                document.getElementById('ws-status-dot').style.backgroundColor = '#ef4444';
+                document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #ef4444';
+                document.getElementById('ws-status-text').innerText = 'Mất kết nối. Đang thử lại...';
+                console.log("WebSocket disconnected. Reconnecting...");
+                setTimeout(setupWebSocket, 3000); // retry after 3s
+            };
+
+            ws.onerror = (err) => {
+                console.error("WebSocket error: ", err);
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log("WebSocket message received: ", data);
+
+                if (data.type === "task_update") {
+                    // Cập nhật dòng tương ứng trong bảng nếu đang hiển thị phase đó
+                    const row = document.getElementById(`task-row-${data.task_id}`);
+                    if (row) {
+                        // Highlight dòng bị thay đổi
+                        row.classList.add('updated-row');
+                        setTimeout(() => row.classList.remove('updated-row'), 2500);
+
+                        // Cập nhật tiến độ
+                        const progressCell = row.querySelector('.progress-cell');
+                        if (progressCell) {
+                            progressCell.innerHTML = `
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-weight:600;">${data.tien_do}%</span>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: ${data.tien_do}%"></div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        // Cập nhật trạng thái badge
+                        const statusCell = row.querySelector('.status-cell');
+                        if (statusCell) {
+                            statusCell.innerHTML = `<span class="badge ${data.trang_thai.toLowerCase()}">${data.trang_thai}</span>`;
+                        }
+
+                        // Cập nhật điều kiện ghi nhận
+                        const condCell = row.querySelector('.cond-cell');
+                        if (condCell) {
+                            condCell.innerText = data.dieu_kien_ghi_nhan || '-';
+                        }
+                    }
+
+                    // Tải lại các số liệu thống kê chung
+                    fetchStats();
+                } else if (data.type === "spending_update") {
+                    // Tải lại thống kê và S-Curve
+                    fetchStats();
+                    updateSCurveChart();
+                } else if (data.type === "red_alert") {
+                    // Hiển thị khung báo động đỏ
+                    const alertPanel = document.getElementById('red-alert-panel');
+                    alertPanel.style.display = 'block';
+                    document.getElementById('red-alert-message').innerText = data.message;
+                    
+                    // Cuộn lên đầu
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    
+                    // Ẩn sau 10 giây
+                    setTimeout(() => {
+                        alertPanel.style.display = 'none';
+                    }, 15000);
+                    
+                    fetchStats();
+                }
+            };
+        }
+
+        // Fetch Stats
+        function fetchStats() {
+            fetch('/api/stats')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('stat-total-budget').innerText = data.tong_ngan_sach.toLocaleString() + ' Trđ';
+                    document.getElementById('stat-total-spent').innerText = data.tong_thuc_chi.toLocaleString() + ' Trđ';
+                    
+                    const ratio = data.tong_ngan_sach > 0 ? (data.tong_thuc_chi / data.tong_ngan_sach * 100).toFixed(2) : '0.00';
+                    document.getElementById('spending-percentage').innerText = `${ratio}% giải ngân`;
+                    
+                    const remaining = data.con_lai;
+                    document.getElementById('stat-remaining').innerText = remaining.toLocaleString() + ' Trđ';
+                    
+                    document.getElementById('stat-progress').innerText = data.tien_do_trung_binh.toFixed(2) + '%';
+                    
+                    const totalTasks = data.trang_thai_tasks.Todo + data.trang_thai_tasks["In-Progress"] + data.trang_thai_tasks.Done + data.trang_thai_tasks.Delayed;
+                    document.getElementById('tasks-status-summary').innerText = `${data.trang_thai_tasks.Done} / ${totalTasks} công việc Done`;
+
+                    // Nếu có mã WBS bị khóa
+                    if (data.so_wbs_bi_khoa > 0) {
+                        const alertPanel = document.getElementById('red-alert-panel');
+                        alertPanel.style.display = 'block';
+                        document.getElementById('red-alert-message').innerText = `Cảnh báo! Hiện tại đang có ${data.so_wbs_bi_khoa} mã ngân sách (WBS) đang bị KHÓA chi tiêu do vượt quá hạn mức ngân sách tổng được duyệt.`;
+                    }
+                })
+                .catch(err => console.error("Error fetching stats:", err));
+        }
+
+        // Change Phase
+        function changePhase(phaseId) {
+            currentPhase = phaseId;
+            // Update filter buttons
+            const btns = document.querySelectorAll('.phase-filters .filter-btn');
+            btns.forEach((btn, idx) => {
+                if (idx + 1 === phaseId) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            fetchTasks(phaseId);
+        }
+
+        // Fetch Tasks list
+        function fetchTasks(phaseId) {
+            const tableBody = document.getElementById('tasks-table-body');
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu Phase ${phaseId}...
+                    </td>
+                </tr>
+            `;
+
+            fetch(`/api/tasks?phase_id=${phaseId}`)
+                .then(res => res.json())
+                .then(tasks => {
+                    if (tasks.length === 0) {
+                        tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">Không tìm thấy công việc nào.</td></tr>`;
+                        return;
+                    }
+
+                    // Sort tasks by STT hierarchically
+                    tasks.sort((a, b) => {
+                        return a.stt.localeCompare(b.stt, undefined, {numeric: true, sensitivity: 'base'});
+                    });
+
+                    tableBody.innerHTML = '';
+                    tasks.forEach(task => {
+                        const tr = document.createElement('tr');
+                        tr.id = `task-row-${task.id}`;
+                        tr.className = `level-${task.level}`;
+
+                        // Tree padding indentation
+                        const indent = (task.level - 1) * 20;
+                        const indentStyle = indent > 0 ? `padding-left: ${indent}px;` : '';
+                        
+                        const budgetText = task.budget ? task.budget.ngan_sach_tong.toLocaleString() + ' Trđ' : '0.00 Trđ';
+                        const lockedIcon = (task.budget && task.budget.is_locked) ? '<i class="fa-solid fa-lock" style="color:var(--danger); margin-left:6px;" title="Mã ngân sách đã bị khóa do vượt chi"></i>' : '';
+
+                        tr.innerHTML = `
+                            <td>${task.stt} <span style="font-size:0.7rem; color:var(--text-secondary);">(Lv${task.level})</span></td>
+                            <td><code>${task.ma_ngan_sach}</code></td>
+                            <td style="${indentStyle}">${task.ten_cong_viec}</td>
+                            <td>${task.phong_ban_thuc_hien || '-'}</td>
+                            <td>${task.kpi_trong_yeu || '-'}</td>
+                            <td style="font-weight:600; text-align:right;">${budgetText} ${lockedIcon}</td>
+                            <td class="progress-cell">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-weight:600;">${task.tien_do}%</span>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: ${task.tien_do}%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="status-cell">
+                                <span class="badge ${task.trang_thai.toLowerCase()}">${task.trang_thai}</span>
+                            </td>
+                            <td>
+                                <button class="action-btn" onclick="openEditModal(${task.id}, '${task.ten_cong_viec.replace(/'/g, "\\'")}', ${task.tien_do}, '${task.trang_thai}', '${(task.dieu_kien_ghi_nhan || "").replace(/'/g, "\\'")}')">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                            </td>
+                        `;
+                        tableBody.appendChild(tr);
+                    });
+                })
+                .catch(err => {
+                    console.error("Error loading tasks:", err);
+                    tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--danger);">Không thể kết nối tới cơ sở dữ liệu.</td></tr>`;
+                });
+        }
+
+        // Filter tasks dynamically using search bar
+        function filterTasks() {
+            const val = document.getElementById('search-input').value.toLowerCase();
+            const rows = document.querySelectorAll('#tasks-table-body tr');
+            
+            rows.forEach(row => {
+                const wbs = row.cells[1].innerText.toLowerCase();
+                const name = row.cells[2].innerText.toLowerCase();
+                const stt = row.cells[0].innerText.toLowerCase();
+                
+                if (wbs.includes(val) || name.includes(val) || stt.includes(val)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // Render S-Curve Chart
+        function renderSCurveChart() {
+            fetch('/api/s-curve')
+                .then(res => res.json())
+                .then(data => {
+                    const ctx = document.getElementById('sCurveChart').getContext('2d');
+                    
+                    const periods = data.plan.map(p => p.period);
+                    const planValues = data.plan.map(p => p.value);
+                    const actualValues = data.actual.map(p => p.value);
+
+                    sCurveChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: periods,
+                            datasets: [
+                                {
+                                    label: 'Lũy kế kế hoạch chi tiêu',
+                                    data: planValues,
+                                    borderColor: '#6366f1',
+                                    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+                                    borderWidth: 3,
+                                    tension: 0.3,
+                                    fill: true
+                                },
+                                {
+                                    label: 'Lũy kế giải ngân thực tế',
+                                    data: actualValues,
+                                    borderColor: '#06b6d4',
+                                    backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                                    borderWidth: 3,
+                                    tension: 0.3,
+                                    fill: true
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    labels: { color: '#f3f4f6' }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#9ca3af' }
+                                },
+                                y: {
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#9ca3af' }
+                                }
+                            }
+                        }
+                    });
+                });
+        }
+
+        // Update S-Curve Chart values
+        function updateSCurveChart() {
+            fetch('/api/s-curve')
+                .then(res => res.json())
+                .then(data => {
+                    if (sCurveChart) {
+                        const actualValues = data.actual.map(p => p.value);
+                        sCurveChart.data.datasets[1].data = actualValues;
+                        sCurveChart.update();
+                    }
+                });
+        }
+
+        // Refresh AI Risk Report
+        function refreshRiskReport() {
+            const riskDiv = document.getElementById('ai-risk-report');
+            riskDiv.innerHTML = `
+                <p style="color: var(--text-secondary); text-align: center; margin-top: 50px;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> AI CFO đang tính toán rủi ro tài chính...
+                </p>
+            `;
+
+            fetch('/api/ai/risk')
+                .then(res => res.json())
+                .then(data => {
+                    // Simple markdown to HTML formatter helper
+                    let formatted = data.risk_report
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                        .replace(/\n/g, '<br>');
+                    
+                    riskDiv.innerHTML = `<div style="padding:10px; color:#e5e7eb;">${formatted}</div>`;
+                })
+                .catch(err => {
+                    console.error("Error loading risk report:", err);
+                    riskDiv.innerHTML = `<p style="color:var(--danger); text-align:center; margin-top:50px;">Không thể lấy báo cáo phân tích rủi ro AI.</p>`;
+                });
+        }
+
+        // Open quick edit modal
+        function openEditModal(id, title, progress, status, cond) {
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-task-title').innerText = title;
+            document.getElementById('edit-progress').value = progress;
+            document.getElementById('edit-status').value = status;
+            document.getElementById('edit-cond').value = cond || '';
+            document.getElementById('edit-task-modal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-task-modal').style.display = 'none';
+        }
+
+        // Save Task progress via API
+        function saveTaskProgress() {
+            const id = document.getElementById('edit-id').value;
+            const progress = parseFloat(document.getElementById('edit-progress').value);
+            const status = document.getElementById('edit-status').value;
+            const cond = document.getElementById('edit-cond').value;
+
+            fetch(`/api/tasks/${id}/progress`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tien_do: progress,
+                    trang_thai: status,
+                    dieu_kien_ghi_nhan: cond
+                })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (res.ok) {
+                    closeEditModal();
+                } else {
+                    // Hiển thị lỗi chốt chặn phase gate
+                    alert(`LỖI CHỐT CHẶN HỆ THỐNG: ${data.detail}`);
+                }
+            })
+            .catch(err => console.error("Error updating progress:", err));
+        }
+
+        // Send AI Text command update
+        function sendAICommand() {
+            const text = document.getElementById('ai-text-input').value;
+            if (!text.trim()) return;
+
+            const statusLabel = document.getElementById('ai-status-output');
+            statusLabel.style.color = 'var(--text-secondary)';
+            statusLabel.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> AI đang phân tích cú pháp...`;
+
+            fetch('/api/ai/parse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (res.ok) {
+                    statusLabel.style.color = 'var(--success)';
+                    statusLabel.innerText = data.message;
+                    document.getElementById('ai-text-input').value = '';
+                    
+                    // Nếu phase của công việc vừa cập nhật trùng với phase đang hiển thị
+                    if (data.task && data.task.phase_id === currentPhase) {
+                        fetchTasks(currentPhase);
+                    }
+                } else {
+                    statusLabel.style.color = 'var(--danger)';
+                    statusLabel.innerText = `Lỗi: ${data.detail}`;
+                }
+            })
+            .catch(err => {
+                statusLabel.style.color = 'var(--danger)';
+                statusLabel.innerText = "Lỗi kết nối tới máy chủ AI.";
+            });
+        }
+
+        // Submit new spending request
+        function submitSpending() {
+            const taskId = parseInt(document.getElementById('spend-task-id').value);
+            const amount = parseFloat(document.getElementById('spend-amount').value);
+            const user = document.getElementById('spend-user').value;
+            const doc = document.getElementById('spend-doc').value;
+
+            if (isNaN(taskId) || isNaN(amount) || !user) {
+                alert("Vui lòng điền đầy đủ Mã Task, Số tiền, và Người đề xuất.");
+                return;
+            }
+
+            fetch('/api/spending', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    task_id: taskId,
+                    so_tien_chi: amount,
+                    nguoi_cap_nhat: user,
+                    chung_tu_kem_theo: doc,
+                    trang_thai_duyet: 'Approved'
+                })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (res.ok) {
+                    alert("Giải ngân thành công! Ngân sách đã được cập nhật thời gian thực.");
+                    document.getElementById('spend-task-id').value = '';
+                    document.getElementById('spend-amount').value = '';
+                    document.getElementById('spend-doc').value = '';
+                } else {
+                    alert(`GIAO DỊCH BỊ BÁO ĐỎ: ${data.detail}`);
+                }
+            })
+            .catch(err => console.error("Error submitting spending:", err));
+        }
+    </script>
+</body>
+</html>
