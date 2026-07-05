@@ -21,9 +21,14 @@
                     <p>Hệ thống Quản lý Tiến độ & Ngân sách Thời gian thực (Harness 5 Layers)</p>
                 </div>
             </div>
-            <div class="system-status">
-                <div class="status-dot" id="ws-status-dot"></div>
-                <span id="ws-status-text">Đang kết nối WebSocket...</span>
+            <div class="system-status" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="status-dot" id="ws-status-dot"></div>
+                    <span id="ws-status-text">Đang kết nối WebSocket...</span>
+                </div>
+                <input type="text" id="backend-url-input" placeholder="Backend URL (e.g. http://127.0.0.1:8000)" 
+                       style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px; color: #fff; font-size: 0.75rem; width: 220px; outline: none; margin-top: 2px;"
+                       onchange="saveBackendUrl(this.value)">
             </div>
         </header>
 
@@ -234,12 +239,30 @@
 
     <!-- Frontend logic with WS and APIs -->
     <script>
+        // Resolve backend URL
+        let backendUrl = localStorage.getItem('backend_url');
+        if (backendUrl === null) {
+            // Default settings: empty for local dev, localhost:8000 for GitHub pages
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                backendUrl = '';
+            } else {
+                backendUrl = 'http://127.0.0.1:8000';
+            }
+            localStorage.setItem('backend_url', backendUrl);
+        }
+
+        function saveBackendUrl(val) {
+            localStorage.setItem('backend_url', val.trim());
+            window.location.reload();
+        }
+
         let currentPhase = 1;
         let sCurveChart = null;
         let ws = null;
 
         // On document load
         document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('backend-url-input').value = backendUrl;
             fetchStats();
             fetchTasks(currentPhase);
             renderSCurveChart();
@@ -249,14 +272,15 @@
 
         // Setup WebSocket client
         function setupWebSocket() {
-            const loc = window.location;
             let wsUri = "";
-            if (loc.protocol === "https:") {
-                wsUri = "wss:";
+            if (backendUrl) {
+                let wsProto = backendUrl.startsWith('https:') ? 'wss:' : 'ws:';
+                let hostAndPort = backendUrl.replace(/^https?:\/\//, '');
+                wsUri = `${wsProto}//${hostAndPort}/ws`;
             } else {
-                wsUri = "ws:";
+                let wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                wsUri = `${wsProto}//${window.location.host}/ws`;
             }
-            wsUri += "//" + loc.host + "/ws";
             
             ws = new WebSocket(wsUri);
 
@@ -344,7 +368,7 @@
 
         // Fetch Stats
         function fetchStats() {
-            fetch('/api/stats')
+            fetch(backendUrl + '/api/stats')
                 .then(res => res.json())
                 .then(data => {
                     document.getElementById('stat-total-budget').innerText = data.tong_ngan_sach.toLocaleString() + ' Trđ';
@@ -397,7 +421,7 @@
                 </tr>
             `;
 
-            fetch(`/api/tasks?phase_id=${phaseId}`)
+            fetch(backendUrl + `/api/tasks?phase_id=${phaseId}`)
                 .then(res => res.json())
                 .then(tasks => {
                     if (tasks.length === 0) {
@@ -476,7 +500,7 @@
 
         // Render S-Curve Chart
         function renderSCurveChart() {
-            fetch('/api/s-curve')
+            fetch(backendUrl + '/api/s-curve')
                 .then(res => res.json())
                 .then(data => {
                     const ctx = document.getElementById('sCurveChart').getContext('2d');
@@ -535,7 +559,7 @@
 
         // Update S-Curve Chart values
         function updateSCurveChart() {
-            fetch('/api/s-curve')
+            fetch(backendUrl + '/api/s-curve')
                 .then(res => res.json())
                 .then(data => {
                     if (sCurveChart) {
@@ -555,7 +579,7 @@
                 </p>
             `;
 
-            fetch('/api/ai/risk')
+            fetch(backendUrl + '/api/ai/risk')
                 .then(res => res.json())
                 .then(data => {
                     // Simple markdown to HTML formatter helper
@@ -593,7 +617,7 @@
             const status = document.getElementById('edit-status').value;
             const cond = document.getElementById('edit-cond').value;
 
-            fetch(`/api/tasks/${id}/progress`, {
+            fetch(backendUrl + `/api/tasks/${id}/progress`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -623,7 +647,7 @@
             statusLabel.style.color = 'var(--text-secondary)';
             statusLabel.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> AI đang phân tích cú pháp...`;
 
-            fetch('/api/ai/parse', {
+            fetch(backendUrl + '/api/ai/parse', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: text })
@@ -662,7 +686,7 @@
                 return;
             }
 
-            fetch('/api/spending', {
+            fetch(backendUrl + '/api/spending', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
