@@ -169,6 +169,11 @@ with tabs[1]:
                 "Ngân sách (Trđ)": t["budget"]["ngan_sach_tong"] if t["budget"] else 0.0,
                 "Tiến độ (%)": t["tien_do"],
                 "Trạng thái": reverse_status_mapping.get(t["trang_thai"], t["trang_thai"]),
+                "Kế hoạch tuần": t.get("ke_hoach_tuan") or "-",
+                "Kết quả tuần": t.get("ket_qua_tuan") or "-",
+                "Vướng mắc": t.get("vuong_mac_tuan") or "-",
+                "Cách giải quyết": t.get("cach_giai_quyet") or "-",
+                "Duyệt tuần": t.get("duyet_tuan") or "Chưa duyệt",
                 "Bị khóa": "Bị khóa 🔒" if t["budget"] and t["budget"]["is_locked"] else "Bình thường"
             } for t in tasks])
             
@@ -225,14 +230,43 @@ with tabs[1]:
                         value=curr_task["dieu_kien_ghi_nhan"] or ""
                     )
                 
-                if st.button("Cập nhật tiến độ"):
-                    # Call API to update progress
+                st.markdown("##### 📅 Báo cáo & Phê duyệt tuần")
+                c_w1, c_w2 = st.columns(2)
+                with c_w1:
+                    new_ke_hoach_tuan = st.text_input("Kế hoạch tuần:", value=curr_task.get("ke_hoach_tuan") or "")
+                    new_vuong_mac_tuan = st.text_input("Vướng mắc tuần:", value=curr_task.get("vuong_mac_tuan") or "")
+                with c_w2:
+                    new_ket_qua_tuan = st.text_input("Kết quả tuần:", value=curr_task.get("ket_qua_tuan") or "")
+                    new_cach_giai_quyet = st.text_input("Cách thức giải quyết của CBQL/Phòng ban:", value=curr_task.get("cach_giai_quyet") or "")
+                
+                approval_options = ["Chưa duyệt", "Đã duyệt", "Không duyệt"]
+                curr_approval = curr_task.get("duyet_tuan") if curr_task.get("duyet_tuan") in approval_options else "Chưa duyệt"
+                new_duyet_tuan = st.selectbox(
+                    "Trạng thái duyệt tuần (Dành cho CBQL/Phòng ban):",
+                    approval_options,
+                    index=approval_options.index(curr_approval)
+                )
+                
+                if st.button("Cập nhật tiến độ & tuần"):
+                    # Call API to update full task details including weekly data
                     res = requests.put(
-                        f"{API_URL}/api/tasks/{selected_task_id}/progress?user_role={user_role}",
+                        f"{API_URL}/api/tasks/{selected_task_id}?user_role={user_role}",
                         json={
+                            "ma_ngan_sach": curr_task["ma_ngan_sach"],
+                            "ten_cong_viec": curr_task["ten_cong_viec"],
+                            "phong_ban_thuc_hien": curr_task["phong_ban_thuc_hien"] or "-",
+                            "co_quan_giai_quyet": curr_task["co_quan_giai_quyet"] or "-",
+                            "ho_so_dau_ra": curr_task["ho_so_dau_ra"] or "-",
+                            "dieu_kien_ghi_nhan": new_cond,
+                            "thoi_han_hoan_thanh": curr_task["thoi_han_hoan_thanh"] or "2026-06-30",
                             "tien_do": new_progress,
                             "trang_thai": new_status,
-                            "dieu_kien_ghi_nhan": new_cond
+                            "ngan_sach": curr_task["budget"]["ngan_sach_tong"] if curr_task["budget"] else 0.0,
+                            "ke_hoach_tuan": new_ke_hoach_tuan,
+                            "ket_qua_tuan": new_ket_qua_tuan,
+                            "vuong_mac_tuan": new_vuong_mac_tuan,
+                            "cach_giai_quyet": new_cach_giai_quyet,
+                            "duyet_tuan": new_duyet_tuan
                         }
                     )
                     
@@ -240,7 +274,7 @@ with tabs[1]:
                         st.success(f"Cập nhật công việc {curr_task['stt']} thành công!")
                         st.rerun()
                     else:
-                        st.error(f"LỖI CHỐT CHẶN (PHASE GATE LOOP): {res.json()['detail']}")
+                        st.error(f"LỖI HỆ THỐNG: {res.json()['detail']}")
             st.markdown("---")
             st.markdown("### ➕ Thêm công việc con chi tiết (Mọi Cấp độ)")
             

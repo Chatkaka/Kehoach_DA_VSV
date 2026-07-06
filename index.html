@@ -126,12 +126,17 @@
                             <th style="width: 145px;">Ngân Sách Tổng</th>
                             <th style="width: 120px;">Tiến Độ</th>
                             <th style="width: 120px;">Trạng Thái</th>
+                            <th style="width: 150px;">Kế hoạch tuần</th>
+                            <th style="width: 150px;">Kết quả tuần</th>
+                            <th style="width: 150px;">Vướng mắc tuần</th>
+                            <th style="width: 150px;">Giải quyết</th>
+                            <th style="width: 110px;">Duyệt tuần</th>
                             <th style="width: 130px;">Hành động</th>
                         </tr>
                     </thead>
                     <tbody id="tasks-table-body">
                         <tr>
-                            <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                            <td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                                 <i class="fa-solid fa-spinner fa-spin"></i> Đang tải cơ sở dữ liệu công việc...
                             </td>
                         </tr>
@@ -239,6 +244,42 @@
                 <input type="text" id="edit-cond-custom" class="form-control" placeholder="Tự điền thêm điều kiện khác (phân tách bằng dấu phẩy)...">
             </div>
 
+            <!-- Báo cáo & Phê duyệt tuần -->
+            <div style="border-top: 1px solid var(--panel-border); margin: 15px 0; padding-top: 15px;">
+                <h4 style="font-size: 0.9rem; color: var(--secondary); margin-bottom: 10px;"><i class="fa-solid fa-calendar-week"></i> Báo Cáo & Phê Duyệt Tuần</h4>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="edit-ke-hoach-tuan">Kế hoạch tuần</label>
+                        <input type="text" id="edit-ke-hoach-tuan" class="form-control" placeholder="-">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-ket-qua-tuan">Kết quả tuần</label>
+                        <input type="text" id="edit-ket-qua-tuan" class="form-control" placeholder="-">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="edit-vuong-mac-tuan">Vướng mắc tuần</label>
+                        <input type="text" id="edit-vuong-mac-tuan" class="form-control" placeholder="-">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-cach-giai-quyet">Cách thức giải quyết của CBQL/Phòng ban</label>
+                        <input type="text" id="edit-cach-giai-quyet" class="form-control" placeholder="-">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-duyet-tuan">Cấp Quản Lý (CBQL) Duyệt Tuần</label>
+                    <select id="edit-duyet-tuan" class="form-control" style="border: 1px solid var(--primary);">
+                        <option value="Chưa duyệt">⏳ Chưa duyệt (Chờ phê duyệt)</option>
+                        <option value="Đã duyệt">✅ Đã duyệt (Approved)</option>
+                        <option value="Không duyệt">❌ Không duyệt (Rejected)</option>
+                    </select>
+                </div>
+            </div>
+
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
                 <button class="btn secondary-btn" onclick="closeEditModal()">Hủy</button>
                 <button class="btn" onclick="saveTaskProgress()">Lưu Thay Đổi</button>
@@ -331,15 +372,22 @@
     <div id="settings-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:101; justify-content:center; align-items:center;">
         <div class="panel" style="width: 450px; max-width: 90%;">
             <div class="panel-header">
-                <span class="panel-title"><i class="fa-solid fa-gear"></i> Cấu Hình Địa Chỉ Backend</span>
+                <span class="panel-title"><i class="fa-solid fa-gear"></i> Cấu Hình Hệ Thống</span>
                 <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeSettingsModal()"></i>
             </div>
             <div class="form-group" style="margin-top: 15px;">
                 <label for="settings-backend-url">Địa chỉ Backend API</label>
                 <input type="text" id="settings-backend-url" class="form-control" placeholder="Ví dụ: http://127.0.0.1:8000">
                 <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.4;">
-                    * Mặc định là <code>http://127.0.0.1:8000</code>. Nếu bạn đang chạy ứng dụng trực tuyến qua GitHub Pages (HTTPS), hãy đảm bảo backend có chứng chỉ SSL (HTTPS/WSS) hoặc chạy file <code>index.html</code> trực tiếp offline để không bị trình duyệt chặn bảo mật (Mixed Content).
+                    * Mặc định là <code>http://127.0.0.1:8000</code>.
                 </p>
+            </div>
+            <div class="form-group" style="margin-top: 10px;">
+                <label for="settings-user-role">Quyền Hạn Truy Cập</label>
+                <select id="settings-user-role" class="form-control">
+                    <option value="CBQL">💼 Ban Quản lý Dự án (PM / CBQL / Admin)</option>
+                    <option value="NhanVien">👤 Nhân viên thực hiện (Chỉ báo cáo tuần)</option>
+                </select>
             </div>
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
                 <button class="btn secondary-btn" onclick="closeSettingsModal()">Hủy</button>
@@ -552,7 +600,7 @@
             const tableBody = document.getElementById('tasks-table-body');
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                         <i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu Phase ${phaseId}...
                     </td>
                 </tr>
@@ -561,8 +609,9 @@
             fetch(backendUrl + `/api/tasks?phase_id=${phaseId}`)
                 .then(res => res.json())
                 .then(tasks => {
+                    window.currentTasks = tasks; // Save to global cache
                     if (tasks.length === 0) {
-                        tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">Không tìm thấy công việc nào.</td></tr>`;
+                        tableBody.innerHTML = `<tr><td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">Không tìm thấy công việc nào.</td></tr>`;
                         return;
                     }
 
@@ -585,7 +634,7 @@
                         const lockedIcon = (task.budget && task.budget.is_locked) ? '<i class="fa-solid fa-lock" style="color:var(--danger); margin-left:6px;" title="Mã ngân sách đã bị khóa do vượt chi"></i>' : '';
 
                         const addBtn = `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-plus"></i></button>`;
-                        const editBtn = `<button class="action-btn" onclick="openEditModal(${task.id}, '${task.ten_cong_viec.replace(/'/g, "\\'")}', ${task.tien_do}, '${task.trang_thai}', '${(task.dieu_kien_ghi_nhan || "").replace(/'/g, "\\'")}', '${task.ma_ngan_sach}', '${task.phong_ban_thuc_hien || ""}', '${(task.ho_so_dau_ra || "").replace(/'/g, "\\'")}', '${task.thoi_han_hoan_thanh || ""}', ${task.budget ? task.budget.ngan_sach_tong : 0})" title="Chỉnh sửa" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-pen-to-square"></i></button>`;
+                        const editBtn = `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-pen-to-square"></i></button>`;
                         const deleteBtn = `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem;"><i class="fa-solid fa-trash"></i></button>`;
 
                         tr.innerHTML = `
@@ -607,6 +656,15 @@
                             <td class="status-cell">
                                 <span class="badge ${task.trang_thai.toLowerCase()}">${getStatusTextVietnamese(task.trang_thai)}</span>
                             </td>
+                            <td>${task.ke_hoach_tuan || '-'}</td>
+                            <td>${task.ket_qua_tuan || '-'}</td>
+                            <td>${task.vuong_mac_tuan || '-'}</td>
+                            <td>${task.cach_giai_quyet || '-'}</td>
+                            <td>
+                                <span class="badge ${task.duyet_tuan === 'Đã duyệt' ? 'done' : (task.duyet_tuan === 'Không duyệt' ? 'delayed' : 'todo')}">
+                                    ${task.duyet_tuan || 'Chưa duyệt'}
+                                </span>
+                            </td>
                             <td style="display:flex; align-items:center;">
                                 ${addBtn}
                                 ${editBtn}
@@ -618,7 +676,7 @@
                 })
                 .catch(err => {
                     console.error("Error loading tasks:", err);
-                    tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--danger);">Không thể kết nối tới cơ sở dữ liệu.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="15" style="text-align: center; padding: 40px; color: var(--danger);">Không thể kết nối tới cơ sở dữ liệu.</td></tr>`;
                 });
         }
 
@@ -740,36 +798,57 @@
 
         // Open edit modal
         function openEditModal(id, name, progress, status, cond, wbs, dept, deliverables, deadline, budget) {
-            document.getElementById('edit-id').value = id;
-            document.getElementById('edit-task-stt').innerText = wbs ? '(' + wbs + ')' : '';
-            document.getElementById('edit-wbs').value = wbs || '';
-            document.getElementById('edit-name').value = name || '';
+            let task = null;
+            if (window.currentTasks) {
+                task = window.currentTasks.find(t => t.id === id);
+            }
+            if (!task) {
+                // fallback to params
+                task = {
+                    id: id,
+                    ten_cong_viec: name,
+                    tien_do: progress,
+                    trang_thai: status,
+                    dieu_kien_ghi_nhan: cond,
+                    ma_ngan_sach: wbs,
+                    phong_ban_thuc_hien: dept,
+                    ho_so_dau_ra: deliverables,
+                    thoi_han_hoan_thanh: deadline,
+                    budget: { ngan_sach_tong: budget },
+                    ke_hoach_tuan: "",
+                    ket_qua_tuan: "",
+                    vuong_mac_tuan: "",
+                    cach_giai_quyet: "",
+                    duyet_tuan: "Chưa duyệt"
+                };
+            }
+
+            document.getElementById('edit-id').value = task.id;
+            document.getElementById('edit-task-stt').innerText = task.ma_ngan_sach ? '(' + task.ma_ngan_sach + ')' : '';
+            document.getElementById('edit-wbs').value = task.ma_ngan_sach || '';
+            document.getElementById('edit-name').value = task.ten_cong_viec || '';
             
             // Set dropdown for department
             const deptSelect = document.getElementById('edit-dept');
-            if (dept) {
-                // Ensure value exists in option list or set to first
-                let optionExists = Array.from(deptSelect.options).some(opt => opt.value === dept);
-                if (optionExists) {
-                    deptSelect.value = dept;
-                } else {
-                    // dynamically append if it is a new department
-                    const opt = document.createElement('option');
-                    opt.value = dept;
-                    opt.text = dept;
-                    deptSelect.add(opt);
-                    deptSelect.value = dept;
-                }
+            const deptVal = task.phong_ban_thuc_hien || 'PTDA';
+            let optionExists = Array.from(deptSelect.options).some(opt => opt.value === deptVal);
+            if (optionExists) {
+                deptSelect.value = deptVal;
             } else {
-                deptSelect.value = 'PTDA';
+                const opt = document.createElement('option');
+                opt.value = deptVal;
+                opt.text = deptVal;
+                deptSelect.add(opt);
+                deptSelect.value = deptVal;
             }
 
             // Parse & set checkboxes/custom field for Deliverables (Hồ sơ đầu ra)
             const deliverableChks = document.querySelectorAll('.deliverable-chk');
             deliverableChks.forEach(chk => chk.checked = false);
             document.getElementById('edit-deliverables-custom').value = "";
-            if (deliverables) {
-                const items = deliverables.split(/[,;]/).map(x => x.trim()).filter(Boolean);
+            const deliverablesVal = task.ho_so_dau_ra;
+            if (deliverablesVal) {
+                const items = deliverablesVal.split(/[,;]/).map(x => x.trim()).filter(Boolean);
                 const customItems = [];
                 items.forEach(item => {
                     let matched = false;
@@ -788,11 +867,12 @@
 
             // Parse & set Date Picker for Deadline
             let formattedDeadline = "";
-            if (deadline) {
-                if (deadline.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    formattedDeadline = deadline;
-                } else if (deadline.match(/^Tháng (\d{2})\/(\d{4})$/)) {
-                    const match = deadline.match(/^Tháng (\d{2})\/(\d{4})$/);
+            const deadlineVal = task.thoi_han_hoan_thanh;
+            if (deadlineVal) {
+                if (deadlineVal.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    formattedDeadline = deadlineVal;
+                } else if (deadlineVal.match(/^Tháng (\d{2})\/(\d{4})$/)) {
+                    const match = deadlineVal.match(/^Tháng (\d{2})\/(\d{4})$/);
                     const month = parseInt(match[1]);
                     const year = parseInt(match[2]);
                     const lastDay = new Date(year, month, 0).getDate();
@@ -805,16 +885,17 @@
             }
             document.getElementById('edit-deadline').value = formattedDeadline;
 
-            document.getElementById('edit-budget').value = budget || 0;
-            document.getElementById('edit-progress').value = progress;
-            document.getElementById('edit-status').value = status;
+            document.getElementById('edit-budget').value = (task.budget ? task.budget.ngan_sach_tong : 0) || 0;
+            document.getElementById('edit-progress').value = task.tien_do || 0;
+            document.getElementById('edit-status').value = task.trang_thai || 'Todo';
 
             // Parse & set checkboxes/custom field for Conditions (Điều kiện ghi nhận)
             const condChks = document.querySelectorAll('.cond-chk');
             condChks.forEach(chk => chk.checked = false);
             document.getElementById('edit-cond-custom').value = "";
-            if (cond) {
-                const items = cond.split(/[,;]/).map(x => x.trim()).filter(Boolean);
+            const condVal = task.dieu_kien_ghi_nhan;
+            if (condVal) {
+                const items = condVal.split(/[,;]/).map(x => x.trim()).filter(Boolean);
                 const customItems = [];
                 items.forEach(item => {
                     let matched = false;
@@ -829,6 +910,29 @@
                     }
                 });
                 document.getElementById('edit-cond-custom').value = customItems.join(', ');
+            }
+
+            // Populate weekly reporting fields
+            document.getElementById('edit-ke-hoach-tuan').value = task.ke_hoach_tuan || '';
+            document.getElementById('edit-ket-qua-tuan').value = task.ket_qua_tuan || '';
+            document.getElementById('edit-vuong-mac-tuan').value = task.vuong_mac_tuan || '';
+            document.getElementById('edit-cach-giai-quyet').value = task.cach_giai_quyet || '';
+            document.getElementById('edit-duyet-tuan').value = task.duyet_tuan || 'Chưa duyệt';
+
+            // Apply role permissions to form fields
+            const userRole = localStorage.getItem('user_role') || 'CBQL';
+            if (userRole === 'NhanVien') {
+                document.getElementById('edit-duyet-tuan').disabled = true;
+                document.getElementById('edit-cach-giai-quyet').disabled = true;
+                document.getElementById('edit-ke-hoach-tuan').disabled = false;
+                document.getElementById('edit-ket-qua-tuan').disabled = false;
+                document.getElementById('edit-vuong-mac-tuan').disabled = false;
+            } else {
+                document.getElementById('edit-duyet-tuan').disabled = false;
+                document.getElementById('edit-cach-giai-quyet').disabled = false;
+                document.getElementById('edit-ke-hoach-tuan').disabled = false;
+                document.getElementById('edit-ket-qua-tuan').disabled = false;
+                document.getElementById('edit-vuong-mac-tuan').disabled = false;
             }
 
             document.getElementById('edit-task-modal').style.display = 'flex';
@@ -871,6 +975,13 @@
             }
             const cond = selectedConds.join(', ');
 
+            // Gather weekly tracking and approval fields
+            const keHoachTuan = document.getElementById('edit-ke-hoach-tuan').value.trim();
+            const ketQuaTuan = document.getElementById('edit-ket-qua-tuan').value.trim();
+            const vuongMacTuan = document.getElementById('edit-vuong-mac-tuan').value.trim();
+            const cachGiaiQuyet = document.getElementById('edit-cach-giai-quyet').value.trim();
+            const duyetTuan = document.getElementById('edit-duyet-tuan').value;
+
             fetch(backendUrl + `/api/tasks/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -884,7 +995,12 @@
                     thoi_han_hoan_thanh: deadline,
                     tien_do: progress,
                     trang_thai: status,
-                    ngan_sach: budget
+                    ngan_sach: budget,
+                    ke_hoach_tuan: keHoachTuan,
+                    ket_qua_tuan: ketQuaTuan,
+                    vuong_mac_tuan: vuongMacTuan,
+                    cach_giai_quyet: cachGiaiQuyet,
+                    duyet_tuan: duyetTuan
                 })
             })
             .then(async res => {
@@ -1005,6 +1121,7 @@
 
         function openSettingsModal() {
             document.getElementById('settings-backend-url').value = localStorage.getItem('backend_url') || 'http://127.0.0.1:8000';
+            document.getElementById('settings-user-role').value = localStorage.getItem('user_role') || 'CBQL';
             document.getElementById('settings-modal').style.display = 'flex';
         }
 
@@ -1017,7 +1134,9 @@
             if (url.endsWith('/')) {
                 url = url.slice(0, -1);
             }
+            const role = document.getElementById('settings-user-role').value;
             localStorage.setItem('backend_url', url);
+            localStorage.setItem('user_role', role);
             closeSettingsModal();
             window.location.reload();
         }

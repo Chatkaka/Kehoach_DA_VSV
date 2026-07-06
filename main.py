@@ -150,6 +150,11 @@ def get_tasks(
             "thoi_han_hoan_thanh": t.thoi_han_hoan_thanh,
             "tien_do": t.tien_do,
             "trang_thai": t.trang_thai,
+            "ke_hoach_tuan": t.ke_hoach_tuan,
+            "ket_qua_tuan": t.ket_qua_tuan,
+            "vuong_mac_tuan": t.vuong_mac_tuan,
+            "cach_giai_quyet": t.cach_giai_quyet,
+            "duyet_tuan": t.duyet_tuan,
             "budget": {
                 "ngan_sach_tong": t.budget.ngan_sach_tong if t.budget else 0.0,
                 "is_locked": t.budget.is_locked if t.budget else False
@@ -160,6 +165,9 @@ def get_tasks(
 
 @app.get("/api/tasks/export")
 def export_tasks_to_excel(db: Session = Depends(database.get_db)):
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.formatting.rule import DataBarRule
+    
     tasks = db.query(models.Task).all()
     # Sort them by STT hierarchically
     tasks = sorted(tasks, key=lambda x: [int(i) if i.isdigit() else 999 for i in x.stt.split('.')])
@@ -183,7 +191,12 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
             "Thời hạn hoàn thành": t.thoi_han_hoan_thanh or "-",
             "Điều kiện ghi nhận kết quả": t.dieu_kien_ghi_nhan or "-",
             "Ngân sách tổng (Trđ)": budget_val,
-            "Tiến độ (%)": t.tien_do,
+            "Tiến độ (%)": (t.tien_do / 100.0) if t.tien_do else 0.0,
+            "Kế hoạch tuần": t.ke_hoach_tuan or "-",
+            "Kết quả tuần": t.ket_qua_tuan or "-",
+            "Vướng mắc tuần": t.vuong_mac_tuan or "-",
+            "Giải quyết của CBQL/Phòng ban": t.cach_giai_quyet or "-",
+            "Duyệt tuần": t.duyet_tuan or "Chưa duyệt",
             "Trạng thái": t.trang_thai
         })
         
@@ -195,10 +208,91 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
         
         workbook = writer.book
         worksheet = writer.sheets["Ke_hoach_cong_viec"]
+        
+        # Freeze header row
+        worksheet.freeze_panes = 'A2'
+        
+        # Border styles
+        thin_border = Border(
+            left=Side(style='thin', color='DDDDDD'),
+            right=Side(style='thin', color='DDDDDD'),
+            top=Side(style='thin', color='DDDDDD'),
+            bottom=Side(style='thin', color='DDDDDD')
+        )
+        
+        # Color palettes
+        header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+        level1_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid") # Dark Blue
+        level2_fill = PatternFill(start_color="E0F2FE", end_color="E0F2FE", fill_type="solid") # Sky blue 100
+        level3_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid") # Slate 50
+        
+        # Font configurations
+        header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+        level1_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+        level2_font = Font(name="Segoe UI", size=10, bold=True, color="0369A1")
+        level3_font = Font(name="Segoe UI", size=10, bold=False, color="1E293B")
+        standard_font = Font(name="Segoe UI", size=10, bold=False, color="334155")
+        
+        # Style Header
+        worksheet.row_dimensions[1].height = 28
+        for cell in worksheet[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = thin_border
+            
+        # Style Rows
+        for row_idx, row in enumerate(worksheet.iter_rows(min_row=2, max_row=len(tasks) + 1), start=2):
+            task_level = row[1].value  # "Cấp" is Column B (index 1)
+            worksheet.row_dimensions[row_idx].height = 22
+            
+            # Select level styling
+            if task_level == 1:
+                row_fill = level1_fill
+                row_font = level1_font
+            elif task_level == 2:
+                row_fill = level2_fill
+                row_font = level2_font
+            elif task_level == 3:
+                row_fill = level3_fill
+                row_font = level3_font
+            else:
+                row_fill = None
+                row_font = standard_font
+                
+            for col_idx, cell in enumerate(row):
+                if row_fill:
+                    cell.fill = row_fill
+                cell.font = row_font
+                cell.border = thin_border
+                
+                # Alignments
+                if col_idx in [0, 1, 2, 6, 14, 15]:  # STT, Cấp, WBS, Thời hạn, Duyệt tuần, Trạng thái
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                elif col_idx in [8]:  # Ngân sách
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif col_idx in [9]:  # Tiến độ
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                else:
+                    cell.alignment = Alignment(horizontal="left", vertical="center")
+                    
+            # Number formats
+            row[8].number_format = '#,##0.00" Trđ"'
+            row[9].number_format = '0.0%'
+            
+        # Add Progress Data Bar (Green color 10B981)
+        data_bar_rule = DataBarRule(start_type='num', start_value=0, end_type='num', end_value=1.0, color="10B981", showValue=True)
+        worksheet.conditional_formatting.add(f"J2:J{len(tasks)+1}", data_bar_rule)
+        
+        # Auto-adjust column widths
         for col in worksheet.columns:
             max_len = max(len(str(cell.value or '')) for cell in col)
             col_letter = openpyxl.utils.get_column_letter(col[0].column)
-            worksheet.column_dimensions[col_letter].width = max(max_len + 3, 10)
+            # Give column D (indented name) extra width
+            if col_letter == 'D':
+                worksheet.column_dimensions[col_letter].width = max(max_len + 8, 30)
+            else:
+                worksheet.column_dimensions[col_letter].width = max(max_len + 4, 12)
             
     output.seek(0)
     
@@ -761,6 +855,11 @@ class TaskUpdate(BaseModel):
     tien_do: float
     trang_thai: str
     ngan_sach: float
+    ke_hoach_tuan: Optional[str] = ""
+    ket_qua_tuan: Optional[str] = ""
+    vuong_mac_tuan: Optional[str] = ""
+    cach_giai_quyet: Optional[str] = ""
+    duyet_tuan: Optional[str] = "Chưa duyệt"
 
 @app.put("/api/tasks/{task_id}")
 async def update_task_details(task_id: int, request: TaskUpdate, db: Session = Depends(database.get_db)):
@@ -782,6 +881,11 @@ async def update_task_details(task_id: int, request: TaskUpdate, db: Session = D
     task.thoi_han_hoan_thanh = request.thoi_han_hoan_thanh.strip()
     task.tien_do = request.tien_do
     task.trang_thai = request.trang_thai
+    task.ke_hoach_tuan = request.ke_hoach_tuan.strip() if request.ke_hoach_tuan else ""
+    task.ket_qua_tuan = request.ket_qua_tuan.strip() if request.ket_qua_tuan else ""
+    task.vuong_mac_tuan = request.vuong_mac_tuan.strip() if request.vuong_mac_tuan else ""
+    task.cach_giai_quyet = request.cach_giai_quyet.strip() if request.cach_giai_quyet else ""
+    task.duyet_tuan = request.duyet_tuan.strip() if request.duyet_tuan else "Chưa duyệt"
     
     if task.budget:
         task.budget.ngan_sach_tong = request.ngan_sach
@@ -811,6 +915,11 @@ async def update_task_details(task_id: int, request: TaskUpdate, db: Session = D
         "thoi_han_hoan_thanh": task.thoi_han_hoan_thanh,
         "tien_do": task.tien_do,
         "trang_thai": task.trang_thai,
+        "ke_hoach_tuan": task.ke_hoach_tuan,
+        "ket_qua_tuan": task.ket_qua_tuan,
+        "vuong_mac_tuan": task.vuong_mac_tuan,
+        "cach_giai_quyet": task.cach_giai_quyet,
+        "duyet_tuan": task.duyet_tuan,
         "budget": {
             "ngan_sach_tong": task.budget.ngan_sach_tong if task.budget else 0.0,
             "is_locked": task.budget.is_locked if task.budget else False
