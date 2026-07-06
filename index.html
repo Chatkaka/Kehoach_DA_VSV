@@ -94,54 +94,103 @@
             </div>
         </div>
 
-        <!-- WBS & Tasks Table -->
-        <div class="panel wbs-section">
-            <div class="panel-header" style="margin-bottom: 10px;">
-                <span class="panel-title"><i class="fa-solid fa-sitemap"></i> Cấu trúc Phân rã Công việc (WBS) & Tiến độ 4 Giai đoạn</span>
-            </div>
-            
-            <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <div class="phase-filters" id="phase-filters-container" style="display: flex; gap: 8px;">
-                    <button class="filter-btn active" onclick="changePhase(1)">Giai đoạn 1: Pháp lý & Thiết kế</button>
-                    <button class="filter-btn" onclick="changePhase(2)">Giai đoạn 2: Thi công xây dựng</button>
-                    <button class="filter-btn" onclick="changePhase(3)">Giai đoạn 3: Nghiệm thu bàn giao</button>
-                    <button class="filter-btn" onclick="changePhase(4)">Giai đoạn 4: Cấp bìa sổ hồng</button>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()" style="margin: 0;">
-                    <button class="btn" onclick="exportToExcel()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
-                </div>
-            </div>
+        <!-- Navigation Tabs -->
+        <div class="tabs-nav">
+            <button class="tab-nav-btn active" onclick="switchTab('wbs-tab', this)"><i class="fa-solid fa-sitemap"></i> Cấu trúc WBS & Tiến độ</button>
+            <button class="tab-nav-btn" onclick="switchTab('weekly-tab', this)"><i class="fa-solid fa-calendar-week"></i> Báo Cáo Kế Hoạch & Duyệt Báo Cáo Tuần</button>
+        </div>
 
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 100px;">STT / Cấp</th>
-                            <th style="width: 130px;">Mã Ngân Sách</th>
-                            <th>Nội dung công việc</th>
-                            <th style="width: 140px;">Công ty / Phòng ban</th>
-                            <th style="width: 160px;">Hồ sơ đầu ra</th>
-                            <th style="width: 130px;">Thời hạn</th>
-                            <th style="width: 145px;">Ngân Sách Tổng</th>
-                            <th style="width: 120px;">Tiến Độ</th>
-                            <th style="width: 120px;">Trạng Thái</th>
-                            <th style="width: 150px;">Kế hoạch tuần</th>
-                            <th style="width: 150px;">Kết quả tuần</th>
-                            <th style="width: 150px;">Vướng mắc tuần</th>
-                            <th style="width: 150px;">Giải quyết</th>
-                            <th style="width: 110px;">Duyệt tuần</th>
-                            <th style="width: 130px;">Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tasks-table-body">
-                        <tr>
-                            <td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">
-                                <i class="fa-solid fa-spinner fa-spin"></i> Đang tải cơ sở dữ liệu công việc...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div id="wbs-tab" class="tab-content">
+            <!-- WBS & Tasks Table -->
+            <div class="panel wbs-section">
+                <div class="panel-header" style="margin-bottom: 10px;">
+                    <span class="panel-title"><i class="fa-solid fa-sitemap"></i> Cấu trúc Phân rã Công việc (WBS) & Tiến độ 4 Giai đoạn</span>
+                </div>
+                
+                <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div class="phase-filters" id="phase-filters-container" style="display: flex; gap: 8px;">
+                        <button class="filter-btn active" onclick="changePhase(1)">Giai đoạn 1: Pháp lý & Thiết kế</button>
+                        <button class="filter-btn" onclick="changePhase(2)">Giai đoạn 2: Thi công xây dựng</button>
+                        <button class="filter-btn" onclick="changePhase(3)">Giai đoạn 3: Nghiệm thu bàn giao</button>
+                        <button class="filter-btn" onclick="changePhase(4)">Giai đoạn 4: Cấp bìa sổ hồng</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()" style="margin: 0;">
+                        <button class="btn" onclick="exportToExcel()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">STT / Cấp</th>
+                                <th style="width: 130px;">Mã Ngân Sách</th>
+                                <th>Nội dung công việc</th>
+                                <th style="width: 140px;">Công ty / Phòng ban</th>
+                                <th style="width: 160px;">Hồ sơ đầu ra</th>
+                                <th style="width: 130px;">Thời hạn</th>
+                                <th style="width: 145px;">Ngân Sách Tổng</th>
+                                <th style="width: 120px;">Tiến Độ</th>
+                                <th style="width: 120px;">Trạng Thái</th>
+                                <th style="width: 150px;">Kế hoạch tuần</th>
+                                <th style="width: 150px;">Kết quả tuần</th>
+                                <th style="width: 150px;">Vướng mắc tuần</th>
+                                <th style="width: 150px;">Giải quyết</th>
+                                <th style="width: 110px;">Duyệt tuần</th>
+                                <th style="width: 130px;">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasks-table-body">
+                            <tr>
+                                <td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                    <i class="fa-solid fa-spinner fa-spin"></i> Đang tải cơ sở dữ liệu công việc...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="weekly-tab" class="tab-content" style="display:none;">
+            <div class="panel">
+                <div class="panel-header" style="margin-bottom: 10px;">
+                    <span class="panel-title" style="color:var(--secondary);"><i class="fa-solid fa-calendar-week"></i> Khai Báo Kế Hoạch & Duyệt Báo Cáo Tuần Chi Tiết</span>
+                </div>
+                
+                <div class="filter-bar" style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:15px; flex-wrap:wrap;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="filter-btn active" id="weekly-filter-all" onclick="filterWeeklyApproval('All')">Tất cả</button>
+                        <button class="filter-btn" id="weekly-filter-pending" onclick="filterWeeklyApproval('Chưa duyệt')" style="color:var(--warning);">⏳ Chưa duyệt</button>
+                        <button class="filter-btn" id="weekly-filter-approved" onclick="filterWeeklyApproval('Đã duyệt')" style="color:var(--success);">✅ Đã duyệt</button>
+                        <button class="filter-btn" id="weekly-filter-rejected" onclick="filterWeeklyApproval('Không duyệt')" style="color:var(--danger);">❌ Không duyệt</button>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="text" class="search-input" id="weekly-search-input" placeholder="Tìm theo tên công việc, WBS..." onkeyup="searchWeeklyTasks()" style="margin:0;">
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 110px;">Mã WBS / STT</th>
+                                <th>Tên công việc</th>
+                                <th style="width: 130px;">Phòng ban thực hiện</th>
+                                <th style="width: 200px;">Kế hoạch tuần</th>
+                                <th style="width: 200px;">Kết quả tuần</th>
+                                <th style="width: 200px;">Vướng mắc tuần</th>
+                                <th style="width: 200px;">Giải quyết của CBQL/Phòng ban</th>
+                                <th style="width: 120px;">Duyệt tuần</th>
+                                <th style="width: 140px;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weekly-table-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -1222,6 +1271,187 @@
                 }
             })
             .catch(err => console.error("Error submitting spending:", err));
+        }
+
+        // Tab Switching logic
+        function switchTab(tabId, btnEl) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.getElementById(tabId).style.display = 'block';
+            
+            document.querySelectorAll('.tab-nav-btn').forEach(btn => btn.classList.remove('active'));
+            if (btnEl) {
+                btnEl.classList.add('active');
+            } else {
+                const btns = document.querySelectorAll('.tab-nav-btn');
+                if (tabId === 'wbs-tab') btns[0].classList.add('active');
+                else if (tabId === 'weekly-tab') btns[1].classList.add('active');
+            }
+            
+            if (tabId === 'weekly-tab') {
+                loadWeeklyTabContent();
+            }
+        }
+
+        // Weekly Declaration and Approval tab logic
+        let weeklyFilterStatus = 'All';
+
+        function filterWeeklyApproval(status) {
+            weeklyFilterStatus = status;
+            document.querySelectorAll('#weekly-tab .filter-btn').forEach(btn => btn.classList.remove('active'));
+            
+            if (status === 'All') document.getElementById('weekly-filter-all').classList.add('active');
+            else if (status === 'Chưa duyệt') document.getElementById('weekly-filter-pending').classList.add('active');
+            else if (status === 'Đã duyệt') document.getElementById('weekly-filter-approved').classList.add('active');
+            else if (status === 'Không duyệt') document.getElementById('weekly-filter-rejected').classList.add('active');
+            
+            renderWeeklyTable();
+        }
+
+        function loadWeeklyTabContent() {
+            const tableBody = document.getElementById('weekly-table-body');
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu kế hoạch tuần...
+                    </td>
+                </tr>
+            `;
+
+            fetch(backendUrl + '/api/tasks')
+                .then(res => res.json())
+                .then(tasks => {
+                    window.allProjectTasks = tasks;
+                    renderWeeklyTable();
+                })
+                .catch(err => {
+                    console.error("Error loading weekly tasks:", err);
+                    tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--danger);">Lỗi tải dữ liệu máy chủ.</td></tr>`;
+                });
+        }
+
+        function renderWeeklyTable() {
+            const tableBody = document.getElementById('weekly-table-body');
+            if (!window.allProjectTasks) return;
+
+            let filtered = window.allProjectTasks;
+            
+            // Only show level 2 or level 3 tasks for weekly reporting (Level 1 is phase gates)
+            filtered = filtered.filter(t => t.level >= 2);
+
+            // Filter by approval status
+            if (weeklyFilterStatus !== 'All') {
+                filtered = filtered.filter(t => (t.duyet_tuan || 'Chưa duyệt') === weeklyFilterStatus);
+            }
+
+            // Filter by search bar value
+            const searchVal = document.getElementById('weekly-search-input').value.toLowerCase();
+            if (searchVal) {
+                filtered = filtered.filter(t => 
+                    t.ten_cong_viec.toLowerCase().includes(searchVal) ||
+                    t.ma_ngan_sach.toLowerCase().includes(searchVal) ||
+                    t.stt.toLowerCase().includes(searchVal)
+                );
+            }
+
+            // Sort hierarchically
+            filtered.sort((a, b) => {
+                return a.stt.localeCompare(b.stt, undefined, {numeric: true, sensitivity: 'base'});
+            });
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">Không có báo cáo tuần nào phù hợp.</td></tr>`;
+                return;
+            }
+
+            const userRole = localStorage.getItem('user_role') || 'CBQL';
+
+            tableBody.innerHTML = '';
+            filtered.forEach(task => {
+                const tr = document.createElement('tr');
+                tr.id = `weekly-row-${task.id}`;
+
+                let actionBtn = '';
+                if (userRole === 'NhanVien') {
+                    actionBtn = `<button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: var(--secondary);" onclick="openEditModal(${task.id})"><i class="fa-solid fa-file-pen"></i> Báo cáo</button>`;
+                } else {
+                    actionBtn = `
+                        <div style="display:flex; gap:4px;">
+                            <button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: var(--success);" onclick="quickApproveWeekly(${task.id}, 'Đã duyệt')" title="Duyệt nhanh"><i class="fa-solid fa-check"></i> Duyệt</button>
+                            <button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: var(--danger);" onclick="quickApproveWeekly(${task.id}, 'Không duyệt')" title="Từ chối"><i class="fa-solid fa-xmark"></i> Bác</button>
+                            <button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: var(--primary);" onclick="openEditModal(${task.id})" title="Sửa & Cho giải pháp"><i class="fa-solid fa-pen-to-square"></i></button>
+                        </div>
+                    `;
+                }
+
+                tr.innerHTML = `
+                    <td>${task.stt}<br><code style="font-size:0.75rem;">${task.ma_ngan_sach}</code></td>
+                    <td style="font-weight:600;">${task.ten_cong_viec}</td>
+                    <td><span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-primary);">${task.phong_ban_thuc_hien || '-'}</span></td>
+                    <td>${task.ke_hoach_tuan || '<em style="color:var(--text-secondary);">Trống</em>'}</td>
+                    <td>${task.ket_qua_tuan || '<em style="color:var(--text-secondary);">Trống</em>'}</td>
+                    <td>${task.vuong_mac_tuan || '<em style="color:var(--text-secondary);">Trống</em>'}</td>
+                    <td>${task.cach_giai_quyet || '<em style="color:var(--text-secondary);">Chưa có</em>'}</td>
+                    <td>
+                        <span class="badge ${task.duyet_tuan === 'Đã duyệt' ? 'done' : (task.duyet_tuan === 'Không duyệt' ? 'delayed' : 'todo')}">
+                            ${task.duyet_tuan || 'Chưa duyệt'}
+                        </span>
+                    </td>
+                    <td>${actionBtn}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function searchWeeklyTasks() {
+            renderWeeklyTable();
+        }
+
+        function quickApproveWeekly(taskId, status) {
+            // Find task in local cache
+            const task = window.allProjectTasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            let solution = task.cach_giai_quyet || '';
+            if (status === 'Không duyệt') {
+                const reason = prompt("Nhập lý do từ chối hoặc hướng dẫn điều chỉnh cho nhân viên:", solution);
+                if (reason === null) return; 
+                solution = reason;
+            } else if (status === 'Đã duyệt' && !solution) {
+                solution = "CBQL đã duyệt ghi nhận báo cáo.";
+            }
+
+            fetch(backendUrl + `/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ma_ngan_sach: task.ma_ngan_sach,
+                    ten_cong_viec: task.ten_cong_viec,
+                    phong_ban_thuc_hien: task.phong_ban_thuc_hien || '-',
+                    co_quan_giai_quyet: '-',
+                    ho_so_dau_ra: task.ho_so_dau_ra || '-',
+                    dieu_kien_ghi_nhan: task.dieu_kien_ghi_nhan || '-',
+                    thoi_han_hoan_thanh: task.thoi_han_hoan_thanh || '2026-06-30',
+                    tien_do: task.tien_do,
+                    trang_thai: task.trang_thai,
+                    ngan_sach: task.budget ? task.budget.ngan_sach_tong : 0,
+                    ke_hoach_tuan: task.ke_hoach_tuan || '',
+                    ket_qua_tuan: task.ket_qua_tuan || '',
+                    vuong_mac_tuan: task.vuong_mac_tuan || '',
+                    cach_giai_quyet: solution,
+                    duyet_tuan: status
+                })
+            })
+            .then(async res => {
+                if (res.ok) {
+                    loadWeeklyTabContent();
+                    fetchStats();
+                    fetchTasks(currentPhase);
+                } else {
+                    const errData = await res.json();
+                    alert(`Lỗi phê duyệt: ${errData.detail}`);
+                }
+            })
+            .catch(err => console.error("Error approving weekly task:", err));
         }
     </script>
 </body>

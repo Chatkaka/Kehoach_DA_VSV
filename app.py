@@ -42,7 +42,7 @@ st.caption("Giao diện điều hành & Nhập liệu (Layer 3: Permissions & La
 st.sidebar.header("🔑 PHÂN QUYỀN TRUY CẬP (LAYER 3)")
 user_role = st.sidebar.selectbox(
     "Chọn vai trò của bạn:",
-    ["Ban Quản lý Dự án (PM / Phòng ban)", "Admin / C-Level"]
+    ["Nhân viên thực hiện", "Ban Quản lý Dự án (PM / Phòng ban)", "Admin / C-Level"]
 )
 
 st.sidebar.markdown("---")
@@ -69,6 +69,7 @@ except requests.exceptions.ConnectionError:
 tabs = st.tabs([
     "📊 Dashboard C-Level", 
     "🗺️ Cấu trúc cây WBS", 
+    "📅 Báo cáo & Phê duyệt Tuần",
     "💸 Quản lý Giải ngân", 
     "🤖 Trợ lý AI & Rủi ro"
 ])
@@ -335,8 +336,124 @@ with tabs[1]:
     except Exception as e:
         st.error(f"Lỗi: {e}")
 
-# ----------------- TAB 3: QUẢN LÝ GIẢI NGÂN -----------------
+# ----------------- TAB 3: KHAI BÁO & DUYỆT TUẦN -----------------
 with tabs[2]:
+    st.subheader("📅 Khai báo Kế hoạch tuần, Kết quả tuần và Giải quyết vướng mắc")
+    st.info("Nhân viên thực hiện khai báo kế hoạch, kết quả và vướng mắc tuần. Cấp quản lý/CBQL duyệt và đưa ra cách thức giải quyết.")
+    
+    try:
+        all_tasks = requests.get(f"{API_URL}/api/tasks").json()
+        # Filter level >= 2
+        weekly_tasks = [t for t in all_tasks if t["level"] >= 2]
+        
+        # Filters
+        c_f1, c_f2 = st.columns([1, 2])
+        with c_f1:
+            weekly_status_filter = st.selectbox(
+                "Lọc trạng thái duyệt tuần:",
+                ["Tất cả", "Chưa duyệt", "Đã duyệt", "Không duyệt"],
+                key="weekly_status_filter"
+            )
+        with c_f2:
+            weekly_search = st.text_input("Tìm kiếm tên công việc / WBS:", value="", key="weekly_search")
+            
+        # Apply filters
+        if weekly_status_filter != "Tất cả":
+            weekly_tasks = [t for t in weekly_tasks if (t.get("duyet_tuan") or "Chưa duyệt") == weekly_status_filter]
+        if weekly_search:
+            weekly_tasks = [t for t in weekly_tasks if weekly_search.lower() in t["ten_cong_viec"].lower() or weekly_search.lower() in t["ma_ngan_sach"].lower() or weekly_search.lower() in t["stt"].lower()]
+            
+        # Display table
+        if not weekly_tasks:
+            st.info("Không có báo cáo tuần nào phù hợp.")
+        else:
+            df_weekly = pd.DataFrame([{
+                "STT": t["stt"],
+                "Mã WBS": t["ma_ngan_sach"],
+                "Tên công việc": t["ten_cong_viec"],
+                "Đơn vị": t["phong_ban_thuc_hien"] or "-",
+                "Kế hoạch tuần": t.get("ke_hoach_tuan") or "-",
+                "Kết quả tuần": t.get("ket_qua_tuan") or "-",
+                "Vướng mắc": t.get("vuong_mac_tuan") or "-",
+                "Giải quyết của CBQL": t.get("cach_giai_quyet") or "-",
+                "Trạng thái duyệt": t.get("duyet_tuan") or "Chưa duyệt"
+            } for t in weekly_tasks])
+            
+            # Sort by STT hierarchically
+            df_weekly = df_weekly.sort_values(
+                by="STT", 
+                key=lambda x: x.str.split('.').str.len()
+            )
+            
+            st.dataframe(df_weekly, use_container_width=True, hide_index=True)
+            
+            # Form to update weekly info
+            st.markdown("### 📝 Cập nhật Báo cáo & Phê duyệt Tuần")
+            task_options_weekly = {f"{t['stt']} - {t['ten_cong_viec'][:50]}...": t["id"] for t in weekly_tasks}
+            
+            if task_options_weekly:
+                selected_t_label = st.selectbox("Chọn công việc cần cập nhật báo cáo tuần:", list(task_options_weekly.keys()), key="select_task_weekly")
+                selected_t_id = task_options_weekly[selected_t_label]
+                curr_t = next(t for t in all_tasks if t["id"] == selected_t_id)
+                
+                # Role check
+                is_manager = user_role in ["Ban Quản lý Dự án (PM / Phòng ban)", "Admin / C-Level"]
+                
+                c_edit1, c_edit2 = st.columns(2)
+                with c_edit1:
+                    w_plan = st.text_input("Kế hoạch tuần:", value=curr_t.get("ke_hoach_tuan") or "", key=f"w_plan_{selected_t_id}")
+                    w_obs = st.text_input("Vướng mắc tuần:", value=curr_t.get("vuong_mac_tuan") or "", key=f"w_obs_{selected_t_id}")
+                with c_edit2:
+                    w_result = st.text_input("Kết quả tuần:", value=curr_t.get("ket_qua_tuan") or "", key=f"w_result_{selected_t_id}")
+                    w_sol = st.text_input(
+                        "Cách thức giải quyết của CBQL/Phòng ban:", 
+                        value=curr_t.get("cach_giai_quyet") or "", 
+                        disabled=not is_manager,
+                        key=f"w_sol_{selected_t_id}"
+                    )
+                
+                app_options = ["Chưa duyệt", "Đã duyệt", "Không duyệt"]
+                curr_app = curr_t.get("duyet_tuan") if curr_t.get("duyet_tuan") in app_options else "Chưa duyệt"
+                w_app = st.selectbox(
+                    "Trạng thái duyệt tuần (Chỉ dành cho Cấp quản lý/CBQL):",
+                    app_options,
+                    index=app_options.index(curr_app),
+                    disabled=not is_manager,
+                    key=f"w_app_{selected_t_id}"
+                )
+                
+                if st.button("Lưu báo cáo tuần", key=f"save_weekly_{selected_t_id}"):
+                    res = requests.put(
+                        f"{API_URL}/api/tasks/{selected_t_id}?user_role={user_role}",
+                        json={
+                            "ma_ngan_sach": curr_t["ma_ngan_sach"],
+                            "ten_cong_viec": curr_t["ten_cong_viec"],
+                            "phong_ban_thuc_hien": curr_t["phong_ban_thuc_hien"] or "-",
+                            "co_quan_giai_quyet": curr_t["co_quan_giai_quyet"] or "-",
+                            "ho_so_dau_ra": curr_t["ho_so_dau_ra"] or "-",
+                            "dieu_kien_ghi_nhan": curr_t["dieu_kien_ghi_nhan"] or "-",
+                            "thoi_han_hoan_thanh": curr_t["thoi_han_hoan_thanh"] or "2026-06-30",
+                            "tien_do": curr_t["tien_do"],
+                            "trang_thai": curr_t["trang_thai"],
+                            "ngan_sach": curr_t["budget"]["ngan_sach_tong"] if curr_t["budget"] else 0.0,
+                            "ke_hoach_tuan": w_plan,
+                            "ket_qua_tuan": w_result,
+                            "vuong_mac_tuan": w_obs,
+                            "cach_giai_quyet": w_sol,
+                            "duyet_tuan": w_app
+                        }
+                    )
+                    if res.status_code == 200:
+                        st.success("Cập nhật báo cáo tuần thành công!")
+                        st.rerun()
+                    else:
+                        st.error(f"Lỗi: {res.json()['detail']}")
+                        
+    except Exception as e:
+        st.error(f"Lỗi kết nối tới backend: {e}")
+
+# ----------------- TAB 4: QUẢN LÝ GIẢI NGÂN -----------------
+with tabs[3]:
     st.subheader("💸 Lập đề xuất & Duyệt chi giải ngân thực tế (Layer 4 Hooks)")
     
     st.markdown("### 💳 Gửi đề xuất chi phí giải ngân")
@@ -390,8 +507,8 @@ with tabs[2]:
     except Exception as e:
         st.error(f"Lỗi tải lịch sử chi tiêu: {e}")
 
-# ----------------- TAB 4: TRỢ LÝ AI & RỦI RO -----------------
-with tabs[3]:
+# ----------------- TAB 5: TRỢ LÝ AI & RỦI RO -----------------
+with tabs[4]:
     st.subheader("🤖 Trợ lý AI thông minh & Phân tích rủi ro tài chính (Gemini Pro)")
     
     st.markdown("### 💬 Cập nhật tiến độ bằng Ngôn ngữ tự nhiên")
