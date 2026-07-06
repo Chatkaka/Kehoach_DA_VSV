@@ -677,15 +677,14 @@ async def create_task(request: TaskCreate, db: Session = Depends(database.get_db
         raise HTTPException(status_code=404, detail=f"Không tìm thấy công việc cha có STT {request.parent_stt}")
         
     parent_parts = parent.stt.split('.')
-    if len(parent_parts) != 2:
-        raise HTTPException(status_code=400, detail="Công việc cha được chọn phải là công việc Cấp 2.")
+    parent_level = len(parent_parts)
         
     siblings = db.query(models.Task).filter(models.Task.stt.like(f"{request.parent_stt}.%")).all()
     sibling_indices = []
     for s in siblings:
         parts = s.stt.split('.')
-        if len(parts) == 3 and parts[2].isdigit():
-            sibling_indices.append(int(parts[2]))
+        if len(parts) == parent_level + 1 and parts[-1].isdigit():
+            sibling_indices.append(int(parts[-1]))
             
     next_idx = max(sibling_indices) + 1 if sibling_indices else 1
     new_stt = f"{request.parent_stt}.{next_idx}"
