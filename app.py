@@ -311,63 +311,201 @@ with tabs[3]:
             st.warning("Vui lòng nhập văn bản thông báo.")
 
     st.markdown("---")
-    st.markdown("### 📁 Tải dữ liệu báo cáo để AI bóc tách & điền tự động")
-    st.info("Tải lên tệp tin văn bản (.txt) chứa các câu báo cáo tiến độ thô để AI bóc tách hàng loạt.")
+    st.markdown("### 📁 Tải dữ liệu báo cáo để AI bóc tách & điền tự động (Excel / Txt)")
     
-    uploaded_file = st.file_uploader("Chọn tệp văn bản báo cáo:", type=["txt"])
-    if uploaded_file is not None:
-        file_contents = uploaded_file.read().decode("utf-8")
-        lines = [line.strip() for line in file_contents.split("\n") if line.strip()]
+    # Select run mode
+    run_mode = st.radio(
+        "Chọn hình thức bóc tách dữ liệu:",
+        [
+            "Bóc tách bằng AI Gemini (Báo cáo tiến độ tự do)",
+            "Đọc trực tiếp từ cột Excel (Bảng đã có Mã WBS/STT và Tiến độ %)"
+        ]
+    )
+    
+    if run_mode == "Bóc tách bằng AI Gemini (Báo cáo tiến độ tự do)":
+        st.info("Tải lên tệp tin văn bản (.txt) hoặc bảng tính Excel (.xlsx, .xls) chứa các câu báo cáo tiến độ thô để AI bóc tách hàng loạt.")
+        uploaded_file = st.file_uploader("Chọn tệp báo cáo tiến độ tự do:", type=["txt", "xlsx", "xls"], key="gemini_uploader")
         
-        st.write(f"Tìm thấy {len(lines)} dòng báo cáo trong tệp:")
-        st.code("\n".join(lines[:10]) + ("\n..." if len(lines) > 10 else ""))
-        
-        if st.button("🚀 Bắt đầu AI đọc, bóc tách và điền dữ liệu"):
-            results = []
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+        if uploaded_file is not None:
+            lines = []
+            is_excel = uploaded_file.name.endswith(('.xlsx', '.xls'))
             
-            for idx, line in enumerate(lines):
-                status_text.text(f"Đang xử lý dòng {idx+1}/{len(lines)}: '{line[:40]}...'")
-                payload = {"text": line}
-                if "gemini_api_key" in st.session_state and st.session_state.gemini_api_key:
-                    payload["api_key"] = st.session_state.gemini_api_key
-                
+            if is_excel:
                 try:
-                    res = requests.post(f"{API_URL}/api/ai/parse", json=payload)
-                    if res.status_code == 200:
-                        data = res.json()
-                        results.append({
-                            "Báo cáo gốc": line,
-                            "Mã trích xuất": data["task"]["ma_ngan_sach"],
-                            "Tên công việc": data["task"]["ten_cong_viec"],
-                            "Tiến độ": f"{data['task']['tien_do']}%",
-                            "Trạng thái": data["task"]["trang_thai"],
-                            "Kết quả": "Thành công ✅"
-                        })
-                    else:
-                        results.append({
-                            "Báo cáo gốc": line,
-                            "Mã trích xuất": "Lỗi",
-                            "Tên công việc": "-",
-                            "Tiến độ": "-",
-                            "Trạng thái": "-",
-                            "Kết quả": f"Thất bại (Chốt chặn hoặc Lỗi WBS) ❌"
-                        })
-                except Exception as ex:
-                    results.append({
-                        "Báo cáo gốc": line,
-                        "Mã trích xuất": "Lỗi",
-                        "Tên công việc": "-",
-                        "Tiến độ": "-",
-                        "Trạng thái": "-",
-                        "Kết quả": f"Lỗi kết nối: {ex}"
-                    })
-                progress_bar.progress((idx + 1) / len(lines))
+                    df_upload = pd.read_excel(uploaded_file)
+                    st.success("Tải tệp Excel thành công!")
+                    st.write("Xem thử dữ liệu bảng tính:")
+                    st.dataframe(df_upload.head(5), use_container_width=True)
+                    
+                    col_options = list(df_upload.columns)
+                    selected_col = st.selectbox(
+                        "Chọn cột chứa câu báo cáo tiến độ thô để AI đọc:",
+                        col_options,
+                        key="gemini_excel_col"
+                    )
+                    lines = df_upload[selected_col].dropna().astype(str).str.strip().tolist()
+                    lines = [line for line in lines if line]
+                except Exception as e:
+                    st.error(f"Lỗi đọc file Excel: {e}")
+            else:
+                file_contents = uploaded_file.read().decode("utf-8")
+                lines = [line.strip() for line in file_contents.split("\n") if line.strip()]
+            
+            if lines:
+                st.write(f"Tìm thấy {len(lines)} dòng báo cáo trong tệp:")
+                st.code("\n".join(lines[:10]) + ("\n..." if len(lines) > 10 else ""))
                 
-            status_text.success("Hoàn thành bóc tách và điền dữ liệu hàng loạt!")
-            df_results = pd.DataFrame(results)
-            st.dataframe(df_results, use_container_width=True)
+                if st.button("🚀 Bắt đầu AI đọc, bóc tách và điền dữ liệu", key="run_ai_batch"):
+                    results = []
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    for idx, line in enumerate(lines):
+                        status_text.text(f"Đang xử lý dòng {idx+1}/{len(lines)}: '{line[:40]}...'")
+                        payload = {"text": line}
+                        if "gemini_api_key" in st.session_state and st.session_state.gemini_api_key:
+                            payload["api_key"] = st.session_state.gemini_api_key
+                        
+                        try:
+                            res = requests.post(f"{API_URL}/api/ai/parse", json=payload)
+                            if res.status_code == 200:
+                                data = res.json()
+                                results.append({
+                                    "Báo cáo gốc": line,
+                                    "Mã trích xuất": data["task"]["ma_ngan_sach"],
+                                    "Tên công việc": data["task"]["ten_cong_viec"],
+                                    "Tiến độ": f"{data['task']['tien_do']}%",
+                                    "Trạng thái": data["task"]["trang_thai"],
+                                    "Kết quả": "Thành công ✅"
+                                })
+                            else:
+                                results.append({
+                                    "Báo cáo gốc": line,
+                                    "Mã trích xuất": "Lỗi",
+                                    "Tên công việc": "-",
+                                    "Tiến độ": "-",
+                                    "Trạng thái": "-",
+                                    "Kết quả": f"Thất bại (Chốt chặn hoặc Lỗi WBS) ❌"
+                                })
+                        except Exception as ex:
+                            results.append({
+                                "Báo cáo gốc": line,
+                                "Mã trích xuất": "Lỗi",
+                                "Tên công việc": "-",
+                                "Tiến độ": "-",
+                                "Trạng thái": "-",
+                                "Kết quả": f"Lỗi kết nối: {ex}"
+                            })
+                        progress_bar.progress((idx + 1) / len(lines))
+                        
+                    status_text.success("Hoàn thành bóc tách và điền dữ liệu hàng loạt!")
+                    df_results = pd.DataFrame(results)
+                    st.dataframe(df_results, use_container_width=True)
+                    
+    else:
+        st.info("Tải lên tệp Excel (.xlsx, .xls) đã phân cột rõ ràng để đồng bộ trực tiếp tiến độ mà không cần AI.")
+        uploaded_file = st.file_uploader("Chọn tệp Excel tiến độ cấu trúc:", type=["xlsx", "xls"], key="direct_uploader")
+        
+        if uploaded_file is not None:
+            try:
+                df_upload = pd.read_excel(uploaded_file)
+                st.success("Tải tệp Excel thành công!")
+                st.write("Xem thử dữ liệu bảng tính:")
+                st.dataframe(df_upload.head(5), use_container_width=True)
+                
+                col_options = list(df_upload.columns)
+                
+                c_col1, c_col2, c_col3 = st.columns(3)
+                with c_col1:
+                    wbs_col = st.selectbox("Chọn cột chứa Mã WBS hoặc STT:", col_options, key="direct_wbs_col")
+                with c_col2:
+                    prog_col = st.selectbox("Chọn cột chứa Tiến độ (%):", col_options, key="direct_prog_col")
+                with c_col3:
+                    status_col = st.selectbox("Chọn cột chứa Trạng thái (Nếu có):", ["-"] + col_options, key="direct_status_col")
+                
+                if st.button("🔄 Bắt đầu Đồng bộ dữ liệu trực tiếp", key="run_direct_batch"):
+                    # Fetch all tasks to map WBS/STT to DB ID
+                    all_tasks = requests.get(f"{API_URL}/api/tasks").json()
+                    task_map = {}
+                    for t in all_tasks:
+                        task_map[str(t["ma_ngan_sach"]).strip()] = t["id"]
+                        task_map[str(t["stt"]).strip()] = t["id"]
+                    
+                    results = []
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    total_rows = len(df_upload)
+                    for idx, row in df_upload.iterrows():
+                        wbs_val = str(row[wbs_col]).strip()
+                        prog_val = float(row[prog_col]) if pd.notna(row[prog_col]) else 0.0
+                        
+                        # Determine status
+                        status_val = "Todo"
+                        if status_col != "-":
+                            status_val = str(row[status_col]).strip()
+                        else:
+                            if prog_val >= 100.0:
+                                status_val = "Done"
+                            elif prog_val > 0.0:
+                                status_val = "In-Progress"
+                        
+                        status_text.text(f"Đang xử lý dòng {idx+1}/{total_rows}: WBS/STT '{wbs_val}' -> {prog_val}%")
+                        
+                        # Lookup Task ID
+                        task_id = task_map.get(wbs_val)
+                        if not task_id:
+                            # Try fuzzy match
+                            matched = [tid for wbs_key, tid in task_map.items() if wbs_key.startswith(wbs_val) or wbs_val in wbs_key]
+                            if matched:
+                                task_id = matched[0]
+                                
+                        if task_id:
+                            try:
+                                res = requests.put(
+                                    f"{API_URL}/api/tasks/{task_id}/progress?user_role={user_role}",
+                                    json={
+                                        "tien_do": prog_val,
+                                        "trang_thai": status_val,
+                                        "dieu_kien_ghi_nhan": "Cập nhật hàng loạt từ tệp Excel"
+                                    }
+                                )
+                                if res.status_code == 200:
+                                    results.append({
+                                        "Mã WBS/STT": wbs_val,
+                                        "Tiến độ mới": f"{prog_val}%",
+                                        "Trạng thái": status_val,
+                                        "Kết quả": "Thành công ✅"
+                                    })
+                                else:
+                                    results.append({
+                                        "Mã WBS/STT": wbs_val,
+                                        "Tiến độ mới": f"{prog_val}%",
+                                        "Trạng thái": status_val,
+                                        "Kết quả": f"Thất bại: {res.json()['detail']} ❌"
+                                    })
+                            except Exception as ex:
+                                results.append({
+                                    "Mã WBS/STT": wbs_val,
+                                    "Tiến độ mới": f"{prog_val}%",
+                                    "Trạng thái": status_val,
+                                    "Kết quả": f"Lỗi kết nối: {ex} ❌"
+                                })
+                        else:
+                            results.append({
+                                "Mã WBS/STT": wbs_val,
+                                "Tiến độ mới": f"{prog_val}%",
+                                "Trạng thái": status_val,
+                                "Kết quả": "Không tìm thấy Mã WBS/STT ❌"
+                            })
+                        
+                        progress_bar.progress((idx + 1) / total_rows)
+                    
+                    status_text.success("Hoàn thành đồng bộ trực tiếp tiến độ hàng loạt!")
+                    df_results = pd.DataFrame(results)
+                    st.dataframe(df_results, use_container_width=True)
+            except Exception as e:
+                st.error(f"Lỗi xử lý file Excel: {e}")
 
     st.markdown("---")
     st.markdown("### 🧠 CFO AI Risk Assessment (Gemini Pro)")
