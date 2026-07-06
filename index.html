@@ -151,55 +151,7 @@
             </div>
         </div>
 
-        <!-- AI Assistant & Spending Management Grid -->
-        <div class="bottom-controls-grid">
-            <!-- AI Text Command Update -->
-            <div class="panel">
-                <div class="panel-header">
-                    <span class="panel-title" style="color: #a855f7;"><i class="fa-solid fa-robot"></i> Cập Nhật Tiến Độ Bằng Ngôn Ngữ Tự Nhiên (Gemini AI)</span>
-                </div>
-                <p style="font-size: 0.8rem; color: var(--text-secondary);">
-                    Nhập văn bản báo cáo thô của ban chỉ huy. AI sẽ tự động phân tích mã WBS, cập nhật tiến độ lên 100% (Done) và điền điều kiện ghi nhận.
-                </p>
-                <div class="ai-input-wrapper">
-                    <textarea class="ai-textarea" id="ai-text-input" placeholder="Ví dụ: Hôm nay ban thiết kế đã hoàn thành phê duyệt nhiệm vụ khảo sát địa hình tỷ lệ 1/500 mã 6.1.1"></textarea>
-                </div>
-                <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
-                    <span id="ai-status-output" style="font-size: 0.8rem; color: var(--secondary);"></span>
-                    <button class="btn" onclick="sendAICommand()"><i class="fa-solid fa-paper-plane"></i> Gửi AI Xử Lý</button>
-                </div>
-            </div>
 
-            <!-- Add Spending Request Form -->
-            <div class="panel">
-                <div class="panel-header">
-                    <span class="panel-title"><i class="fa-solid fa-file-invoice-dollar"></i> Đề Xuất Giải Ngân Chi Phí Phát Sinh</span>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                        <label for="spend-task-id">Mã số Task (Database ID)</label>
-                        <input type="number" class="form-control" id="spend-task-id" placeholder="Ví dụ: 12">
-                    </div>
-                    <div class="form-group">
-                        <label for="spend-amount">Số tiền đề xuất chi (Trđ)</label>
-                        <input type="number" step="0.01" class="form-control" id="spend-amount" placeholder="Ví dụ: 150.5">
-                    </div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                        <label for="spend-user">Người đề xuất cập nhật</label>
-                        <input type="text" class="form-control" id="spend-user" placeholder="Ví dụ: Ban QLDA">
-                    </div>
-                    <div class="form-group">
-                        <label for="spend-doc">Chứng từ kèm theo (Link MC)</label>
-                        <input type="text" class="form-control" id="spend-doc" placeholder="Ví dụ: http://mc.com/invoice123">
-                    </div>
-                </div>
-                <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
-                    <button class="btn" onclick="submitSpending()"><i class="fa-solid fa-check"></i> Duyệt Chi (Hard Gate Check)</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Modal for task quick edit -->
