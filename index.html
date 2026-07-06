@@ -21,9 +21,10 @@
                     <p>Hệ thống Quản lý Tiến độ & Ngân sách Thời gian thực (Harness 5 Layers)</p>
                 </div>
             </div>
-            <div class="system-status">
+            <div class="system-status" style="display:flex; align-items:center; gap:8px;">
                 <div class="status-dot" id="ws-status-dot"></div>
                 <span id="ws-status-text">Đang kết nối WebSocket...</span>
+                <i class="fa-solid fa-gear" style="cursor:pointer; color:var(--text-secondary); margin-left:4px; font-size:1.1rem;" onclick="openSettingsModal()" title="Cài đặt địa chỉ Backend"></i>
             </div>
         </header>
 
@@ -260,13 +261,46 @@
         </div>
     </div>
 
+    <!-- Modal for Settings -->
+    <div id="settings-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:101; justify-content:center; align-items:center;">
+        <div class="panel" style="width: 450px; max-width: 90%;">
+            <div class="panel-header">
+                <span class="panel-title"><i class="fa-solid fa-gear"></i> Cấu Hình Địa Chỉ Backend</span>
+                <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeSettingsModal()"></i>
+            </div>
+            <div class="form-group" style="margin-top: 15px;">
+                <label for="settings-backend-url">Địa chỉ Backend API</label>
+                <input type="text" id="settings-backend-url" class="form-control" placeholder="Ví dụ: http://127.0.0.1:8000">
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.4;">
+                    * Mặc định là <code>http://127.0.0.1:8000</code>. Nếu bạn đang chạy ứng dụng trực tuyến qua GitHub Pages (HTTPS), hãy đảm bảo backend có chứng chỉ SSL (HTTPS/WSS) hoặc chạy file <code>index.html</code> trực tiếp offline để không bị trình duyệt chặn bảo mật (Mixed Content).
+                </p>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn secondary-btn" onclick="closeSettingsModal()">Hủy</button>
+                <button class="btn" onclick="saveSettings()">Lưu Cấu Hình</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Frontend logic with WS and APIs -->
     <script>
+        // URL Parameter Auto-detection (allows passing ?api=... or ?backend=...)
+        const urlParams = new URLSearchParams(window.location.search);
+        const apiParam = urlParams.get('api') || urlParams.get('backend');
+        if (apiParam) {
+            let url = apiParam.trim();
+            if (url.endsWith('/')) {
+                url = url.slice(0, -1);
+            }
+            localStorage.setItem('backend_url', url);
+            // Clean up query param from URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         // Resolve backend URL
         let backendUrl = localStorage.getItem('backend_url');
         if (backendUrl === null) {
-            // Default settings: empty for local dev, localhost:8000 for GitHub pages
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname) {
                 backendUrl = '';
             } else {
                 backendUrl = 'http://127.0.0.1:8000';
@@ -315,7 +349,13 @@
             ws.onclose = () => {
                 document.getElementById('ws-status-dot').style.backgroundColor = '#ef4444';
                 document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #ef4444';
-                document.getElementById('ws-status-text').innerText = 'Mất kết nối. Đang thử lại...';
+                
+                if (window.location.protocol === 'https:' && backendUrl.startsWith('http:')) {
+                    document.getElementById('ws-status-text').innerHTML = 'Mất kết nối (Lỗi HTTPS/HTTP) <i class="fa-solid fa-circle-question" style="cursor:pointer;color:var(--warning);margin-left:4px;" onclick="showConnectionTip()" title="Xem hướng dẫn khắc phục"></i>';
+                } else {
+                    document.getElementById('ws-status-text').innerText = 'Mất kết nối. Đang thử lại...';
+                }
+                
                 console.log("WebSocket disconnected. Reconnecting...");
                 setTimeout(setupWebSocket, 3000); // retry after 3s
             };
@@ -769,6 +809,35 @@
                 })
                 .catch(err => console.error("Error deleting task:", err));
             }
+        }
+
+        function openSettingsModal() {
+            document.getElementById('settings-backend-url').value = localStorage.getItem('backend_url') || 'http://127.0.0.1:8000';
+            document.getElementById('settings-modal').style.display = 'flex';
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            let url = document.getElementById('settings-backend-url').value.trim();
+            if (url.endsWith('/')) {
+                url = url.slice(0, -1);
+            }
+            localStorage.setItem('backend_url', url);
+            closeSettingsModal();
+            window.location.reload();
+        }
+
+        function showConnectionTip() {
+            alert("LƯU Ý BẢO MẬT TRÌNH DUYỆT (MIXED CONTENT):\n\n" +
+                  "Ứng dụng đang chạy qua giao thức bảo mật HTTPS (GitHub Pages), nhưng địa chỉ Backend của bạn đang chạy qua giao thức HTTP thường (http://127.0.0.1:8000).\n\n" +
+                  "Các trình duyệt hiện đại (Chrome, Edge, Safari) mặc định CHẶN tất cả kết nối HTTP từ trang HTTPS để đảm bảo bảo mật.\n\n" +
+                  "ĐỂ KHẮC PHỤC, BẠN CÓ THỂ CHỌN 1 TRONG CÁC CÁCH SAU:\n" +
+                  "1. Mở trực tiếp tệp tin 'index.html' trên ổ đĩa máy tính (file:///...) để chạy offline mà không bị trình duyệt chặn.\n" +
+                  "2. Cho phép tải nội dung không an toàn (Insecure Content) cho trang web này trong Cài đặt trang web của Trình duyệt.\n" +
+                  "3. Sử dụng ngrok/cloudflare tunnel để chuyển đổi cổng Backend localhost thành đường link HTTPS bảo mật.");
         }
 
         // Send AI Text command update
