@@ -248,7 +248,7 @@
 
     <!-- Modal for task add child -->
     <div id="add-task-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:100; justify-content:center; align-items:center;">
-        <div class="panel" style="width: 500px; max-width: 90%;">
+        <div class="panel" style="width: 550px; max-width: 95%;">
             <div class="panel-header">
                 <span class="panel-title"><i class="fa-solid fa-plus"></i> Thêm Công Việc Con Dưới Mục <span id="add-parent-stt" style="color:var(--secondary);"></span></span>
                 <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeAddModal()"></i>
@@ -263,19 +263,26 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
                     <label for="add-dept">Phòng Ban Thực Hiện</label>
-                    <input type="text" id="add-dept" class="form-control" value="PTDA">
+                    <select id="add-dept" class="form-control">
+                        <option value="PTDA">PTDA (Phát triển dự án)</option>
+                        <option value="Ban QLDA">Ban QLDA</option>
+                        <option value="Thiết kế">Thiết kế</option>
+                        <option value="Đầu thầu / QS">Đầu thầu / QS</option>
+                        <option value="Hành chính">Hành chính</option>
+                        <option value="Pháp lý">Pháp lý</option>
+                        <option value="Tài chính / Kế toán">Tài chính / Kế toán</option>
+                        <option value="M&E">M&E</option>
+                        <option value="QS">QS</option>
+                        <option value="Ban QLDA / Thi công">Ban QLDA / Thi công</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label for="add-deliverables">Hồ Sơ Đầu Ra</label>
-                    <input type="text" id="add-deliverables" class="form-control" value="-">
+                    <label for="add-deadline">Thời Hạn Hoàn Thành</label>
+                    <input type="date" id="add-deadline" class="form-control" value="2026-06-30">
                 </div>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="form-group">
-                    <label for="add-deadline">Thời Hạn Hoàn Thành</label>
-                    <input type="text" id="add-deadline" class="form-control" value="Tháng 06/2026">
-                </div>
                 <div class="form-group">
                     <label for="add-budget">Ngân Sách Đề Xuất (Trđ)</label>
                     <input type="number" id="add-budget" class="form-control" value="0.0" step="0.1">
@@ -283,8 +290,34 @@
             </div>
 
             <div class="form-group">
-                <label for="add-cond">Điều kiện ghi nhận kết quả</label>
-                <input type="text" id="add-cond" class="form-control" value="-">
+                <label>Hồ Sơ Đầu Ra (Tích chọn nhiều & tự điền)</label>
+                <div id="add-deliverables-checkboxes" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 120px; overflow-y: auto; margin-bottom: 6px;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Báo cáo nghiên cứu"> Báo cáo nghiên cứu</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Quyết định phê duyệt"> Quyết định phê duyệt</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Quyết định chủ trương"> Quyết định chủ trương</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Giấy phép xây dựng"> Giấy phép xây dựng</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Báo cáo ĐTM"> Báo cáo ĐTM</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Hồ sơ bản vẽ"> Hồ sơ bản vẽ</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Biên bản nghiệm thu"> Biên bản nghiệm thu</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Văn bản chấp thuận"> Văn bản chấp thuận</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Tờ trình trình duyệt"> Tờ trình trình duyệt</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-deliverable-chk" value="Hợp đồng kinh tế"> Hợp đồng kinh tế</label>
+                </div>
+                <input type="text" id="add-deliverables-custom" class="form-control" placeholder="Tự điền thêm hồ sơ khác (phân tách bằng dấu phẩy)...">
+            </div>
+
+            <div class="form-group">
+                <label>Điều kiện ghi nhận kết quả (Tích chọn nhiều & tự điền)</label>
+                <div id="add-cond-checkboxes" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 120px; overflow-y: auto; margin-bottom: 6px;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-cond-chk" value="Tờ trình được duyệt"> Tờ trình được duyệt</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-cond-chk" value="Biên bản nghiệm thu được ký"> Biên bản nghiệm thu được ký</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-cond-chk" value="Có quyết định/văn bản chính thức"> Có quyết định chính thức</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-cond-chk" value="Báo cáo được ký duyệt"> Báo cáo được ký duyệt</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-cond-chk" value="Hợp đồng được ký kết"> Hợp đồng được ký kết</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-cond-chk" value="Có chứng nhận/chứng chỉ"> Có chứng nhận/chứng chỉ</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="add-cond-chk" value="Bản vẽ được phê duyệt"> Bản vẽ được phê duyệt</label>
+                </div>
+                <input type="text" id="add-cond-custom" class="form-control" placeholder="Tự điền thêm điều kiện khác (phân tách bằng dấu phẩy)...">
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
@@ -873,10 +906,16 @@
             document.getElementById('add-parent-stt').innerText = parentStt;
             document.getElementById('add-name').value = '';
             document.getElementById('add-dept').value = 'PTDA';
-            document.getElementById('add-deliverables').value = '-';
-            document.getElementById('add-deadline').value = 'Tháng 06/2026';
+            document.getElementById('add-deadline').value = '2026-06-30';
             document.getElementById('add-budget').value = '0';
-            document.getElementById('add-cond').value = '-';
+            
+            // Clear checkboxes
+            document.querySelectorAll('.add-deliverable-chk').forEach(chk => chk.checked = false);
+            document.getElementById('add-deliverables-custom').value = '';
+
+            document.querySelectorAll('.add-cond-chk').forEach(chk => chk.checked = false);
+            document.getElementById('add-cond-custom').value = '';
+
             document.getElementById('add-task-modal').style.display = 'flex';
         }
 
@@ -888,10 +927,30 @@
             const parentStt = document.getElementById('add-parent-stt-hidden').value;
             const name = document.getElementById('add-name').value;
             const dept = document.getElementById('add-dept').value;
-            const deliverables = document.getElementById('add-deliverables').value;
             const deadline = document.getElementById('add-deadline').value;
             const budget = parseFloat(document.getElementById('add-budget').value) || 0;
-            const cond = document.getElementById('add-cond').value;
+
+            // Gather deliverables checkboxes and custom field
+            const selectedDeliverables = [];
+            document.querySelectorAll('.add-deliverable-chk:checked').forEach(chk => {
+                selectedDeliverables.push(chk.value);
+            });
+            const customDeliverables = document.getElementById('add-deliverables-custom').value.trim();
+            if (customDeliverables) {
+                selectedDeliverables.push(customDeliverables);
+            }
+            const deliverables = selectedDeliverables.join(', ');
+
+            // Gather conditions checkboxes and custom field
+            const selectedConds = [];
+            document.querySelectorAll('.add-cond-chk:checked').forEach(chk => {
+                selectedConds.push(chk.value);
+            });
+            const customConds = document.getElementById('add-cond-custom').value.trim();
+            if (customConds) {
+                selectedConds.push(customConds);
+            }
+            const cond = selectedConds.join(', ');
 
             if (!name.trim()) {
                 alert("Vui lòng nhập tên công việc con.");

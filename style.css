@@ -453,6 +453,11 @@ tr.level-3 {
     border-color: var(--secondary);
 }
 
+.form-control option {
+    background-color: #0d1421 !important;
+    color: #ffffff !important;
+}
+
 /* Animations */
 @keyframes pulse {
     0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
