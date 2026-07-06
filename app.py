@@ -186,11 +186,8 @@ with tabs[1]:
             except Exception as e:
                 st.warning("Không thể tạo liên kết tải file Excel từ backend.")
             
-            # Form to update task progress (PM/Admin)
-            st.markdown("### ✏️ Cập nhật tiến độ & trạng thái công việc")
-            
             # Select task
-            task_options = {f"{t['stt']} - {t['ten_cong_viec'][:50]}...": t["id"] for t in tasks if t["level"] == 3}
+            task_options = {f"{t['stt']} - {t['ten_cong_viec'][:50]}...": t["id"] for t in tasks if t["level"] in [2, 3]}
             if task_options:
                 selected_task_label = st.selectbox("Chọn công việc cấp 3 cần cập nhật:", list(task_options.keys()))
                 selected_task_id = task_options[selected_task_label]
@@ -235,8 +232,58 @@ with tabs[1]:
                         st.rerun()
                     else:
                         st.error(f"LỖI CHỐT CHẶN (PHASE GATE LOOP): {res.json()['detail']}")
+            st.markdown("---")
+            st.markdown("### ➕ Thêm công việc Cấp 3 mới vào sau công việc Cấp 2")
+            
+            # Select parent Level 2 task
+            parent_options = {f"{t['stt']} - {t['ten_cong_viec'][:50]}...": t["stt"] for t in tasks if t["level"] == 2}
+            
+            if parent_options:
+                selected_parent_label = st.selectbox("Chọn công việc Cấp 2 cha:", list(parent_options.keys()), key="select_parent_task")
+                selected_parent_stt = parent_options[selected_parent_label]
+                
+                new_task_name = st.text_input("Tên công việc Cấp 3 mới:", placeholder="Ví dụ: Lập và trình duyệt báo cáo đánh giá tác động môi trường chi tiết")
+                
+                c_add1, c_add2, c_add3 = st.columns(3)
+                with c_add1:
+                    new_task_pb = st.text_input("Đơn vị/Phòng ban thực hiện:", value="PTDA")
+                with c_add2:
+                    new_task_cq = st.text_input("Cơ quan giải quyết/phê duyệt:", value="-")
+                with c_add3:
+                    new_task_kpi = st.text_input("KPI trọng yếu:", value="1")
+                    
+                c_add4, c_add5 = st.columns(2)
+                with c_add4:
+                    new_task_dk = st.text_input("Điều kiện ghi nhận kết quả:", value="-")
+                with c_add5:
+                    new_task_budget = st.number_input("Ngân sách tổng đề xuất (Trđ):", min_value=0.0, value=0.0, step=10.0)
+                    
+                if st.button("➕ Thêm công việc Cấp 3"):
+                    if not new_task_name.strip():
+                        st.warning("Vui lòng nhập tên công việc.")
+                    else:
+                        try:
+                            add_res = requests.post(
+                                f"{API_URL}/api/tasks",
+                                json={
+                                    "parent_stt": selected_parent_stt,
+                                    "ten_cong_viec": new_task_name,
+                                    "phong_ban_thuc_hien": new_task_pb,
+                                    "co_quan_giai_quyet": new_task_cq,
+                                    "kpi_trong_yeu": new_task_kpi,
+                                    "dieu_kien_ghi_nhan": new_task_dk,
+                                    "ngan_sach": new_task_budget
+                                }
+                            )
+                            if add_res.status_code == 200:
+                                st.success(f"Đã thêm mới thành công công việc Cấp 3 dưới mục {selected_parent_stt}!")
+                                st.rerun()
+                            else:
+                                st.error(f"Lỗi: {add_res.json()['detail']}")
+                        except Exception as ex:
+                            st.error(f"Lỗi kết nối máy chủ: {ex}")
             else:
-                st.info("Không có công việc cấp 3 nào khả dụng trong giai đoạn này.")
+                st.warning("Không tìm thấy công việc Cấp 2 nào để làm cha.")
                 
     except Exception as e:
         st.error(f"Lỗi: {e}")

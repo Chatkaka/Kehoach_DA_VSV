@@ -593,6 +593,159 @@ Hãy phân tích dữ liệu và trả lời câu hỏi một cách ngắn gọn
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class TaskCreate(BaseModel):
+    parent_stt: str
+    ten_cong_viec: str
+    phong_ban_thuc_hien: Optional[str] = "BQLDA"
+    co_quan_giai_quyet: Optional[str] = "-"
+    kpi_trong_yeu: Optional[str] = "-"
+    dieu_kien_ghi_nhan: Optional[str] = "-"
+    ngan_sach: float = 0.0
+
+def recalculate_budgets(db: Session):
+    remaining_tasks = db.query(models.Task).all()
+    task_by_stt = {t.stt: t for t in remaining_tasks}
+
+    all_stts = {t.stt for t in remaining_tasks}
+    parent_tasks = []
+    
+    for t in remaining_tasks:
+        is_parent = any(other.startswith(f"{t.stt}.") for other in all_stts)
+        if is_parent:
+            parent_tasks.append(t)
+            
+    for t in parent_tasks:
+        if t.budget:
+            b = t.budget
+            b.ngan_sach_tong = 0.0
+            b.kh_2026 = 0.0
+            b.quy_1_2026 = 0.0
+            b.quy_2_2026 = 0.0
+            b.thang_01_2025 = 0.0
+            b.thang_02_2025 = 0.0
+            b.thang_03_2025 = 0.0
+            b.thang_04_2025 = 0.0
+            b.thang_05_2026 = 0.0
+            b.thang_06_2026 = 0.0
+            db.add(b)
+    db.flush()
+
+    sorted_tasks = sorted(remaining_tasks, key=lambda t: len(t.stt.split('.')), reverse=True)
+
+    for task in sorted_tasks:
+        stt_parts = task.stt.split('.')
+        if len(stt_parts) <= 1:
+            continue
+        
+        parent_stt = ".".join(stt_parts[:-1])
+        parent_task = task_by_stt.get(parent_stt)
+
+        if parent_task:
+            child_budget = task.budget
+            parent_budget = parent_task.budget
+            
+            if child_budget and parent_budget:
+                parent_budget.ngan_sach_tong += child_budget.ngan_sach_tong
+                parent_budget.kh_2026 += child_budget.kh_2026
+                parent_budget.quy_1_2026 += child_budget.quy_1_2026
+                parent_budget.quy_2_2026 += child_budget.quy_2_2026
+                parent_budget.thang_01_2025 += child_budget.thang_01_2025
+                parent_budget.thang_02_2025 += child_budget.thang_02_2025
+                parent_budget.thang_03_2025 += child_budget.thang_03_2025
+                parent_budget.thang_04_2025 += child_budget.thang_04_2025
+                parent_budget.thang_05_2026 += child_budget.thang_05_2026
+                parent_budget.thang_06_2026 += child_budget.thang_06_2026
+                db.add(parent_budget)
+    db.flush()
+
+    level_1_tasks = [t for t in remaining_tasks if len(t.stt.split('.')) == 1]
+    project_total = sum(t.budget.ngan_sach_tong for t in level_1_tasks if t.budget)
+
+    project_obj = db.query(models.Project).filter(models.Project.id == 1).first()
+    if project_obj:
+        project_obj.tong_ngan_sach = project_total
+        db.add(project_obj)
+    db.flush()
+
+@app.post("/api/tasks")
+async def create_task(request: TaskCreate, db: Session = Depends(database.get_db)):
+    parent = db.query(models.Task).filter(models.Task.stt == request.parent_stt).first()
+    if not parent:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy công việc cha có STT {request.parent_stt}")
+        
+    parent_parts = parent.stt.split('.')
+    if len(parent_parts) != 2:
+        raise HTTPException(status_code=400, detail="Công việc cha được chọn phải là công việc Cấp 2.")
+        
+    siblings = db.query(models.Task).filter(models.Task.stt.like(f"{request.parent_stt}.%")).all()
+    sibling_indices = []
+    for s in siblings:
+        parts = s.stt.split('.')
+        if len(parts) == 3 and parts[2].isdigit():
+            sibling_indices.append(int(parts[2]))
+            
+    next_idx = max(sibling_indices) + 1 if sibling_indices else 1
+    new_stt = f"{request.parent_stt}.{next_idx}"
+    new_wbs = f"{parent.ma_ngan_sach}.{next_idx}"
+    
+    new_task = models.Task(
+        project_id=1,
+        ma_ngan_sach=new_wbs,
+        stt=new_stt,
+        phase_id=parent.phase_id,
+        ten_cong_viec=request.ten_cong_viec.strip(),
+        phong_ban_thuc_hien=request.phong_ban_thuc_hien.strip(),
+        co_quan_giai_quyet=request.co_quan_giai_quyet.strip(),
+        kpi_trong_yeu=request.kpi_trong_yeu.strip(),
+        dieu_kien_ghi_nhan=request.dieu_kien_ghi_nhan.strip(),
+        tien_do=0.0,
+        trang_thai="Todo"
+    )
+    db.add(new_task)
+    db.flush()
+    
+    new_budget = models.Budget(
+        task_id=new_task.id,
+        ngan_sach_tong=request.ngan_sach,
+        kh_2026=request.ngan_sach * 0.40,
+        quy_1_2026=request.ngan_sach * 0.15,
+        quy_2_2026=request.ngan_sach * 0.15,
+        thang_01_2025=request.ngan_sach * 0.05,
+        thang_02_2025=request.ngan_sach * 0.05,
+        thang_03_2025=request.ngan_sach * 0.05,
+        thang_04_2025=request.ngan_sach * 0.05,
+        thang_05_2026=request.ngan_sach * 0.05,
+        thang_06_2026=request.ngan_sach * 0.05
+    )
+    db.add(new_budget)
+    db.flush()
+    
+    recalculate_budgets(db)
+    db.commit()
+    
+    update_msg = {
+        "type": "task_create",
+        "task_id": new_task.id,
+        "stt": new_task.stt,
+        "ma_ngan_sach": new_task.ma_ngan_sach,
+        "ten_cong_viec": new_task.ten_cong_viec,
+        "phong_ban_thuc_hien": new_task.phong_ban_thuc_hien,
+        "kpi_trong_yeu": new_task.kpi_trong_yeu,
+        "tien_do": new_task.tien_do,
+        "trang_thai": new_task.trang_thai,
+        "budget": {
+            "ngan_sach_tong": new_budget.ngan_sach_tong,
+            "is_locked": False
+        }
+    }
+    await manager.broadcast(update_msg)
+    
+    return {
+        "status": "success",
+        "message": f"Đã thêm mới thành công công việc Cấp 3: {new_stt}",
+        "task": update_msg
+    }
+
 # Serve Frontend static files
 # We will create the static directory if not exists
 os.makedirs("./static", exist_ok=True)
