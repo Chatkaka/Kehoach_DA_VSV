@@ -166,29 +166,18 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
                     <label for="edit-dept">Phòng Ban Thực Hiện</label>
-                    <input type="text" id="edit-dept" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="edit-deliverables">Hồ Sơ Đầu Ra</label>
-                    <input type="text" id="edit-deliverables" class="form-control">
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="form-group">
-                    <label for="edit-deadline">Thời Hạn Hoàn Thành</label>
-                    <input type="text" id="edit-deadline" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="edit-budget">Ngân Sách Tổng (Trđ)</label>
-                    <input type="number" id="edit-budget" class="form-control" step="0.1">
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="form-group">
-                    <label for="edit-progress">Tiến độ (%)</label>
-                    <input type="number" id="edit-progress" class="form-control" min="0" max="100">
+                    <select id="edit-dept" class="form-control">
+                        <option value="PTDA">PTDA (Phát triển dự án)</option>
+                        <option value="Ban QLDA">Ban QLDA</option>
+                        <option value="Thiết kế">Thiết kế</option>
+                        <option value="Đầu thầu / QS">Đầu thầu / QS</option>
+                        <option value="Hành chính">Hành chính</option>
+                        <option value="Pháp lý">Pháp lý</option>
+                        <option value="Tài chính / Kế toán">Tài chính / Kế toán</option>
+                        <option value="M&E">M&E</option>
+                        <option value="QS">QS</option>
+                        <option value="Ban QLDA / Thi công">Ban QLDA / Thi công</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="edit-status">Trạng thái</label>
@@ -201,9 +190,53 @@
                 </div>
             </div>
 
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label for="edit-deadline">Thời Hạn Hoàn Thành</label>
+                    <input type="date" id="edit-deadline" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="edit-budget">Ngân Sách Tổng (Trđ)</label>
+                    <input type="number" id="edit-budget" class="form-control" step="0.1">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label for="edit-progress">Tiến độ (%)</label>
+                    <input type="number" id="edit-progress" class="form-control" min="0" max="100">
+                </div>
+            </div>
+
             <div class="form-group">
-                <label for="edit-cond">Điều kiện ghi nhận kết quả</label>
-                <input type="text" id="edit-cond" class="form-control" placeholder="Mô tả chứng từ/kết quả bàn giao">
+                <label>Hồ Sơ Đầu Ra (Tích chọn nhiều & tự điền)</label>
+                <div id="edit-deliverables-checkboxes" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 120px; overflow-y: auto; margin-bottom: 6px;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Báo cáo nghiên cứu"> Báo cáo nghiên cứu</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Quyết định phê duyệt"> Quyết định phê duyệt</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Quyết định chủ trương"> Quyết định chủ trương</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Giấy phép xây dựng"> Giấy phép xây dựng</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Báo cáo ĐTM"> Báo cáo ĐTM</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Hồ sơ bản vẽ"> Hồ sơ bản vẽ</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Biên bản nghiệm thu"> Biên bản nghiệm thu</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Văn bản chấp thuận"> Văn bản chấp thuận</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Tờ trình trình duyệt"> Tờ trình trình duyệt</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Hợp đồng kinh tế"> Hợp đồng kinh tế</label>
+                </div>
+                <input type="text" id="edit-deliverables-custom" class="form-control" placeholder="Tự điền thêm hồ sơ khác (phân tách bằng dấu phẩy)...">
+            </div>
+
+            <div class="form-group">
+                <label>Điều kiện ghi nhận kết quả (Tích chọn nhiều & tự điền)</label>
+                <div id="edit-cond-checkboxes" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 120px; overflow-y: auto; margin-bottom: 6px;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Tờ trình được duyệt"> Tờ trình được duyệt</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Biên bản nghiệm thu được ký"> Biên bản nghiệm thu được ký</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Có quyết định/văn bản chính thức"> Có quyết định chính thức</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Báo cáo được ký duyệt"> Báo cáo được ký duyệt</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Hợp đồng được ký kết"> Hợp đồng được ký kết</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Có chứng nhận/chứng chỉ"> Có chứng nhận/chứng chỉ</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Bản vẽ được phê duyệt"> Bản vẽ được phê duyệt</label>
+                </div>
+                <input type="text" id="edit-cond-custom" class="form-control" placeholder="Tự điền thêm điều kiện khác (phân tách bằng dấu phẩy)...">
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
@@ -678,13 +711,93 @@
             document.getElementById('edit-task-stt').innerText = wbs ? '(' + wbs + ')' : '';
             document.getElementById('edit-wbs').value = wbs || '';
             document.getElementById('edit-name').value = name || '';
-            document.getElementById('edit-dept').value = dept || '';
-            document.getElementById('edit-deliverables').value = deliverables || '';
-            document.getElementById('edit-deadline').value = deadline || 'Tháng 06/2026';
+            
+            // Set dropdown for department
+            const deptSelect = document.getElementById('edit-dept');
+            if (dept) {
+                // Ensure value exists in option list or set to first
+                let optionExists = Array.from(deptSelect.options).some(opt => opt.value === dept);
+                if (optionExists) {
+                    deptSelect.value = dept;
+                } else {
+                    // dynamically append if it is a new department
+                    const opt = document.createElement('option');
+                    opt.value = dept;
+                    opt.text = dept;
+                    deptSelect.add(opt);
+                    deptSelect.value = dept;
+                }
+            } else {
+                deptSelect.value = 'PTDA';
+            }
+
+            // Parse & set checkboxes/custom field for Deliverables (Hồ sơ đầu ra)
+            const deliverableChks = document.querySelectorAll('.deliverable-chk');
+            deliverableChks.forEach(chk => chk.checked = false);
+            document.getElementById('edit-deliverables-custom').value = "";
+            if (deliverables) {
+                const items = deliverables.split(/[,;]/).map(x => x.trim()).filter(Boolean);
+                const customItems = [];
+                items.forEach(item => {
+                    let matched = false;
+                    deliverableChks.forEach(chk => {
+                        if (chk.value.toLowerCase() === item.toLowerCase()) {
+                            chk.checked = true;
+                            matched = true;
+                        }
+                    });
+                    if (!matched) {
+                        customItems.push(item);
+                    }
+                });
+                document.getElementById('edit-deliverables-custom').value = customItems.join(', ');
+            }
+
+            // Parse & set Date Picker for Deadline
+            let formattedDeadline = "";
+            if (deadline) {
+                if (deadline.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    formattedDeadline = deadline;
+                } else if (deadline.match(/^Tháng (\d{2})\/(\d{4})$/)) {
+                    const match = deadline.match(/^Tháng (\d{2})\/(\d{4})$/);
+                    const month = parseInt(match[1]);
+                    const year = parseInt(match[2]);
+                    const lastDay = new Date(year, month, 0).getDate();
+                    formattedDeadline = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                } else {
+                    formattedDeadline = "2026-06-30";
+                }
+            } else {
+                formattedDeadline = "2026-06-30";
+            }
+            document.getElementById('edit-deadline').value = formattedDeadline;
+
             document.getElementById('edit-budget').value = budget || 0;
             document.getElementById('edit-progress').value = progress;
             document.getElementById('edit-status').value = status;
-            document.getElementById('edit-cond').value = cond || '';
+
+            // Parse & set checkboxes/custom field for Conditions (Điều kiện ghi nhận)
+            const condChks = document.querySelectorAll('.cond-chk');
+            condChks.forEach(chk => chk.checked = false);
+            document.getElementById('edit-cond-custom').value = "";
+            if (cond) {
+                const items = cond.split(/[,;]/).map(x => x.trim()).filter(Boolean);
+                const customItems = [];
+                items.forEach(item => {
+                    let matched = false;
+                    condChks.forEach(chk => {
+                        if (chk.value.toLowerCase() === item.toLowerCase()) {
+                            chk.checked = true;
+                            matched = true;
+                        }
+                    });
+                    if (!matched) {
+                        customItems.push(item);
+                    }
+                });
+                document.getElementById('edit-cond-custom').value = customItems.join(', ');
+            }
+
             document.getElementById('edit-task-modal').style.display = 'flex';
         }
 
@@ -698,12 +811,32 @@
             const wbs = document.getElementById('edit-wbs').value;
             const name = document.getElementById('edit-name').value;
             const dept = document.getElementById('edit-dept').value;
-            const deliverables = document.getElementById('edit-deliverables').value;
             const deadline = document.getElementById('edit-deadline').value;
             const budget = parseFloat(document.getElementById('edit-budget').value) || 0;
             const progress = parseFloat(document.getElementById('edit-progress').value) || 0;
             const status = document.getElementById('edit-status').value;
-            const cond = document.getElementById('edit-cond').value;
+
+            // Gather deliverables checkboxes and custom field
+            const selectedDeliverables = [];
+            document.querySelectorAll('.deliverable-chk:checked').forEach(chk => {
+                selectedDeliverables.push(chk.value);
+            });
+            const customDeliverables = document.getElementById('edit-deliverables-custom').value.trim();
+            if (customDeliverables) {
+                selectedDeliverables.push(customDeliverables);
+            }
+            const deliverables = selectedDeliverables.join(', ');
+
+            // Gather conditions checkboxes and custom field
+            const selectedConds = [];
+            document.querySelectorAll('.cond-chk:checked').forEach(chk => {
+                selectedConds.push(chk.value);
+            });
+            const customConds = document.getElementById('edit-cond-custom').value.trim();
+            if (customConds) {
+                selectedConds.push(customConds);
+            }
+            const cond = selectedConds.join(', ');
 
             fetch(backendUrl + `/api/tasks/${id}`, {
                 method: 'PUT',

@@ -265,7 +265,8 @@ with tabs[1]:
                 with c_add4:
                     new_task_dk = st.text_input("Điều kiện ghi nhận kết quả:", value="-")
                 with c_add5:
-                    new_task_deadline = st.text_input("Thời hạn hoàn thành:", value="Tháng 06/2026")
+                    new_task_deadline_date = st.date_input("Thời hạn hoàn thành:", value=datetime.date(2026, 6, 30))
+                    new_task_deadline = new_task_deadline_date.strftime("%Y-%m-%d")
                 with c_add6:
                     new_task_budget = st.number_input("Ngân sách tổng đề xuất (Trđ):", min_value=0.0, value=0.0, step=10.0)
                     
