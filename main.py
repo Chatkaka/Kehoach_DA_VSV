@@ -145,8 +145,9 @@ def get_tasks(
             "ten_cong_viec": t.ten_cong_viec,
             "phong_ban_thuc_hien": t.phong_ban_thuc_hien,
             "co_quan_giai_quyet": t.co_quan_giai_quyet,
-            "kpi_trong_yeu": t.kpi_trong_yeu,
+            "ho_so_dau_ra": t.ho_so_dau_ra,
             "dieu_kien_ghi_nhan": t.dieu_kien_ghi_nhan,
+            "thoi_han_hoan_thanh": t.thoi_han_hoan_thanh,
             "tien_do": t.tien_do,
             "trang_thai": t.trang_thai,
             "budget": {
@@ -178,7 +179,8 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
             "Mã Ngân Sách (WBS)": t.ma_ngan_sach,
             "Nội dung công việc": indented_name,
             "Phòng ban thực hiện": t.phong_ban_thuc_hien or "-",
-            "KPI trọng yếu": t.kpi_trong_yeu or "-",
+            "Hồ sơ đầu ra": t.ho_so_dau_ra or "-",
+            "Thời hạn hoàn thành": t.thoi_han_hoan_thanh or "-",
             "Điều kiện ghi nhận kết quả": t.dieu_kien_ghi_nhan or "-",
             "Ngân sách tổng (Trđ)": budget_val,
             "Tiến độ (%)": t.tien_do,
@@ -598,8 +600,9 @@ class TaskCreate(BaseModel):
     ten_cong_viec: str
     phong_ban_thuc_hien: Optional[str] = "BQLDA"
     co_quan_giai_quyet: Optional[str] = "-"
-    kpi_trong_yeu: Optional[str] = "-"
+    ho_so_dau_ra: Optional[str] = "-"
     dieu_kien_ghi_nhan: Optional[str] = "-"
+    thoi_han_hoan_thanh: Optional[str] = "Tháng 06/2026"
     ngan_sach: float = 0.0
 
 def recalculate_budgets(db: Session):
@@ -696,8 +699,9 @@ async def create_task(request: TaskCreate, db: Session = Depends(database.get_db
         ten_cong_viec=request.ten_cong_viec.strip(),
         phong_ban_thuc_hien=request.phong_ban_thuc_hien.strip(),
         co_quan_giai_quyet=request.co_quan_giai_quyet.strip(),
-        kpi_trong_yeu=request.kpi_trong_yeu.strip(),
+        ho_so_dau_ra=request.ho_so_dau_ra.strip(),
         dieu_kien_ghi_nhan=request.dieu_kien_ghi_nhan.strip(),
+        thoi_han_hoan_thanh=request.thoi_han_hoan_thanh.strip(),
         tien_do=0.0,
         trang_thai="Todo"
     )
@@ -730,7 +734,8 @@ async def create_task(request: TaskCreate, db: Session = Depends(database.get_db
         "ma_ngan_sach": new_task.ma_ngan_sach,
         "ten_cong_viec": new_task.ten_cong_viec,
         "phong_ban_thuc_hien": new_task.phong_ban_thuc_hien,
-        "kpi_trong_yeu": new_task.kpi_trong_yeu,
+        "ho_so_dau_ra": new_task.ho_so_dau_ra,
+        "thoi_han_hoan_thanh": new_task.thoi_han_hoan_thanh,
         "tien_do": new_task.tien_do,
         "trang_thai": new_task.trang_thai,
         "budget": {
@@ -745,6 +750,102 @@ async def create_task(request: TaskCreate, db: Session = Depends(database.get_db
         "message": f"Đã thêm mới thành công công việc Cấp 3: {new_stt}",
         "task": update_msg
     }
+
+class TaskUpdate(BaseModel):
+    ma_ngan_sach: str
+    ten_cong_viec: str
+    phong_ban_thuc_hien: str
+    co_quan_giai_quyet: str
+    ho_so_dau_ra: str
+    dieu_kien_ghi_nhan: str
+    thoi_han_hoan_thanh: str
+    tien_do: float
+    trang_thai: str
+    ngan_sach: float
+
+@app.put("/api/tasks/{task_id}")
+async def update_task_details(task_id: int, request: TaskUpdate, db: Session = Depends(database.get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
+        
+    if request.ma_ngan_sach != task.ma_ngan_sach:
+        existing = db.query(models.Task).filter(models.Task.ma_ngan_sach == request.ma_ngan_sach).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Mã Ngân Sách (WBS) này đã tồn tại.")
+            
+    task.ma_ngan_sach = request.ma_ngan_sach.strip()
+    task.ten_cong_viec = request.ten_cong_viec.strip()
+    task.phong_ban_thuc_hien = request.phong_ban_thuc_hien.strip()
+    task.co_quan_giai_quyet = request.co_quan_giai_quyet.strip()
+    task.ho_so_dau_ra = request.ho_so_dau_ra.strip()
+    task.dieu_kien_ghi_nhan = request.dieu_kien_ghi_nhan.strip()
+    task.thoi_han_hoan_thanh = request.thoi_han_hoan_thanh.strip()
+    task.tien_do = request.tien_do
+    task.trang_thai = request.trang_thai
+    
+    if task.budget:
+        task.budget.ngan_sach_tong = request.ngan_sach
+        task.budget.kh_2026 = request.ngan_sach * 0.40
+        task.budget.quy_1_2026 = request.ngan_sach * 0.15
+        task.budget.quy_2_2026 = request.ngan_sach * 0.15
+        task.budget.thang_01_2025 = request.ngan_sach * 0.05
+        task.budget.thang_02_2025 = request.ngan_sach * 0.05
+        task.budget.thang_03_2025 = request.ngan_sach * 0.05
+        task.budget.thang_04_2025 = request.ngan_sach * 0.05
+        task.budget.thang_05_2026 = request.ngan_sach * 0.05
+        task.budget.thang_06_2026 = request.ngan_sach * 0.05
+    db.add(task)
+    db.flush()
+    
+    recalculate_budgets(db)
+    db.commit()
+    
+    update_msg = {
+        "type": "task_update",
+        "task_id": task.id,
+        "stt": task.stt,
+        "ma_ngan_sach": task.ma_ngan_sach,
+        "ten_cong_viec": task.ten_cong_viec,
+        "phong_ban_thuc_hien": task.phong_ban_thuc_hien,
+        "ho_so_dau_ra": task.ho_so_dau_ra,
+        "thoi_han_hoan_thanh": task.thoi_han_hoan_thanh,
+        "tien_do": task.tien_do,
+        "trang_thai": task.trang_thai,
+        "budget": {
+            "ngan_sach_tong": task.budget.ngan_sach_tong if task.budget else 0.0,
+            "is_locked": task.budget.is_locked if task.budget else False
+        }
+    }
+    await manager.broadcast(update_msg)
+    
+    return {"status": "success", "task": update_msg}
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task_route(task_id: int, db: Session = Depends(database.get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
+        
+    stt = task.stt
+    children = db.query(models.Task).filter(
+        (models.Task.stt == stt) | (models.Task.stt.like(f"{stt}.%"))
+    ).all()
+    
+    deleted_ids = [c.id for c in children]
+    for c in children:
+        db.delete(c)
+    db.flush()
+    
+    recalculate_budgets(db)
+    db.commit()
+    
+    await manager.broadcast({
+        "type": "task_delete",
+        "task_ids": deleted_ids
+    })
+    
+    return {"status": "success", "deleted_count": len(children)}
 
 # Serve Frontend static files
 # We will create the static directory if not exists

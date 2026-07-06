@@ -149,7 +149,14 @@ with tabs[1]:
         if not tasks:
             st.info("Không có công việc nào trong giai đoạn này.")
         else:
-            # Convert to DataFrame to display
+            status_mapping = {
+                "Chưa thực hiện": "Todo",
+                "Đang triển khai": "In-Progress",
+                "Hoàn thành": "Done",
+                "Trễ hạn": "Delayed"
+            }
+            reverse_status_mapping = {v: k for k, v in status_mapping.items()}
+
             df_tasks = pd.DataFrame([{
                 "ID": t["id"],
                 "STT": t["stt"],
@@ -157,10 +164,11 @@ with tabs[1]:
                 "Cấp": t["level"],
                 "Tên công việc": t["ten_cong_viec"],
                 "Phòng ban thực hiện": t["phong_ban_thuc_hien"] or "-",
-                "KPI trọng yếu": t["kpi_trong_yeu"] or "-",
+                "Hồ sơ đầu ra": t["ho_so_dau_ra"] or "-",
+                "Thời hạn": t["thoi_han_hoan_thanh"] or "Tháng 06/2026",
                 "Ngân sách (Trđ)": t["budget"]["ngan_sach_tong"] if t["budget"] else 0.0,
                 "Tiến độ (%)": t["tien_do"],
-                "Trạng thái": t["trang_thai"],
+                "Trạng thái": reverse_status_mapping.get(t["trang_thai"], t["trang_thai"]),
                 "Bị khóa": "Bị khóa 🔒" if t["budget"] and t["budget"]["is_locked"] else "Bình thường"
             } for t in tasks])
             
@@ -205,11 +213,12 @@ with tabs[1]:
                         step=5.0
                     )
                 with c_p2:
-                    new_status = st.selectbox(
+                    selected_status_vn = st.selectbox(
                         "Trạng thái mới:",
-                        ["Todo", "In-Progress", "Done", "Delayed"],
-                        index=["Todo", "In-Progress", "Done", "Delayed"].index(curr_task["trang_thai"])
+                        list(status_mapping.keys()),
+                        index=list(status_mapping.values()).index(curr_task["trang_thai"])
                     )
+                    new_status = status_mapping[selected_status_vn]
                 with c_p3:
                     new_cond = st.text_input(
                         "Điều kiện ghi nhận kết quả:",
@@ -244,41 +253,44 @@ with tabs[1]:
                 
                 new_task_name = st.text_input("Tên công việc Cấp 3 mới:", placeholder="Ví dụ: Lập và trình duyệt báo cáo đánh giá tác động môi trường chi tiết")
                 
-                c_add1, c_add2, c_add3 = st.columns(3)
-                with c_add1:
-                    new_task_pb = st.text_input("Đơn vị/Phòng ban thực hiện:", value="PTDA")
-                with c_add2:
-                    new_task_cq = st.text_input("Cơ quan giải quyết/phê duyệt:", value="-")
-                with c_add3:
-                    new_task_kpi = st.text_input("KPI trọng yếu:", value="1")
-                    
-                c_add4, c_add5 = st.columns(2)
-                with c_add4:
-                    new_task_dk = st.text_input("Điều kiện ghi nhận kết quả:", value="-")
-                with c_add5:
-                    new_task_budget = st.number_input("Ngân sách tổng đề xuất (Trđ):", min_value=0.0, value=0.0, step=10.0)
-                    
-                if st.button("➕ Thêm công việc Cấp 3"):
-                    if not new_task_name.strip():
-                        st.warning("Vui lòng nhập tên công việc.")
-                    else:
-                        try:
-                            add_res = requests.post(
-                                f"{API_URL}/api/tasks",
-                                json={
-                                    "parent_stt": selected_parent_stt,
-                                    "ten_cong_viec": new_task_name,
-                                    "phong_ban_thuc_hien": new_task_pb,
-                                    "co_quan_giai_quyet": new_task_cq,
-                                    "kpi_trong_yeu": new_task_kpi,
-                                    "dieu_kien_ghi_nhan": new_task_dk,
-                                    "ngan_sach": new_task_budget
-                                }
-                            )
-                            if add_res.status_code == 200:
-                                st.success(f"Đã thêm mới thành công công việc Cấp 3 dưới mục {selected_parent_stt}!")
-                                st.rerun()
-                            else:
+                 c_add1, c_add2, c_add3 = st.columns(3)
+                 with c_add1:
+                     new_task_pb = st.text_input("Đơn vị/Phòng ban thực hiện:", value="PTDA")
+                 with c_add2:
+                     new_task_cq = st.text_input("Cơ quan giải quyết/phê duyệt:", value="-")
+                 with c_add3:
+                     new_task_deliverables = st.text_input("Hồ sơ đầu ra:", value="-")
+                     
+                 c_add4, c_add5, c_add6 = st.columns(3)
+                 with c_add4:
+                     new_task_dk = st.text_input("Điều kiện ghi nhận kết quả:", value="-")
+                 with c_add5:
+                     new_task_deadline = st.text_input("Thời hạn hoàn thành:", value="Tháng 06/2026")
+                 with c_add6:
+                     new_task_budget = st.number_input("Ngân sách tổng đề xuất (Trđ):", min_value=0.0, value=0.0, step=10.0)
+                     
+                 if st.button("➕ Thêm công việc Cấp 3"):
+                     if not new_task_name.strip():
+                         st.warning("Vui lòng nhập tên công việc.")
+                     else:
+                         try:
+                             add_res = requests.post(
+                                 f"{API_URL}/api/tasks",
+                                 json={
+                                     "parent_stt": selected_parent_stt,
+                                     "ten_cong_viec": new_task_name,
+                                     "phong_ban_thuc_hien": new_task_pb,
+                                     "co_quan_giai_quyet": new_task_cq,
+                                     "ho_so_dau_ra": new_task_deliverables,
+                                     "dieu_kien_ghi_nhan": new_task_dk,
+                                     "thoi_han_hoan_thanh": new_task_deadline,
+                                     "ngan_sach": new_task_budget
+                                 }
+                             )
+                             if add_res.status_code == 200:
+                                 st.success(f"Đã thêm mới thành công công việc Cấp 3 dưới mục {selected_parent_stt}!")
+                                 st.rerun()
+                             else:
                                 st.error(f"Lỗi: {add_res.json()['detail']}")
                         except Exception as ex:
                             st.error(f"Lỗi kết nối máy chủ: {ex}")

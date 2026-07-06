@@ -117,14 +117,15 @@
                     <thead>
                         <tr>
                             <th style="width: 100px;">STT / Cấp</th>
-                            <th style="width: 140px;">Mã Ngân Sách</th>
+                            <th style="width: 130px;">Mã Ngân Sách</th>
                             <th>Nội dung công việc</th>
-                            <th style="width: 180px;">Công ty / Phòng ban</th>
-                            <th style="width: 120px;">KPI Trọng Yếu</th>
-                            <th style="width: 150px;">Ngân Sách Tổng</th>
+                            <th style="width: 140px;">Công ty / Phòng ban</th>
+                            <th style="width: 160px;">Hồ sơ đầu ra</th>
+                            <th style="width: 130px;">Thời hạn</th>
+                            <th style="width: 145px;">Ngân Sách Tổng</th>
                             <th style="width: 120px;">Tiến Độ</th>
-                            <th style="width: 110px;">Trạng Thái</th>
-                            <th style="width: 70px;">Sửa</th>
+                            <th style="width: 120px;">Trạng Thái</th>
+                            <th style="width: 130px;">Hành động</th>
                         </tr>
                     </thead>
                     <tbody id="tasks-table-body">
@@ -141,37 +142,120 @@
 
     </div>
 
-    <!-- Modal for task quick edit -->
+    <!-- Modal for task edit -->
     <div id="edit-task-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:100; justify-content:center; align-items:center;">
-        <div class="panel" style="width: 400px; max-width: 90%;">
+        <div class="panel" style="width: 550px; max-width: 95%;">
             <div class="panel-header">
-                <span class="panel-title"><i class="fa-solid fa-pen-to-square"></i> Cập Nhật Tiến Độ</span>
+                <span class="panel-title"><i class="fa-solid fa-pen-to-square"></i> Chỉnh Sửa Công Việc <span id="edit-task-stt" style="color:var(--secondary);"></span></span>
                 <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeEditModal()"></i>
             </div>
             <input type="hidden" id="edit-id">
-            <div class="form-group">
-                <label id="edit-task-title" style="font-weight: 600; margin-bottom: 10px; color:#fff;"></label>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
+                <div class="form-group">
+                    <label for="edit-wbs">Mã Ngân Sách (WBS)</label>
+                    <input type="text" id="edit-wbs" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="edit-name">Tên Công Việc</label>
+                    <input type="text" id="edit-name" class="form-control">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="edit-progress">Tiến độ (%)</label>
-                <input type="number" id="edit-progress" class="form-control" min="0" max="100">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label for="edit-dept">Phòng Ban Thực Hiện</label>
+                    <input type="text" id="edit-dept" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="edit-deliverables">Hồ Sơ Đầu Ra</label>
+                    <input type="text" id="edit-deliverables" class="form-control">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="edit-status">Trạng thái</label>
-                <select id="edit-status" class="form-control">
-                    <option value="Todo">Todo</option>
-                    <option value="In-Progress">In-Progress</option>
-                    <option value="Done">Done</option>
-                    <option value="Delayed">Delayed</option>
-                </select>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label for="edit-deadline">Thời Hạn Hoàn Thành</label>
+                    <input type="text" id="edit-deadline" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="edit-budget">Ngân Sách Tổng (Trđ)</label>
+                    <input type="number" id="edit-budget" class="form-control" step="0.1">
+                </div>
             </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label for="edit-progress">Tiến độ (%)</label>
+                    <input type="number" id="edit-progress" class="form-control" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="edit-status">Trạng thái</label>
+                    <select id="edit-status" class="form-control">
+                        <option value="Todo">Chưa thực hiện</option>
+                        <option value="In-Progress">Đang triển khai</option>
+                        <option value="Done">Hoàn thành</option>
+                        <option value="Delayed">Trễ hạn</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label for="edit-cond">Điều kiện ghi nhận kết quả</label>
                 <input type="text" id="edit-cond" class="form-control" placeholder="Mô tả chứng từ/kết quả bàn giao">
             </div>
+
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
                 <button class="btn secondary-btn" onclick="closeEditModal()">Hủy</button>
                 <button class="btn" onclick="saveTaskProgress()">Lưu Thay Đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for task add child -->
+    <div id="add-task-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:100; justify-content:center; align-items:center;">
+        <div class="panel" style="width: 500px; max-width: 90%;">
+            <div class="panel-header">
+                <span class="panel-title"><i class="fa-solid fa-plus"></i> Thêm Công Việc Con Dưới Mục <span id="add-parent-stt" style="color:var(--secondary);"></span></span>
+                <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeAddModal()"></i>
+            </div>
+            <input type="hidden" id="add-parent-stt-hidden">
+            
+            <div class="form-group">
+                <label for="add-name">Tên Công Việc Con</label>
+                <input type="text" id="add-name" class="form-control" placeholder="Nhập tên công việc con mới...">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label for="add-dept">Phòng Ban Thực Hiện</label>
+                    <input type="text" id="add-dept" class="form-control" value="PTDA">
+                </div>
+                <div class="form-group">
+                    <label for="add-deliverables">Hồ Sơ Đầu Ra</label>
+                    <input type="text" id="add-deliverables" class="form-control" value="-">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label for="add-deadline">Thời Hạn Hoàn Thành</label>
+                    <input type="text" id="add-deadline" class="form-control" value="Tháng 06/2026">
+                </div>
+                <div class="form-group">
+                    <label for="add-budget">Ngân Sách Đề Xuất (Trđ)</label>
+                    <input type="number" id="add-budget" class="form-control" value="0.0" step="0.1">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="add-cond">Điều kiện ghi nhận kết quả</label>
+                <input type="text" id="add-cond" class="form-control" value="-">
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn secondary-btn" onclick="closeAddModal()">Hủy</button>
+                <button class="btn" onclick="saveNewChildTask()">Thêm Mới</button>
             </div>
         </div>
     </div>
@@ -347,6 +431,16 @@
             fetchTasks(phaseId);
         }
 
+        function getStatusTextVietnamese(status) {
+            switch(status) {
+                case 'Todo': return 'Chưa thực hiện';
+                case 'In-Progress': return 'Đang triển khai';
+                case 'Done': return 'Hoàn thành';
+                case 'Delayed': return 'Trễ hạn';
+                default: return status;
+            }
+        }
+
         // Fetch Tasks list
         function fetchTasks(phaseId) {
             const tableBody = document.getElementById('tasks-table-body');
@@ -384,12 +478,17 @@
                         const budgetText = task.budget ? task.budget.ngan_sach_tong.toLocaleString() + ' Trđ' : '0.00 Trđ';
                         const lockedIcon = (task.budget && task.budget.is_locked) ? '<i class="fa-solid fa-lock" style="color:var(--danger); margin-left:6px;" title="Mã ngân sách đã bị khóa do vượt chi"></i>' : '';
 
+                        const addBtn = task.level < 3 ? `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-plus"></i></button>` : '';
+                        const editBtn = `<button class="action-btn" onclick="openEditModal(${task.id}, '${task.ten_cong_viec.replace(/'/g, "\\'")}', ${task.tien_do}, '${task.trang_thai}', '${(task.dieu_kien_ghi_nhan || "").replace(/'/g, "\\'")}', '${task.ma_ngan_sach}', '${task.phong_ban_thuc_hien || ""}', '${(task.ho_so_dau_ra || "").replace(/'/g, "\\'")}', '${task.thoi_han_hoan_thanh || ""}', ${task.budget ? task.budget.ngan_sach_tong : 0})" title="Chỉnh sửa" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-pen-to-square"></i></button>`;
+                        const deleteBtn = `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem;"><i class="fa-solid fa-trash"></i></button>`;
+
                         tr.innerHTML = `
                             <td>${task.stt} <span style="font-size:0.7rem; color:var(--text-secondary);">(Lv${task.level})</span></td>
                             <td><code>${task.ma_ngan_sach}</code></td>
                             <td style="${indentStyle}">${task.ten_cong_viec}</td>
                             <td>${task.phong_ban_thuc_hien || '-'}</td>
-                            <td>${task.kpi_trong_yeu || '-'}</td>
+                            <td>${task.ho_so_dau_ra || '-'}</td>
+                            <td>${task.thoi_han_hoan_thanh || 'Tháng 06/2026'}</td>
                             <td style="font-weight:600; text-align:right;">${budgetText} ${lockedIcon}</td>
                             <td class="progress-cell">
                                 <div style="display:flex; align-items:center; gap:8px;">
@@ -400,12 +499,12 @@
                                 </div>
                             </td>
                             <td class="status-cell">
-                                <span class="badge ${task.trang_thai.toLowerCase()}">${task.trang_thai}</span>
+                                <span class="badge ${task.trang_thai.toLowerCase()}">${getStatusTextVietnamese(task.trang_thai)}</span>
                             </td>
-                            <td>
-                                <button class="action-btn" onclick="openEditModal(${task.id}, '${task.ten_cong_viec.replace(/'/g, "\\'")}', ${task.tien_do}, '${task.trang_thai}', '${(task.dieu_kien_ghi_nhan || "").replace(/'/g, "\\'")}')">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </button>
+                            <td style="display:flex; align-items:center;">
+                                ${addBtn}
+                                ${editBtn}
+                                ${deleteBtn}
                             </td>
                         `;
                         tableBody.appendChild(tr);
@@ -533,10 +632,16 @@
                 });
         }
 
-        // Open quick edit modal
-        function openEditModal(id, title, progress, status, cond) {
+        // Open edit modal
+        function openEditModal(id, name, progress, status, cond, wbs, dept, deliverables, deadline, budget) {
             document.getElementById('edit-id').value = id;
-            document.getElementById('edit-task-title').innerText = title;
+            document.getElementById('edit-task-stt').innerText = wbs ? '(' + wbs + ')' : '';
+            document.getElementById('edit-wbs').value = wbs || '';
+            document.getElementById('edit-name').value = name || '';
+            document.getElementById('edit-dept').value = dept || '';
+            document.getElementById('edit-deliverables').value = deliverables || '';
+            document.getElementById('edit-deadline').value = deadline || 'Tháng 06/2026';
+            document.getElementById('edit-budget').value = budget || 0;
             document.getElementById('edit-progress').value = progress;
             document.getElementById('edit-status').value = status;
             document.getElementById('edit-cond').value = cond || '';
@@ -547,32 +652,123 @@
             document.getElementById('edit-task-modal').style.display = 'none';
         }
 
-        // Save Task progress via API
+        // Save Task progress/details via API
         function saveTaskProgress() {
             const id = document.getElementById('edit-id').value;
-            const progress = parseFloat(document.getElementById('edit-progress').value);
+            const wbs = document.getElementById('edit-wbs').value;
+            const name = document.getElementById('edit-name').value;
+            const dept = document.getElementById('edit-dept').value;
+            const deliverables = document.getElementById('edit-deliverables').value;
+            const deadline = document.getElementById('edit-deadline').value;
+            const budget = parseFloat(document.getElementById('edit-budget').value) || 0;
+            const progress = parseFloat(document.getElementById('edit-progress').value) || 0;
             const status = document.getElementById('edit-status').value;
             const cond = document.getElementById('edit-cond').value;
 
-            fetch(backendUrl + `/api/tasks/${id}/progress`, {
+            fetch(backendUrl + `/api/tasks/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    ma_ngan_sach: wbs,
+                    ten_cong_viec: name,
+                    phong_ban_thuc_hien: dept,
+                    co_quan_giai_quyet: '-',
+                    ho_so_dau_ra: deliverables,
+                    dieu_kien_ghi_nhan: cond,
+                    thoi_han_hoan_thanh: deadline,
                     tien_do: progress,
                     trang_thai: status,
-                    dieu_kien_ghi_nhan: cond
+                    ngan_sach: budget
                 })
             })
             .then(async res => {
                 const data = await res.json();
                 if (res.ok) {
                     closeEditModal();
+                    fetchStats();
+                    fetchTasks(currentPhase);
                 } else {
-                    // Hiển thị lỗi chốt chặn phase gate
-                    alert(`LỖI CHỐT CHẶN HỆ THỐNG: ${data.detail}`);
+                    alert(`LỖI HỆ THỐNG: ${data.detail}`);
                 }
             })
-            .catch(err => console.error("Error updating progress:", err));
+            .catch(err => console.error("Error updating task details:", err));
+        }
+
+        // Add Child modal actions
+        function openAddModal(parentStt, parentLevel) {
+            document.getElementById('add-parent-stt-hidden').value = parentStt;
+            document.getElementById('add-parent-stt').innerText = parentStt;
+            document.getElementById('add-name').value = '';
+            document.getElementById('add-dept').value = 'PTDA';
+            document.getElementById('add-deliverables').value = '-';
+            document.getElementById('add-deadline').value = 'Tháng 06/2026';
+            document.getElementById('add-budget').value = '0';
+            document.getElementById('add-cond').value = '-';
+            document.getElementById('add-task-modal').style.display = 'flex';
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-task-modal').style.display = 'none';
+        }
+
+        function saveNewChildTask() {
+            const parentStt = document.getElementById('add-parent-stt-hidden').value;
+            const name = document.getElementById('add-name').value;
+            const dept = document.getElementById('add-dept').value;
+            const deliverables = document.getElementById('add-deliverables').value;
+            const deadline = document.getElementById('add-deadline').value;
+            const budget = parseFloat(document.getElementById('add-budget').value) || 0;
+            const cond = document.getElementById('add-cond').value;
+
+            if (!name.trim()) {
+                alert("Vui lòng nhập tên công việc con.");
+                return;
+            }
+
+            fetch(backendUrl + '/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    parent_stt: parentStt,
+                    ten_cong_viec: name,
+                    phong_ban_thuc_hien: dept,
+                    co_quan_giai_quyet: '-',
+                    ho_so_dau_ra: deliverables,
+                    dieu_kien_ghi_nhan: cond,
+                    thoi_han_hoan_thanh: deadline,
+                    ngan_sach: budget
+                })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (res.ok) {
+                    closeAddModal();
+                    fetchStats();
+                    fetchTasks(currentPhase);
+                } else {
+                    alert(`Lỗi: ${data.detail}`);
+                }
+            })
+            .catch(err => console.error("Error creating child task:", err));
+        }
+
+        // Delete task action
+        function deleteTask(id, stt) {
+            if (confirm(`Bạn có chắc chắn muốn XÓA công việc ${stt} và tất cả các mục con? Điều này sẽ tự động tính toán lại ngân sách dự án.`)) {
+                fetch(backendUrl + `/api/tasks/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(async res => {
+                    const data = await res.json();
+                    if (res.ok) {
+                        fetchStats();
+                        fetchTasks(currentPhase);
+                    } else {
+                        alert(`Lỗi: ${data.detail}`);
+                    }
+                })
+                .catch(err => console.error("Error deleting task:", err));
+            }
         }
 
         // Send AI Text command update

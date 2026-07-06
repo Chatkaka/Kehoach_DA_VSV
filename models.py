@@ -34,8 +34,9 @@ class Task(Base):
     ten_cong_viec = Column(String, nullable=False)
     phong_ban_thuc_hien = Column(String, nullable=True)
     co_quan_giai_quyet = Column(String, nullable=True)
-    kpi_trong_yeu = Column(String, nullable=True)
+    ho_so_dau_ra = Column(String, nullable=True)
     dieu_kien_ghi_nhan = Column(String, nullable=True)
+    thoi_han_hoan_thanh = Column(String, nullable=True)
     tien_do = Column(Float, default=0.0)  # 0 to 100
     trang_thai = Column(String, default="Todo")  # Todo/In-Progress/Done/Delayed
 
