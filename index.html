@@ -21,27 +21,11 @@
                     <p>Hệ thống Quản lý Tiến độ & Ngân sách Thời gian thực (Harness 5 Layers)</p>
                 </div>
             </div>
-            <div class="system-status" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <div class="status-dot" id="ws-status-dot"></div>
-                    <span id="ws-status-text">Đang kết nối WebSocket...</span>
-                </div>
-                <input type="text" id="backend-url-input" placeholder="Backend URL (e.g. http://127.0.0.1:8000)" 
-                       style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 8px; color: #fff; font-size: 0.75rem; width: 220px; outline: none; margin-top: 2px;"
-                       onchange="saveBackendUrl(this.value)">
+            <div class="system-status">
+                <div class="status-dot" id="ws-status-dot"></div>
+                <span id="ws-status-text">Đang kết nối WebSocket...</span>
             </div>
         </header>
-
-        <!-- Red Alert Panel -->
-        <div class="red-alert-panel" id="red-alert-panel">
-            <div class="red-alert-header">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <span>BÁO ĐỘNG ĐỎ - CHỐT CHẶN VƯỢT NGÂN SÁCH (HARD BUDGET GATE)</span>
-            </div>
-            <div class="red-alert-body" id="red-alert-message">
-                Cảnh báo! Có yêu cầu giải ngân vượt hạn mức ngân sách tổng được phê duyệt. Hệ thống đã khóa tính năng duyệt chi cho mã tương ứng.
-            </div>
-        </div>
 
         <!-- Layer 1: Memory & Stats Row -->
         <div class="stats-grid">
@@ -115,14 +99,17 @@
                 <span class="panel-title"><i class="fa-solid fa-sitemap"></i> Cấu trúc Phân rã Công việc (WBS) & Tiến độ 4 Giai đoạn</span>
             </div>
             
-            <div class="filter-bar">
-                <div class="phase-filters" id="phase-filters-container">
+            <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div class="phase-filters" id="phase-filters-container" style="display: flex; gap: 8px;">
                     <button class="filter-btn active" onclick="changePhase(1)">Giai đoạn 1: Pháp lý & Thiết kế</button>
                     <button class="filter-btn" onclick="changePhase(2)">Giai đoạn 2: Thi công xây dựng</button>
                     <button class="filter-btn" onclick="changePhase(3)">Giai đoạn 3: Nghiệm thu bàn giao</button>
                     <button class="filter-btn" onclick="changePhase(4)">Giai đoạn 4: Cấp bìa sổ hồng</button>
                 </div>
-                <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()" style="margin: 0;">
+                    <button class="btn" onclick="exportToExcel()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
+                </div>
             </div>
 
             <div class="table-wrapper">
@@ -203,24 +190,22 @@
             localStorage.setItem('backend_url', backendUrl);
         }
 
-        function saveBackendUrl(val) {
-            localStorage.setItem('backend_url', val.trim());
-            window.location.reload();
-        }
-
         let currentPhase = 1;
         let sCurveChart = null;
         let ws = null;
 
         // On document load
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('backend-url-input').value = backendUrl;
             fetchStats();
             fetchTasks(currentPhase);
             renderSCurveChart();
             refreshRiskReport();
             setupWebSocket();
         });
+
+        function exportToExcel() {
+            window.open((backendUrl || '') + '/api/tasks/export', '_blank');
+        }
 
         // Setup WebSocket client
         function setupWebSocket() {

@@ -172,6 +172,20 @@ with tabs[1]:
             
             st.dataframe(df_tasks, use_container_width=True, hide_index=True)
             
+            # Button to export WBS tasks to Excel from Streamlit
+            try:
+                export_res = requests.get(f"{API_URL}/api/tasks/export")
+                if export_res.status_code == 200:
+                    st.download_button(
+                        label="📥 Xuất Cấu trúc WBS sang file Excel (Giữ nguyên cấu trúc)",
+                        data=export_res.content,
+                        file_name="VenSongVinh_WBS_KeHoach.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="streamlit_export_excel"
+                    )
+            except Exception as e:
+                st.warning("Không thể tạo liên kết tải file Excel từ backend.")
+            
             # Form to update task progress (PM/Admin)
             st.markdown("### ✏️ Cập nhật tiến độ & trạng thái công việc")
             
@@ -521,3 +535,51 @@ with tabs[3]:
                 st.markdown(res["risk_report"])
             except Exception as e:
                 st.error(f"Lỗi khi lấy báo cáo đánh giá rủi ro AI: {e}")
+
+    st.markdown("---")
+    st.markdown("### 💬 Phân tích & Hỏi đáp AI Gemini về Dự án")
+    st.info("Nhập câu hỏi của bạn về dự án (ví dụ: 'Công việc nào đang trễ hạn?', 'Tóm tắt tình hình các Phase'). AI sẽ phân tích dữ liệu thực tế và phản hồi.")
+    
+    ai_question = st.text_input("Nhập câu hỏi cho AI Gemini:")
+    if st.button("Hỏi AI Gemini", key="run_ai_chat"):
+        if ai_question.strip():
+            with st.spinner("AI đang phân tích dữ liệu dự án..."):
+                try:
+                    # 1. Fetch current WBS stats and tasks to build context
+                    stats_res = requests.get(f"{API_URL}/api/stats").json()
+                    all_tasks = requests.get(f"{API_URL}/api/tasks").json()
+                    
+                    # Format a concise context for Gemini
+                    tasks_summary = []
+                    for t in all_tasks[:85]:  # Limit to 85 tasks
+                        tasks_summary.append(f"- STT {t['stt']} | WBS {t['ma_ngan_sach']} | {t['ten_cong_viec']} | Tiến độ: {t['tien_do']}% | Trạng thái: {t['trang_thai']}")
+                    
+                    context = f"""
+Thông tin dự án Ven Sông Vinh:
+- Tổng ngân sách: {stats_res['tong_ngan_sach']:,.2f} Trđ
+- Lũy kế thực chi: {stats_res['tong_thuc_chi']:,.2f} Trđ
+- Ngân sách còn lại: {stats_res['con_lai']:,.2f} Trđ
+- Tiến độ trung bình: {stats_res['tien_do_trung_binh']:.2f}%
+- Trạng thái công việc: Todo ({stats_res['trang_thai_tasks']['Todo']}), In-Progress ({stats_res['trang_thai_tasks']['In-Progress']}), Done ({stats_res['trang_thai_tasks']['Done']}), Delayed ({stats_res['trang_thai_tasks']['Delayed']})
+- Số mã ngân sách bị khóa do vượt chi: {stats_res['so_wbs_bi_khoa']}
+
+Danh sách một số công việc tiêu biểu:
+{chr(10).join(tasks_summary)}
+"""
+                    payload = {
+                        "question": ai_question,
+                        "context": context
+                    }
+                    if "gemini_api_key" in st.session_state and st.session_state.gemini_api_key:
+                        payload["api_key"] = st.session_state.gemini_api_key
+                        
+                    res = requests.post(f"{API_URL}/api/ai/chat", json=payload)
+                    if res.status_code == 200:
+                        st.markdown("**Phản hồi của AI Gemini:**")
+                        st.markdown(res.json()["response"])
+                    else:
+                        st.error(f"Lỗi phân tích AI: {res.json()['detail']}")
+                except Exception as e:
+                    st.error(f"Lỗi kết nối AI: {e}")
+        else:
+            st.warning("Vui lòng nhập câu hỏi.")

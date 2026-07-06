@@ -7,9 +7,13 @@ sys.stdout.reconfigure(encoding='utf-8')
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
+import pandas as pd
+import openpyxl
+import io
 
 import models
 import database
@@ -152,6 +156,54 @@ def get_tasks(
         })
         
     return result
+
+@app.get("/api/tasks/export")
+def export_tasks_to_excel(db: Session = Depends(database.get_db)):
+    tasks = db.query(models.Task).all()
+    # Sort them by STT hierarchically
+    tasks = sorted(tasks, key=lambda x: [int(i) if i.isdigit() else 999 for i in x.stt.split('.')])
+    
+    rows = []
+    for t in tasks:
+        dot_count = t.stt.count('.')
+        t_level = dot_count + 1
+        budget_val = t.budget.ngan_sach_tong if t.budget else 0.0
+        
+        # Indent task name to represent level visually in Excel
+        indented_name = ("    " * (t_level - 1)) + t.ten_cong_viec
+        
+        rows.append({
+            "STT": t.stt,
+            "Cấp": t_level,
+            "Mã Ngân Sách (WBS)": t.ma_ngan_sach,
+            "Nội dung công việc": indented_name,
+            "Phòng ban thực hiện": t.phong_ban_thuc_hien or "-",
+            "KPI trọng yếu": t.kpi_trong_yeu or "-",
+            "Điều kiện ghi nhận kết quả": t.dieu_kien_ghi_nhan or "-",
+            "Ngân sách tổng (Trđ)": budget_val,
+            "Tiến độ (%)": t.tien_do,
+            "Trạng thái": t.trang_thai
+        })
+        
+    df = pd.DataFrame(rows)
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name="Ke_hoach_cong_viec")
+        
+        workbook = writer.book
+        worksheet = writer.sheets["Ke_hoach_cong_viec"]
+        for col in worksheet.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = openpyxl.utils.get_column_letter(col[0].column)
+            worksheet.column_dimensions[col_letter].width = max(max_len + 3, 10)
+            
+    output.seek(0)
+    
+    headers = {
+        'Content-Disposition': 'attachment; filename="VenSongVinh_WBS_KeHoach.xlsx"'
+    }
+    return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
 
 @app.get("/api/tasks/{task_id}")
 def get_task(task_id: int, db: Session = Depends(database.get_db)):
@@ -513,6 +565,33 @@ def get_ai_risk_assessment(api_key: Optional[str] = None, db: Session = Depends(
     )
     
     return {"risk_report": risk_report}
+
+class AIChatRequest(BaseModel):
+    question: str
+    context: str
+    api_key: Optional[str] = None
+
+@app.post("/api/ai/chat")
+async def chat_with_gemini(request: AIChatRequest):
+    api_key = request.api_key or os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Gemini API Key is missing. Please configure it in the sidebar.")
+    
+    prompt = f"""
+Bạn là Chuyên gia Kiến trúc Hệ thống ERP và Phân tích Dữ liệu AI của Dự án Bất động sản Ven Sông Vinh.
+Dưới đây là dữ liệu thực tế thời gian thực của dự án:
+{request.context}
+
+Câu hỏi của người dùng:
+"{request.question}"
+
+Hãy phân tích dữ liệu và trả lời câu hỏi một cách ngắn gọn, súc tích, chuyên nghiệp bằng Tiếng Việt.
+"""
+    try:
+        response_text = ai_agent.generate_generic_text(prompt, api_key=api_key)
+        return {"response": response_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Serve Frontend static files
 # We will create the static directory if not exists
