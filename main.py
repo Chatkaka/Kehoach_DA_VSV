@@ -167,6 +167,59 @@ def compute_rolled_up_deadlines(all_tasks):
             
     return computed
 
+def get_corresponding_tkbvtc_deadline_stt(task_name):
+    name_upper = task_name.upper()
+    if "KV 2" in name_upper or "KV2" in name_upper:
+        return "14.3.1"
+    elif "3.1" in name_upper:
+        return "14.3.2"
+    elif "3.2" in name_upper:
+        return "14.3.3"
+    elif "3.3" in name_upper:
+        return "14.3.4"
+    elif "3.4" in name_upper:
+        return "14.3.5"
+    elif "KV 4" in name_upper or "KV4" in name_upper:
+        return "14.3.6"
+    elif "CAO TẦNG" in name_upper or "NCT" in name_upper:
+        return "14.3.7"
+    elif "TDTT" in name_upper or "THỂ DỤC THỂ THAO" in name_upper:
+        return "14.4.1"
+    elif "VUI CHƠI" in name_upper or "TRẺ EM" in name_upper:
+        return "14.4.2"
+    return None
+
+def calculate_phase2_status(task, rolled_up_deadlines):
+    # 4. Hoàn thành: Khi đã phê duyệt hoàn thành hoặc tiến độ >= 100%
+    if task.tien_do >= 100 or task.trang_thai == "Done":
+        return "Done"
+
+    current_date = datetime.date.today()
+    comp_date = parse_date(task.thoi_han_hoan_thanh)
+    
+    # Tìm thời hạn phê duyệt HS TKBVTC tương ứng
+    tkbvtc_stt = get_corresponding_tkbvtc_deadline_stt(task.ten_cong_viec)
+    tkbvtc_date = rolled_up_deadlines.get(tkbvtc_stt) if tkbvtc_stt else None
+    if not tkbvtc_date:
+        tkbvtc_date = datetime.date(2026, 6, 30) # Mặc định làm mốc dự phòng
+        
+    if not comp_date:
+        return task.trang_thai
+
+    # 1. Chưa thực hiện: Thời gian thực < thời hạn phê duyệt HS TKBVTC
+    if current_date < tkbvtc_date:
+        return "Todo"
+
+    # 3. Chậm: Thời gian thực > Thời hạn hoàn thành - 20 ngày (bao gồm cả khi vượt quá thời hạn hoàn thành)
+    if current_date > (comp_date - datetime.timedelta(days=20)):
+        return "Delayed"
+
+    # 2. Đang thực hiện: thời hạn phê duyệt HS TKBVTC <= Thời gian thực <= thời hạn hoàn thành
+    if tkbvtc_date <= current_date <= comp_date:
+        return "In-Progress"
+
+    return task.trang_thai
+
 @app.get("/api/project")
 def get_project_info(db: Session = Depends(database.get_db)):
     project = db.query(models.Project).filter(models.Project.id == 1).first()
@@ -189,18 +242,20 @@ def get_tasks(
     search: Optional[str] = None,
     db: Session = Depends(database.get_db)
 ):
-    # Fetch all tasks to compute hierarchy rollups properly
-    query_all = db.query(models.Task)
-    if phase_id:
-        query_all = query_all.filter(models.Task.phase_id == phase_id)
-    all_tasks = query_all.all()
+    # Fetch all tasks to compute hierarchy rollups and cross-phase lookups properly
+    all_tasks = db.query(models.Task).all()
     
     # Compute rolled up deadlines
     rolled_up_deadlines = compute_rolled_up_deadlines(all_tasks)
     
+    # Filter by phase in memory
+    filtered_tasks = all_tasks
+    if phase_id:
+        filtered_tasks = [t for t in all_tasks if t.phase_id == phase_id]
+    
     # Now build the filtered list
     result = []
-    for t in all_tasks:
+    for t in filtered_tasks:
         dot_count = t.stt.count('.')
         t_level = dot_count + 1
         
@@ -221,6 +276,11 @@ def get_tasks(
         rolled_date = rolled_up_deadlines.get(t.stt)
         final_deadline = format_date(rolled_date, t.thoi_han_hoan_thanh)
         
+        # Get computed status for Phase 2 Level 3 tasks
+        final_status = t.trang_thai
+        if t.phase_id == 2 and t_level == 3:
+            final_status = calculate_phase2_status(t, rolled_up_deadlines)
+        
         result.append({
             "id": t.id,
             "ma_ngan_sach": t.ma_ngan_sach,
@@ -234,7 +294,7 @@ def get_tasks(
             "dieu_kien_ghi_nhan": t.dieu_kien_ghi_nhan,
             "thoi_han_hoan_thanh": final_deadline,
             "tien_do": t.tien_do,
-            "trang_thai": t.trang_thai,
+            "trang_thai": final_status,
             "ke_hoach_tuan": t.ke_hoach_tuan,
             "ket_qua_tuan": t.ket_qua_tuan,
             "vuong_mac_tuan": t.vuong_mac_tuan,
@@ -272,6 +332,11 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
         rolled_date = rolled_up_deadlines.get(t.stt)
         final_deadline = format_date(rolled_date, t.thoi_han_hoan_thanh)
         
+        # Get computed status for Phase 2 Level 3 tasks
+        final_status = t.trang_thai
+        if t.phase_id == 2 and t_level == 3:
+            final_status = calculate_phase2_status(t, rolled_up_deadlines)
+            
         rows.append({
             "STT": t.stt,
             "Cấp": t_level,
@@ -288,7 +353,7 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
             "Vướng mắc tuần": t.vuong_mac_tuan or "-",
             "Giải quyết của CBQL/Phòng ban": t.cach_giai_quyet or "-",
             "Duyệt tuần": t.duyet_tuan or "Chưa duyệt",
-            "Trạng thái": t.trang_thai
+            "Trạng thái": final_status
         })
         
     df = pd.DataFrame(rows)
@@ -398,12 +463,19 @@ def get_task(task_id: int, db: Session = Depends(database.get_db)):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
         
-    # Compute rolled up deadline
-    all_tasks = db.query(models.Task).filter(models.Task.phase_id == task.phase_id).all()
+    # Compute rolled up deadline and cross-phase lookups properly
+    all_tasks = db.query(models.Task).all()
     rolled_up_deadlines = compute_rolled_up_deadlines(all_tasks)
     rolled_date = rolled_up_deadlines.get(task.stt)
     final_deadline = format_date(rolled_date, task.thoi_han_hoan_thanh)
     
+    # Get computed status for Phase 2 Level 3 tasks
+    final_status = task.trang_thai
+    dot_count = task.stt.count('.')
+    t_level = dot_count + 1
+    if task.phase_id == 2 and t_level == 3:
+        final_status = calculate_phase2_status(task, rolled_up_deadlines)
+        
     return {
         "id": task.id,
         "ma_ngan_sach": task.ma_ngan_sach,
@@ -416,7 +488,7 @@ def get_task(task_id: int, db: Session = Depends(database.get_db)):
         "dieu_kien_ghi_nhan": task.dieu_kien_ghi_nhan,
         "thoi_han_hoan_thanh": final_deadline,
         "tien_do": task.tien_do,
-        "trang_thai": task.trang_thai,
+        "trang_thai": final_status,
         "ke_hoach_tuan": task.ke_hoach_tuan,
         "ket_qua_tuan": task.ket_qua_tuan,
         "vuong_mac_tuan": task.vuong_mac_tuan,
