@@ -138,7 +138,7 @@ def format_date(d, original_str=None):
         parsed = parse_date(original_str)
         if parsed:
             return parsed.strftime("%Y-%m-%d")
-    return "2026-06-30"
+    return ""
 
 def compute_rolled_up_deadlines(all_tasks):
     computed = {}
