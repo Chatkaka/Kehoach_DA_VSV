@@ -199,14 +199,15 @@
 
     <!-- Modal for task edit -->
     <div id="edit-task-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:100; justify-content:center; align-items:center;">
-        <div class="panel" style="width: 550px; max-width: 95%;">
+        <div class="panel" style="width: 850px; max-width: 95%; max-height: 90vh; overflow-y: auto;">
             <div class="panel-header">
                 <span class="panel-title"><i class="fa-solid fa-pen-to-square"></i> Chỉnh Sửa Công Việc <span id="edit-task-stt" style="color:var(--secondary);"></span></span>
                 <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeEditModal()"></i>
             </div>
             <input type="hidden" id="edit-id">
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
+            <!-- Row 1: WBS, Name, Status -->
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 12px; margin-top: 10px;">
                 <div class="form-group">
                     <label for="edit-wbs">Mã Ngân Sách (WBS)</label>
                     <input type="text" id="edit-wbs" class="form-control">
@@ -215,9 +216,19 @@
                     <label for="edit-name">Tên Công Việc</label>
                     <input type="text" id="edit-name" class="form-control">
                 </div>
+                <div class="form-group">
+                    <label for="edit-status">Trạng thái</label>
+                    <select id="edit-status" class="form-control">
+                        <option value="Todo">Chưa thực hiện</option>
+                        <option value="In-Progress">Đang triển khai</option>
+                        <option value="Done">Hoàn thành</option>
+                        <option value="Delayed">Trễ hạn</option>
+                    </select>
+                </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <!-- Row 2: Dept, Deadline, Budget -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                 <div class="form-group">
                     <label for="edit-dept">Phòng Ban Thực Hiện</label>
                     <select id="edit-dept" class="form-control">
@@ -234,18 +245,6 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="edit-status">Trạng thái</label>
-                    <select id="edit-status" class="form-control">
-                        <option value="Todo">Chưa thực hiện</option>
-                        <option value="In-Progress">Đang triển khai</option>
-                        <option value="Done">Hoàn thành</option>
-                        <option value="Delayed">Trễ hạn</option>
-                    </select>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="form-group">
                     <label for="edit-deadline">Thời Hạn Hoàn Thành</label>
                     <input type="date" id="edit-deadline" class="form-control">
                 </div>
@@ -255,47 +254,59 @@
                 </div>
             </div>
 
+            <!-- Row 3: Progress & Approval dropdown (moved here for vertical compactness) -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
                     <label for="edit-progress">Tiến độ (%)</label>
                     <input type="number" id="edit-progress" class="form-control" min="0" max="100">
                 </div>
+                <div class="form-group">
+                    <label for="edit-duyet-tuan">Cấp Quản Lý (CBQL) Duyệt Tuần</label>
+                    <select id="edit-duyet-tuan" class="form-control" style="border: 1px solid var(--primary);">
+                        <option value="Chưa duyệt">⏳ Chưa duyệt (Chờ phê duyệt)</option>
+                        <option value="Đã duyệt">✅ Đã duyệt (Approved)</option>
+                        <option value="Không duyệt">❌ Không duyệt (Rejected)</option>
+                    </select>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>Hồ Sơ Đầu Ra (Tích chọn nhiều & tự điền)</label>
-                <div id="edit-deliverables-checkboxes" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 120px; overflow-y: auto; margin-bottom: 6px;">
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Báo cáo nghiên cứu"> Báo cáo nghiên cứu</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Quyết định phê duyệt"> Quyết định phê duyệt</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Quyết định chủ trương"> Quyết định chủ trương</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Giấy phép xây dựng"> Giấy phép xây dựng</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Báo cáo ĐTM"> Báo cáo ĐTM</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Hồ sơ bản vẽ"> Hồ sơ bản vẽ</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Biên bản nghiệm thu"> Biên bản nghiệm thu</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Văn bản chấp thuận"> Văn bản chấp thuận</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Tờ trình trình duyệt"> Tờ trình trình duyệt</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="deliverable-chk" value="Hợp đồng kinh tế"> Hợp đồng kinh tế</label>
+            <!-- Side-by-Side Grid for Deliverables and Conditions (Saves immense vertical space) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px;">
+                <div class="form-group">
+                    <label style="font-weight:600;">Hồ Sơ Đầu Ra (Tích chọn & tự điền)</label>
+                    <div id="edit-deliverables-checkboxes" style="display: grid; grid-template-columns: 1fr; gap: 4px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 100px; overflow-y: auto; margin-bottom: 6px;">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Báo cáo nghiên cứu"> Báo cáo nghiên cứu</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Quyết định phê duyệt"> Quyết định phê duyệt</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Quyết định chủ trương"> Quyết định chủ trương</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Giấy phép xây dựng"> Giấy phép xây dựng</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Báo cáo ĐTM"> Báo cáo ĐTM</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Hồ sơ bản vẽ"> Hồ sơ bản vẽ</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Biên bản nghiệm thu"> Biên bản nghiệm thu</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Văn bản chấp thuận"> Văn bản chấp thuận</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Tờ trình trình duyệt"> Tờ trình trình duyệt</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Hợp đồng kinh tế"> Hợp đồng kinh tế</label>
+                    </div>
+                    <input type="text" id="edit-deliverables-custom" class="form-control" style="font-size:0.8rem; padding: 6px;" placeholder="Tự điền thêm hồ sơ khác (dấu phẩy)...">
                 </div>
-                <input type="text" id="edit-deliverables-custom" class="form-control" placeholder="Tự điền thêm hồ sơ khác (phân tách bằng dấu phẩy)...">
-            </div>
-
-            <div class="form-group">
-                <label>Điều kiện ghi nhận kết quả (Tích chọn nhiều & tự điền)</label>
-                <div id="edit-cond-checkboxes" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 120px; overflow-y: auto; margin-bottom: 6px;">
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Tờ trình được duyệt"> Tờ trình được duyệt</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Biên bản nghiệm thu được ký"> Biên bản nghiệm thu được ký</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Có quyết định/văn bản chính thức"> Có quyết định chính thức</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Báo cáo được ký duyệt"> Báo cáo được ký duyệt</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Hợp đồng được ký kết"> Hợp đồng được ký kết</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Có chứng nhận/chứng chỉ"> Có chứng nhận/chứng chỉ</label>
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.85rem;"><input type="checkbox" class="cond-chk" value="Bản vẽ được phê duyệt"> Bản vẽ được phê duyệt</label>
+                
+                <div class="form-group">
+                    <label style="font-weight:600;">Điều kiện ghi nhận kết quả</label>
+                    <div id="edit-cond-checkboxes" style="display: grid; grid-template-columns: 1fr; gap: 4px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 100px; overflow-y: auto; margin-bottom: 6px;">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Tờ trình được duyệt"> Tờ trình được duyệt</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Biên bản nghiệm thu được ký"> Biên bản nghiệm thu được ký</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Có quyết định/văn bản chính thức"> Có quyết định chính thức</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Báo cáo được ký duyệt"> Báo cáo được ký duyệt</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Hợp đồng được ký kết"> Hợp đồng được ký kết</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Có chứng nhận/chứng chỉ"> Có chứng nhận/chứng chỉ</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Bản vẽ được phê duyệt"> Bản vẽ được phê duyệt</label>
+                    </div>
+                    <input type="text" id="edit-cond-custom" class="form-control" style="font-size:0.8rem; padding: 6px;" placeholder="Tự điền thêm điều kiện khác (dấu phẩy)...">
                 </div>
-                <input type="text" id="edit-cond-custom" class="form-control" placeholder="Tự điền thêm điều kiện khác (phân tách bằng dấu phẩy)...">
             </div>
 
             <!-- Báo cáo & Phê duyệt tuần -->
-            <div style="border-top: 1px solid var(--panel-border); margin: 15px 0; padding-top: 15px;">
-                <h4 style="font-size: 0.9rem; color: var(--secondary); margin-bottom: 10px;"><i class="fa-solid fa-calendar-week"></i> Báo Cáo & Phê Duyệt Tuần</h4>
+            <div style="border-top: 1px solid var(--panel-border); margin: 10px 0; padding-top: 10px;">
+                <h4 style="font-size: 0.9rem; color: var(--secondary); margin-bottom: 8px;"><i class="fa-solid fa-calendar-week"></i> Báo Cáo & Phê Duyệt Tuần</h4>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="form-group">
@@ -318,18 +329,9 @@
                         <input type="text" id="edit-cach-giai-quyet" class="form-control" placeholder="-">
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="edit-duyet-tuan">Cấp Quản Lý (CBQL) Duyệt Tuần</label>
-                    <select id="edit-duyet-tuan" class="form-control" style="border: 1px solid var(--primary);">
-                        <option value="Chưa duyệt">⏳ Chưa duyệt (Chờ phê duyệt)</option>
-                        <option value="Đã duyệt">✅ Đã duyệt (Approved)</option>
-                        <option value="Không duyệt">❌ Không duyệt (Rejected)</option>
-                    </select>
-                </div>
             </div>
 
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px; padding-bottom: 5px;">
                 <button class="btn secondary-btn" onclick="closeEditModal()">Hủy</button>
                 <button class="btn" onclick="saveTaskProgress()">Lưu Thay Đổi</button>
             </div>
@@ -462,13 +464,21 @@
 
         // Resolve backend URL
         let backendUrl = localStorage.getItem('backend_url');
-        if (backendUrl === null) {
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname) {
-                backendUrl = '';
-            } else {
+        if (window.location.protocol === 'file:') {
+            // Local file mode - relative requests fail on file:/// so we force point to localhost:8000 backend
+            if (!backendUrl || backendUrl === '') {
                 backendUrl = 'http://127.0.0.1:8000';
+                localStorage.setItem('backend_url', backendUrl);
             }
-            localStorage.setItem('backend_url', backendUrl);
+        } else {
+            if (backendUrl === null) {
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    backendUrl = '';
+                } else {
+                    backendUrl = 'http://127.0.0.1:8000';
+                }
+                localStorage.setItem('backend_url', backendUrl);
+            }
         }
 
         let currentPhase = 1;

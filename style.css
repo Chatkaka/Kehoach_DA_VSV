@@ -266,8 +266,42 @@ header {
 /* Table Design */
 .table-wrapper {
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 550px; /* Enforce vertical scroll bounds for sticky headers */
     border-radius: 12px;
     border: 1px solid var(--panel-border);
+}
+
+/* Navigation Tabs Styling */
+.tabs-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.tab-nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 12px 24px;
+    border-bottom: 3px solid transparent;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: var(--font-heading);
+}
+
+.tab-nav-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.tab-nav-btn.active {
+    color: var(--secondary);
+    border-bottom-color: var(--secondary);
+    text-shadow: 0 0 10px var(--secondary-glow);
 }
 
 table {
