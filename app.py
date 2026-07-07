@@ -38,12 +38,52 @@ st.markdown("""
 st.title("💼 HỆ THỐNG QUẢN LÝ TIẾN ĐỘ & NGÂN SÁCH VEN SÔNG VINH")
 st.caption("Giao diện điều hành & Nhập liệu (Layer 3: Permissions & Layer 2: Streamlit Interaction)")
 
-# Sidebar for controls and roles
-st.sidebar.header("🔑 PHÂN QUYỀN TRUY CẬP (LAYER 3)")
-user_role = st.sidebar.selectbox(
-    "Chọn vai trò của bạn:",
-    ["Nhân viên thực hiện", "Ban Quản lý Dự án (PM / Phòng ban)", "Admin / C-Level"]
-)
+# Fetch users list from Backend for dynamic human resources permissions
+try:
+    res = requests.get(f"{API_URL}/api/users", timeout=3)
+    if res.status_code == 200:
+        db_users = res.json()
+    else:
+        db_users = []
+except Exception:
+    db_users = []
+
+st.sidebar.header("🔑 PHÂN QUYỀN NHÂN SỰ & PHÒNG BAN")
+
+if db_users:
+    user_options = []
+    user_map = {}
+    for u in db_users:
+        role_label = "Admin" if u["role"] == "Admin" else ("PM" if u["role"] == "PM" else ("Trưởng phòng" if u["role"] == "TruongPhong" else "Nhân viên"))
+        dept_label = "Tất cả" if u["phong_ban"] == "All" else u["phong_ban"]
+        display_name = f"{u['ho_ten']} ({role_label} - Phòng {dept_label})"
+        user_options.append(display_name)
+        user_map[display_name] = u
+        
+    selected_display = st.sidebar.selectbox("Chọn nhân sự thao tác:", user_options)
+    active_user = user_map[selected_display]
+    active_username = active_user["username"]
+    active_role = active_user["role"]
+    active_dept = active_user["phong_ban"]
+else:
+    # Fallback to default options if database/API is offline or empty
+    st.sidebar.warning("Không thể tải danh sách nhân sự từ Backend.")
+    selected_role = st.sidebar.selectbox(
+        "Chọn vai trò mặc định:",
+        ["Nhân viên thực hiện", "Ban Quản lý Dự án (PM / Phòng ban)", "Admin / C-Level"]
+    )
+    if selected_role == "Nhân viên thực hiện":
+        active_username = "nv_ptda"
+        active_role = "NhanVien"
+        active_dept = "PTDA"
+    elif selected_role == "Admin / C-Level":
+        active_username = "admin"
+        active_role = "Admin"
+        active_dept = "All"
+    else:
+        active_username = "pm_dung"
+        active_role = "PM"
+        active_dept = "All"
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔑 CẤU HÌNH AI GEMINI")
@@ -270,7 +310,7 @@ with tabs[1]:
                 if st.button("Cập nhật tiến độ & tuần"):
                     # Call API to update full task details including weekly data
                     res = requests.put(
-                        f"{API_URL}/api/tasks/{selected_task_id}?user_role={user_role}",
+                        f"{API_URL}/api/tasks/{selected_task_id}?username={active_username}",
                         json={
                             "ma_ngan_sach": curr_task["ma_ngan_sach"],
                             "ten_cong_viec": curr_task["ten_cong_viec"],
@@ -423,7 +463,7 @@ with tabs[2]:
                 curr_t = next(t for t in all_tasks if t["id"] == selected_t_id)
                 
                 # Role check
-                is_manager = user_role in ["Ban Quản lý Dự án (PM / Phòng ban)", "Admin / C-Level"]
+                is_manager = active_role in ("Admin", "PM", "TruongPhong")
                 
                 c_edit1, c_edit2 = st.columns(2)
                 with c_edit1:
@@ -450,7 +490,7 @@ with tabs[2]:
                 
                 if st.button("Lưu báo cáo tuần", key=f"save_weekly_{selected_t_id}"):
                     res = requests.put(
-                        f"{API_URL}/api/tasks/{selected_t_id}?user_role={user_role}",
+                        f"{API_URL}/api/tasks/{selected_t_id}?username={active_username}",
                         json={
                             "ma_ngan_sach": curr_t["ma_ngan_sach"],
                             "ten_cong_viec": curr_t["ten_cong_viec"],
@@ -495,7 +535,7 @@ with tabs[3]:
     if st.button("Phê duyệt và Ghi nhận thực chi"):
         # Make POST request to submit spending
         res = requests.post(
-            f"{API_URL}/api/spending?user_role={user_role}",
+            f"{API_URL}/api/spending?user_role={active_role}",
             json={
                 "task_id": int(spend_task_id),
                 "so_tien_chi": float(spend_amount),
@@ -714,7 +754,7 @@ with tabs[4]:
                         if task_id:
                             try:
                                 res = requests.put(
-                                    f"{API_URL}/api/tasks/{task_id}/progress?user_role={user_role}",
+                                    f"{API_URL}/api/tasks/{task_id}/progress?username={active_username}",
                                     json={
                                         "tien_do": prog_val,
                                         "trang_thai": status_val,

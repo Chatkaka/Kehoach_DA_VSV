@@ -257,6 +257,63 @@ def get_vietnamese_status(status_str):
         return "Hoàn thành"
     return status_str
 
+def check_task_update_permissions(user, task, request_data, is_partial=False):
+    # If no user is specified, we default to Admin permissions (for backward compatibility and ease of testing)
+    if not user:
+        return
+        
+    # If user is Admin or PM, they have global permission
+    if user.role in ("Admin", "PM"):
+        return
+        
+    # Department-based check:
+    # User's phong_ban must match the task's phong_ban_thuc_hien (case insensitive).
+    user_dept = str(user.phong_ban).upper().strip()
+    task_dept = str(task.phong_ban_thuc_hien).upper().strip()
+    
+    if user_dept != task_dept:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Quyen han bi tu choi: Ban thuoc phong ban {user.phong_ban}, khong the chinh sua cong viec cua phong {task.phong_ban_thuc_hien}."
+        )
+        
+    # Role-based check for NhanVien:
+    if user.role == "NhanVien":
+        # A NhanVien can ONLY update: ke_hoach_tuan, ket_qua_tuan, vuong_mac_tuan.
+        # They cannot update progress, status, or any metadata.
+        if is_partial:
+            # PUT /api/tasks/{task_id}/progress is meant to update progress/status
+            raise HTTPException(
+                status_code=403,
+                detail="Quyen han bi tu choi: Nhan vien khong co quyen cap nhat tien do hoac trang thai cong viec."
+            )
+        else:
+            # PUT /api/tasks/{task_id}
+            # Compare requested fields with current database values to see if any forbidden field has changed
+            has_forbidden_changes = False
+            if request_data.ma_ngan_sach != task.ma_ngan_sach: has_forbidden_changes = True
+            if request_data.ten_cong_viec != task.ten_cong_viec: has_forbidden_changes = True
+            if request_data.phong_ban_thuc_hien != task.phong_ban_thuc_hien: has_forbidden_changes = True
+            if request_data.co_quan_giai_quyet != task.co_quan_giai_quyet: has_forbidden_changes = True
+            if request_data.ho_so_dau_ra != task.ho_so_dau_ra: has_forbidden_changes = True
+            if request_data.dieu_kien_ghi_nhan != task.dieu_kien_ghi_nhan: has_forbidden_changes = True
+            if request_data.thoi_han_hoan_thanh != task.thoi_han_hoan_thanh: has_forbidden_changes = True
+            if request_data.tien_do != task.tien_do: has_forbidden_changes = True
+            if request_data.trang_thai != task.trang_thai: has_forbidden_changes = True
+            if request_data.cach_giai_quyet != task.cach_giai_quyet: has_forbidden_changes = True
+            if request_data.duyet_tuan != task.duyet_tuan: has_forbidden_changes = True
+            
+            if has_forbidden_changes:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Quyen han bi tu choi: Nhan vien chi co quyen cap nhat Ke hoach tuan, Ket qua tuan va Vuong mac tuan."
+                )
+
+@app.get("/api/users")
+def get_users(db: Session = Depends(database.get_db)):
+    users = db.query(models.User).all()
+    return [{"id": u.id, "username": u.username, "ho_ten": u.ho_ten, "phong_ban": u.phong_ban, "role": u.role} for u in users]
+
 @app.get("/api/project")
 def get_project_info(db: Session = Depends(database.get_db)):
     project = db.query(models.Project).filter(models.Project.id == 1).first()
@@ -549,12 +606,18 @@ def get_task(task_id: int, db: Session = Depends(database.get_db)):
 async def update_task_progress(
     task_id: int, 
     update_data: TaskProgressUpdate, 
-    user_role: str = "PM", # Can be Admin or PM
+    username: Optional[str] = None,
     db: Session = Depends(database.get_db)
 ):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+        
+    user = None
+    if username:
+        user = db.query(models.User).filter(models.User.username == username).first()
+        
+    check_task_update_permissions(user, task, update_data, is_partial=True)
         
     # Layer 4: Phase Gate Loop check
     try:
@@ -1099,10 +1162,21 @@ class TaskUpdate(BaseModel):
     duyet_tuan: Optional[str] = "Chưa duyệt"
 
 @app.put("/api/tasks/{task_id}")
-async def update_task_details(task_id: int, request: TaskUpdate, db: Session = Depends(database.get_db)):
+async def update_task_details(
+    task_id: int, 
+    request: TaskUpdate, 
+    username: Optional[str] = None,
+    db: Session = Depends(database.get_db)
+):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
+        
+    user = None
+    if username:
+        user = db.query(models.User).filter(models.User.username == username).first()
+        
+    check_task_update_permissions(user, task, request, is_partial=False)
         
     if request.ma_ngan_sach != task.ma_ngan_sach:
         existing = db.query(models.Task).filter(models.Task.ma_ngan_sach == request.ma_ngan_sach).first()

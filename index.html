@@ -441,10 +441,9 @@
                 </p>
             </div>
             <div class="form-group" style="margin-top: 10px;">
-                <label for="settings-user-role">Quyền Hạn Truy Cập</label>
-                <select id="settings-user-role" class="form-control">
-                    <option value="CBQL">💼 Ban Quản lý Dự án (PM / CBQL / Admin)</option>
-                    <option value="NhanVien">👤 Nhân viên thực hiện (Chỉ báo cáo tuần)</option>
+                <label for="settings-user-profile">Hồ sơ Nhân sự & Phân quyền</label>
+                <select id="settings-user-profile" class="form-control">
+                    <option value="">Đang tải danh sách nhân sự...</option>
                 </select>
             </div>
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
@@ -496,11 +495,36 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchStats();
             fetchTasks(currentPhase);
+            loadUserProfiles();
             setupWebSocket();
         });
 
         function exportToExcel() {
             window.open((backendUrl || '') + '/api/tasks/export', '_blank');
+        }
+
+        function loadUserProfiles() {
+            fetch((backendUrl || '') + '/api/users')
+                .then(res => res.json())
+                .then(users => {
+                    window.allUsers = users;
+                    const select = document.getElementById('settings-user-profile');
+                    if (select) {
+                        select.innerHTML = '';
+                        users.forEach(u => {
+                            const opt = document.createElement('option');
+                            opt.value = u.username;
+                            const roleText = u.role === 'Admin' ? 'Admin' : (u.role === 'PM' ? 'PM' : (u.role === 'TruongPhong' ? 'Trưởng phòng' : 'Nhân viên'));
+                            const deptText = u.phong_ban === 'All' ? 'Tất cả' : u.phong_ban;
+                            opt.text = `${u.ho_ten} (${roleText} - Phòng ${deptText})`;
+                            select.add(opt);
+                        });
+                        
+                        const activeUsername = localStorage.getItem('active_username') || 'admin';
+                        select.value = activeUsername;
+                    }
+                })
+                .catch(err => console.error("Error loading user profiles:", err));
         }
 
         // Setup WebSocket client
@@ -1078,7 +1102,8 @@
             const cachGiaiQuyet = document.getElementById('edit-cach-giai-quyet').value.trim();
             const duyetTuan = document.getElementById('edit-duyet-tuan').value;
 
-            fetch(backendUrl + `/api/tasks/${id}`, {
+            const activeUsername = localStorage.getItem('active_username') || 'admin';
+            fetch(backendUrl + `/api/tasks/${id}?username=${encodeURIComponent(activeUsername)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1217,7 +1242,7 @@
 
         function openSettingsModal() {
             document.getElementById('settings-backend-url').value = localStorage.getItem('backend_url') || 'http://127.0.0.1:8000';
-            document.getElementById('settings-user-role').value = localStorage.getItem('user_role') || 'CBQL';
+            loadUserProfiles();
             document.getElementById('settings-modal').style.display = 'flex';
         }
 
@@ -1230,9 +1255,17 @@
             if (url.endsWith('/')) {
                 url = url.slice(0, -1);
             }
-            const role = document.getElementById('settings-user-role').value;
+            const username = document.getElementById('settings-user-profile').value;
             localStorage.setItem('backend_url', url);
-            localStorage.setItem('user_role', role);
+            localStorage.setItem('active_username', username);
+            
+            // Map selected user's role to the old 'user_role' (CBQL or NhanVien) for UI button rendering compatibility
+            const selectedUser = window.allUsers ? window.allUsers.find(u => u.username === username) : null;
+            if (selectedUser) {
+                const roleForUI = (selectedUser.role === 'Admin' || selectedUser.role === 'PM' || selectedUser.role === 'TruongPhong') ? 'CBQL' : 'NhanVien';
+                localStorage.setItem('user_role', roleForUI);
+            }
+            
             closeSettingsModal();
             window.location.reload();
         }
@@ -1482,7 +1515,8 @@
                 solution = "CBQL đã duyệt ghi nhận báo cáo.";
             }
 
-            fetch(backendUrl + `/api/tasks/${taskId}`, {
+            const activeUsername = localStorage.getItem('active_username') || 'admin';
+            fetch(backendUrl + `/api/tasks/${taskId}?username=${encodeURIComponent(activeUsername)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
