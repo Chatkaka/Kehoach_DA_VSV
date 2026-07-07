@@ -184,7 +184,26 @@ with tabs[1]:
                 key=lambda x: x.str.split('.').str.len()
             )
             
-            st.dataframe(df_tasks, use_container_width=True, hide_index=True)
+            # Dynamic styling based on hierarchical level
+            def style_by_stt(row):
+                stt = str(row["STT"])
+                lv = len(stt.split('.'))
+                if lv == 1:
+                    return ['color: #38bdf8; font-weight: bold; background-color: rgba(56, 189, 248, 0.08)'] * len(row)
+                elif lv == 2:
+                    return ['color: #c084fc; font-weight: bold; background-color: rgba(168, 85, 247, 0.04)'] * len(row)
+                elif lv == 3:
+                    return ['color: #fb923c; font-weight: bold;'] * len(row)
+                elif lv == 4:
+                    return ['color: #e2e8f0;'] * len(row)
+                else:
+                    return ['color: #94a3b8; font-style: italic;'] * len(row)
+
+            st.dataframe(
+                df_tasks.style.apply(style_by_stt, axis=1), 
+                use_container_width=True, 
+                hide_index=True
+            )
             
             # Button to export WBS tasks to Excel from Streamlit
             try:
@@ -385,7 +404,11 @@ with tabs[2]:
                 key=lambda x: x.str.split('.').str.len()
             )
             
-            st.dataframe(df_weekly, use_container_width=True, hide_index=True)
+            st.dataframe(
+                df_weekly.style.apply(style_by_stt, axis=1), 
+                use_container_width=True, 
+                hide_index=True
+            )
             
             # Form to update weekly info
             st.markdown("### 📝 Cập nhật Báo cáo & Phê duyệt Tuần")

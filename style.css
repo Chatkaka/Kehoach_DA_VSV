@@ -533,3 +533,65 @@ tr.level-3 {
     transform: scale(1.15);
     color: var(--primary);
 }
+
+/* WBS Level Color Coding & Typography */
+
+/* Level 1: Phase Gates / Major Categories (Bright Sky Blue, Bold, soft background tint) */
+tr.level-1 {
+    font-weight: 700 !important;
+    font-size: 1.02rem !important;
+    background: rgba(56, 189, 248, 0.08) !important;
+    border-bottom: 2px solid rgba(56, 189, 248, 0.25) !important;
+}
+tr.level-1 td {
+    color: #38bdf8 !important;
+}
+
+/* Level 2: Main Work Packages (Vibrant Purple, Bold, soft background tint) */
+tr.level-2 {
+    font-weight: 700 !important;
+    font-size: 0.96rem !important;
+    background: rgba(168, 85, 247, 0.04) !important;
+    border-bottom: 1px solid rgba(168, 85, 247, 0.15) !important;
+}
+tr.level-2 td {
+    color: #c084fc !important;
+}
+
+/* Level 3: Deliverables & Detailed Milestones (Amber/Orange, Semibold) */
+tr.level-3 {
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+}
+tr.level-3 td {
+    color: #fb923c !important;
+}
+
+/* Level 4: Child Tasks / Actions (Slate White, Medium) */
+tr.level-4 {
+    font-weight: 500 !important;
+    font-size: 0.86rem !important;
+}
+tr.level-4 td {
+    color: #e2e8f0 !important;
+}
+
+/* Level 5 & Deeper: Detailed Checklists (Slate Gray, Smaller) */
+tr.level-5, tr.level-6, tr.level-7, tr.level-8 {
+    font-weight: 400 !important;
+    font-size: 0.82rem !important;
+}
+tr.level-5 td, tr.level-6 td, tr.level-7 td, tr.level-8 td {
+    color: #94a3b8 !important;
+}
+
+/* Legibility Protections */
+tr[class^="level-"] td .badge {
+    color: #ffffff !important; /* Ensure badge labels have high contrast white text */
+}
+tr[class^="level-"] td code {
+    color: #e2e8f0 !important; /* WBS code formatting */
+}
+tr[class^="level-"] td .action-btn {
+    color: #ffffff !important; /* Action icons */
+}
