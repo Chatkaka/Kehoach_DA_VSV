@@ -91,6 +91,81 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # ----------------- API Endpoints -----------------
 
+import re
+import calendar
+
+def parse_date(date_str):
+    if not date_str:
+        return None
+    date_str = str(date_str).strip()
+    
+    # 2026-06-30
+    match1 = re.match(r'^(\d{4})-(\d{2})-(\d{2})$', date_str)
+    if match1:
+        try:
+            return datetime.date(int(match1.group(1)), int(match1.group(2)), int(match1.group(3)))
+        except ValueError:
+            pass
+            
+    # Tháng 06/2026
+    match2 = re.match(r'^(?:Tháng|tháng|Th\s*)\s*(\d{2})/(\d{4})$', date_str)
+    if match2:
+        try:
+            month = int(match2.group(1))
+            year = int(match2.group(2))
+            last_day = calendar.monthrange(year, month)[1]
+            return datetime.date(year, month, last_day)
+        except Exception:
+            pass
+            
+    # 06/2026
+    match3 = re.match(r'^(\d{2})/(\d{4})$', date_str)
+    if match3:
+        try:
+            month = int(match3.group(1))
+            year = int(match3.group(2))
+            last_day = calendar.monthrange(year, month)[1]
+            return datetime.date(year, month, last_day)
+        except Exception:
+            pass
+            
+    return None
+
+def format_date(d, original_str=None):
+    if not d:
+        return original_str or "Tháng 06/2026"
+    last_day = calendar.monthrange(d.year, d.month)[1]
+    if d.day == last_day:
+        return f"Tháng {d.month:02d}/{d.year}"
+    return d.strftime("%Y-%m-%d")
+
+def compute_rolled_up_deadlines(all_tasks):
+    computed = {}
+    
+    # 1. Parse all tasks' deadlines first
+    for t in all_tasks:
+        computed[t.stt] = parse_date(t.thoi_han_hoan_thanh)
+        
+    # 2. Roll up hierarchy (post-order-like traversal via prefix check)
+    for t in all_tasks:
+        descendant_dates = []
+        for other in all_tasks:
+            # Check if other is a descendant of t (starts with t.stt + ".")
+            if other.stt.startswith(t.stt + "."):
+                d_date = parse_date(other.thoi_han_hoan_thanh)
+                if d_date:
+                    descendant_dates.append(d_date)
+                    
+        if descendant_dates:
+            # Add own date if it exists
+            own_date = parse_date(t.thoi_han_hoan_thanh)
+            if own_date:
+                descendant_dates.append(own_date)
+            max_date = max(descendant_dates)
+            computed[t.stt] = max_date
+            
+    return computed
+
 @app.get("/api/project")
 def get_project_info(db: Session = Depends(database.get_db)):
     project = db.query(models.Project).filter(models.Project.id == 1).first()
@@ -113,29 +188,38 @@ def get_tasks(
     search: Optional[str] = None,
     db: Session = Depends(database.get_db)
 ):
-    query = db.query(models.Task)
-    
+    # Fetch all tasks to compute hierarchy rollups properly
+    query_all = db.query(models.Task)
     if phase_id:
-        query = query.filter(models.Task.phase_id == phase_id)
-        
-    if search:
-        query = query.filter(
-            (models.Task.ten_cong_viec.like(f"%{search}%")) |
-            (models.Task.ma_ngan_sach.like(f"%{search}%")) |
-            (models.Task.stt.like(f"%{search}%"))
-        )
-        
-    tasks = query.all()
+        query_all = query_all.filter(models.Task.phase_id == phase_id)
+    all_tasks = query_all.all()
     
-    # Filter by level based on STT dot count: Level 1 has 0 dots, Level 2 has 1 dot, Level 3 has 2 dots
+    # Compute rolled up deadlines
+    rolled_up_deadlines = compute_rolled_up_deadlines(all_tasks)
+    
+    # Now build the filtered list
     result = []
-    for t in tasks:
+    for t in all_tasks:
         dot_count = t.stt.count('.')
         t_level = dot_count + 1
         
+        # Level filter
         if level is not None and t_level != level:
             continue
             
+        # Search filter
+        if search:
+            s_lower = search.lower()
+            in_name = s_lower in (t.ten_cong_viec or "").lower()
+            in_wbs = s_lower in (t.ma_ngan_sach or "").lower()
+            in_stt = s_lower in (t.stt or "").lower()
+            if not (in_name or in_wbs or in_stt):
+                continue
+                
+        # Get rolled up deadline or keep original if none
+        rolled_date = rolled_up_deadlines.get(t.stt)
+        final_deadline = format_date(rolled_date, t.thoi_han_hoan_thanh)
+        
         result.append({
             "id": t.id,
             "ma_ngan_sach": t.ma_ngan_sach,
@@ -147,7 +231,7 @@ def get_tasks(
             "co_quan_giai_quyet": t.co_quan_giai_quyet,
             "ho_so_dau_ra": t.ho_so_dau_ra,
             "dieu_kien_ghi_nhan": t.dieu_kien_ghi_nhan,
-            "thoi_han_hoan_thanh": t.thoi_han_hoan_thanh,
+            "thoi_han_hoan_thanh": final_deadline,
             "tien_do": t.tien_do,
             "trang_thai": t.trang_thai,
             "ke_hoach_tuan": t.ke_hoach_tuan,
@@ -169,6 +253,8 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
     from openpyxl.formatting.rule import DataBarRule
     
     tasks = db.query(models.Task).all()
+    rolled_up_deadlines = compute_rolled_up_deadlines(tasks)
+    
     # Sort them by STT hierarchically
     tasks = sorted(tasks, key=lambda x: [int(i) if i.isdigit() else 999 for i in x.stt.split('.')])
     
@@ -181,6 +267,10 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
         # Indent task name to represent level visually in Excel
         indented_name = ("    " * (t_level - 1)) + t.ten_cong_viec
         
+        # Get rolled up deadline or keep original if none
+        rolled_date = rolled_up_deadlines.get(t.stt)
+        final_deadline = format_date(rolled_date, t.thoi_han_hoan_thanh)
+        
         rows.append({
             "STT": t.stt,
             "Cấp": t_level,
@@ -188,7 +278,7 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
             "Nội dung công việc": indented_name,
             "Phòng ban thực hiện": t.phong_ban_thuc_hien or "-",
             "Hồ sơ đầu ra": t.ho_so_dau_ra or "-",
-            "Thời hạn hoàn thành": t.thoi_han_hoan_thanh or "-",
+            "Thời hạn hoàn thành": final_deadline or "-",
             "Điều kiện ghi nhận kết quả": t.dieu_kien_ghi_nhan or "-",
             "Ngân sách tổng (Trđ)": budget_val,
             "Tiến độ (%)": (t.tien_do / 100.0) if t.tien_do else 0.0,
@@ -306,7 +396,36 @@ def get_task(task_id: int, db: Session = Depends(database.get_db)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    return task
+        
+    # Compute rolled up deadline
+    all_tasks = db.query(models.Task).filter(models.Task.phase_id == task.phase_id).all()
+    rolled_up_deadlines = compute_rolled_up_deadlines(all_tasks)
+    rolled_date = rolled_up_deadlines.get(task.stt)
+    final_deadline = format_date(rolled_date, task.thoi_han_hoan_thanh)
+    
+    return {
+        "id": task.id,
+        "ma_ngan_sach": task.ma_ngan_sach,
+        "stt": task.stt,
+        "phase_id": task.phase_id,
+        "ten_cong_viec": task.ten_cong_viec,
+        "phong_ban_thuc_hien": task.phong_ban_thuc_hien,
+        "co_quan_giai_quyet": task.co_quan_giai_quyet,
+        "ho_so_dau_ra": task.ho_so_dau_ra,
+        "dieu_kien_ghi_nhan": task.dieu_kien_ghi_nhan,
+        "thoi_han_hoan_thanh": final_deadline,
+        "tien_do": task.tien_do,
+        "trang_thai": task.trang_thai,
+        "ke_hoach_tuan": task.ke_hoach_tuan,
+        "ket_qua_tuan": task.ket_qua_tuan,
+        "vuong_mac_tuan": task.vuong_mac_tuan,
+        "cach_giai_quyet": task.cach_giai_quyet,
+        "duyet_tuan": task.duyet_tuan,
+        "budget": {
+            "ngan_sach_tong": task.budget.ngan_sach_tong if task.budget else 0.0,
+            "is_locked": task.budget.is_locked if task.budget else False
+        } if task.budget else None
+    }
 
 @app.put("/api/tasks/{task_id}/progress")
 async def update_task_progress(
