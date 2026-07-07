@@ -21,10 +21,15 @@
                     <p>Hệ thống Quản lý Tiến độ & Ngân sách Thời gian thực</p>
                 </div>
             </div>
-            <div class="system-status" style="display:flex; align-items:center; gap:8px;">
-                <div class="status-dot" id="ws-status-dot"></div>
-                <span id="ws-status-text">Đang kết nối WebSocket...</span>
-                <i class="fa-solid fa-gear" style="cursor:pointer; color:var(--text-secondary); margin-left:4px; font-size:1.1rem;" onclick="openSettingsModal()" title="Cài đặt địa chỉ Backend"></i>
+            <div class="system-status" style="display:flex; align-items:center; gap:12px;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <div class="status-dot" id="ws-status-dot"></div>
+                    <span id="ws-status-text" style="font-size:0.8rem;">Đang kết nối...</span>
+                </div>
+                <div id="login-info-container" style="font-size:0.85rem; border-left:1px solid rgba(255,255,255,0.1); padding-left:12px; display:flex; align-items:center; gap:6px;">
+                    <!-- Populated dynamically -->
+                </div>
+                <i class="fa-solid fa-gear" style="cursor:pointer; color:var(--text-secondary); font-size:1.1rem;" onclick="openSettingsModal()" title="Cài đặt địa chỉ Backend"></i>
             </div>
         </header>
 
@@ -283,6 +288,29 @@
                                     <!-- Populated dynamically -->
                                 </tbody>
                             </table>
+                        <!-- Audit Log History Section -->
+                        <h3 style="margin-top: 25px; margin-bottom: 15px; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; color: var(--warning);">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Nhật ký hoạt động & Lịch sử thao tác
+                        </h3>
+                        
+                        <div class="table-wrapper" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.2);">
+                            <table>
+                                <thead>
+                                    <tr style="position: sticky; top: 0; background: var(--panel-bg); z-index: 1;">
+                                        <th style="width: 150px; text-align: center;">Thời gian</th>
+                                        <th style="width: 160px;">Nhân sự</th>
+                                        <th style="width: 140px; text-align: center;">Hành động</th>
+                                        <th>Chi tiết thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logs-table-body">
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                                            Đang tải nhật ký...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -530,6 +558,33 @@
         </div>
     </div>
 
+    <!-- Modal for Login -->
+    <div id="login-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); z-index:1000; justify-content:center; align-items:center;">
+        <div class="panel" style="width: 400px; max-width: 90%; box-shadow: 0 8px 32px rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.3); padding: 25px; position: relative;">
+            <div id="login-modal-close-btn" style="display:none; position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 1.2rem; color: var(--text-secondary);" onclick="closeLoginModal()">
+                <i class="fa-solid fa-xmark"></i>
+            </div>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <i class="fa-solid fa-lock" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 10px;"></i>
+                <h2 style="margin: 0; font-size: 1.4rem; color: var(--text-primary);">ĐĂNG NHẬP HỆ THỐNG</h2>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 6px 0 0 0;">Dự án: Ven Sông Vinh</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="login-username-input">Tên đăng nhập (Username)</label>
+                <input type="text" id="login-username-input" class="form-control" placeholder="Ví dụ: admin, tp_ptda, nv_ptda..." style="text-align: center; font-size: 1.1rem; letter-spacing: 1px;">
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <button class="btn" style="width:100%; padding: 12px; font-size: 1rem;" onclick="performLogin()">ĐĂNG NHẬP</button>
+            </div>
+            
+            <div style="text-align: center; margin-top: 15px; font-size: 0.75rem; color: var(--text-secondary);">
+                * Mẹo: Sử dụng <code>admin</code> (Admin), <code>tp_ptda</code> (CBQL), hoặc <code>nv_ptda</code> (Nhân viên) để đăng nhập nhanh.
+            </div>
+        </div>
+    </div>
+
     <!-- Frontend logic with WS and APIs -->
     <script>
         // URL Parameter Auto-detection (allows passing ?api=... or ?backend=...)
@@ -570,6 +625,7 @@
 
         // On document load
         document.addEventListener('DOMContentLoaded', () => {
+            checkLoginState();
             fetchStats();
             fetchTasks(currentPhase);
             loadUserProfiles();
@@ -614,6 +670,147 @@
                     }
                 })
                 .catch(err => console.error("Error loading user profiles:", err));
+        }
+
+        function checkLoginState() {
+            const activeUsername = localStorage.getItem('active_username');
+            const container = document.getElementById('login-info-container');
+            
+            if (!activeUsername) {
+                openLoginModal();
+                if (container) {
+                    container.innerHTML = `
+                        <button class="btn" style="padding:6px 12px; font-size:0.8rem; background:var(--primary); font-weight:600; display:flex; align-items:center; gap:6px;" onclick="openLoginModal()">
+                            <i class="fa-solid fa-key"></i> Đăng Nhập
+                        </button>
+                    `;
+                }
+            } else {
+                closeLoginModal();
+                if (container) {
+                    container.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+                }
+                
+                fetch((backendUrl || '') + '/api/users')
+                    .then(res => res.json())
+                    .then(users => {
+                        window.allUsers = users;
+                        const user = users.find(u => u.username === activeUsername);
+                        if (user) {
+                            const roleText = user.role === 'Admin' ? 'Admin' : (user.role === 'PM' ? 'PM' : (user.role === 'TruongPhong' ? 'Trưởng phòng' : 'Nhân viên'));
+                            const deptText = user.phong_ban === 'All' ? 'Tất cả' : user.phong_ban;
+                            if (container) {
+                                container.innerHTML = `
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <span style="color:var(--success); font-weight:600;"><i class="fa-solid fa-user-shield"></i> ${user.ho_ten} (${roleText})</span>
+                                        <button class="btn" style="padding:4px 8px; font-size:0.75rem; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);" onclick="openLoginModal()">
+                                            <i class="fa-solid fa-arrows-rotate"></i> Đổi tài khoản
+                                        </button>
+                                        <button class="btn" style="padding:4px 8px; font-size:0.75rem; background:var(--danger);" onclick="logoutUser()">
+                                            <i class="fa-solid fa-right-from-bracket"></i> Thoát
+                                        </button>
+                                    </div>
+                                `;
+                            }
+                            
+                            const navUsersBtn = document.getElementById('nav-users-tab');
+                            if (navUsersBtn) {
+                                if (user.role === 'Admin') {
+                                    navUsersBtn.style.display = 'inline-block';
+                                    fetchUsersList();
+                                    fetchActionLogs();
+                                } else {
+                                    navUsersBtn.style.display = 'none';
+                                }
+                            }
+                        } else {
+                            logoutUser();
+                        }
+                    })
+                    .catch(err => console.error("Error verifying login state:", err));
+            }
+        }
+
+        function openLoginModal() {
+            document.getElementById('login-modal').style.display = 'flex';
+            const closeBtn = document.getElementById('login-modal-close-btn');
+            const activeUsername = localStorage.getItem('active_username');
+            if (activeUsername) {
+                closeBtn.style.display = 'block';
+            } else {
+                closeBtn.style.display = 'none';
+            }
+        }
+
+        function closeLoginModal() {
+            const activeUsername = localStorage.getItem('active_username');
+            if (activeUsername) {
+                document.getElementById('login-modal').style.display = 'none';
+            }
+        }
+
+        function performLogin() {
+            const usernameInput = document.getElementById('login-username-input').value.trim();
+            if (!usernameInput) {
+                alert("Vui lòng nhập tên đăng nhập.");
+                return;
+            }
+            
+            fetch((backendUrl || '') + '/api/users')
+                .then(res => res.json())
+                .then(users => {
+                    const user = users.find(u => u.username === usernameInput);
+                    if (user) {
+                        localStorage.setItem('active_username', user.username);
+                        const roleForUI = (user.role === 'Admin' || user.role === 'PM' || user.role === 'TruongPhong') ? 'CBQL' : 'NhanVien';
+                        localStorage.setItem('user_role', roleForUI);
+                        
+                        closeLoginModal();
+                        window.location.reload();
+                    } else {
+                        alert("Tên đăng nhập không đúng hoặc tài khoản chưa được kích hoạt!");
+                    }
+                })
+                .catch(err => {
+                    console.error("Login connection error:", err);
+                    alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại địa chỉ Backend.");
+                });
+        }
+
+        function logoutUser() {
+            localStorage.removeItem('active_username');
+            localStorage.removeItem('user_role');
+            window.location.reload();
+        }
+
+        function fetchActionLogs() {
+            fetch((backendUrl || '') + '/api/logs')
+                .then(res => res.json())
+                .then(logs => {
+                    const tbody = document.getElementById('logs-table-body');
+                    if (!tbody) return;
+                    if (logs.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">Chưa có nhật ký hoạt động nào.</td></tr>`;
+                        return;
+                    }
+                    tbody.innerHTML = '';
+                    logs.forEach(l => {
+                        const tr = document.createElement('tr');
+                        
+                        let badgeClass = 'todo';
+                        if (l.hanh_dong.toLowerCase().includes('xóa')) badgeClass = 'delayed';
+                        else if (l.hanh_dong.toLowerCase().includes('thêm') || l.hanh_dong.toLowerCase().includes('tạo')) badgeClass = 'done';
+                        
+                        tr.innerHTML = `
+                            <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian}</td>
+                            <td style="font-weight:600;">${l.ho_ten} (<code>${l.username}</code>)</td>
+                            <td style="text-align:center;"><span class="badge ${badgeClass}">${l.hanh_dong}</span></td>
+                            <td style="color:var(--text-primary); font-size:0.85rem;">${l.chi_tiet || '-'}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => console.error("Error fetching action logs:", err));
         }
 
         function fetchUsersList() {
@@ -1585,6 +1782,7 @@
                 loadWeeklyTabContent();
             } else if (tabId === 'users-tab') {
                 fetchUsersList();
+                fetchActionLogs();
             }
         }
 
