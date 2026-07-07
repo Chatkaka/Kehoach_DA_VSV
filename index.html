@@ -29,7 +29,7 @@
                 <div id="login-info-container" style="font-size:0.85rem; border-left:1px solid rgba(255,255,255,0.1); padding-left:12px; display:flex; align-items:center; gap:6px;">
                     <!-- Populated dynamically -->
                 </div>
-                <i class="fa-solid fa-gear" style="cursor:pointer; color:var(--text-secondary); font-size:1.1rem;" onclick="openSettingsModal()" title="Cài đặt địa chỉ Backend"></i>
+                <i class="fa-solid fa-gear" id="system-settings-gear" style="display:none; cursor:pointer; color:var(--text-secondary); font-size:1.1rem;" onclick="openSettingsModal()" title="Cấu hình hệ thống"></i>
             </div>
         </header>
 
@@ -721,6 +721,8 @@
             
             if (!activeUsername) {
                 openLoginModal();
+                const settingsGear = document.getElementById('system-settings-gear');
+                if (settingsGear) settingsGear.style.display = 'none';
                 if (container) {
                     container.innerHTML = `
                         <button class="btn" style="padding:6px 12px; font-size:0.8rem; background:var(--primary); font-weight:600; display:flex; align-items:center; gap:6px;" onclick="openLoginModal()">
@@ -757,6 +759,15 @@
                                         </button>
                                     </div>
                                 `;
+                            }
+                            
+                            const settingsGear = document.getElementById('system-settings-gear');
+                            if (settingsGear) {
+                                if (user.role === 'Admin') {
+                                    settingsGear.style.display = 'inline-block';
+                                } else {
+                                    settingsGear.style.display = 'none';
+                                }
                             }
                             
                             const navUsersBtn = document.getElementById('nav-users-tab');
@@ -1838,6 +1849,12 @@
         }
 
         function openSettingsModal() {
+            const activeUsername = localStorage.getItem('active_username');
+            const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
+            if (!activeUser || activeUser.role !== 'Admin') {
+                alert("Quyền hạn bị từ chối: Chỉ Admin hệ thống mới có quyền cấu hình hệ thống.");
+                return;
+            }
             document.getElementById('settings-backend-url').value = localStorage.getItem('backend_url') || 'http://127.0.0.1:8000';
             loadUserProfiles();
             document.getElementById('settings-modal').style.display = 'flex';
@@ -1848,6 +1865,12 @@
         }
 
         function saveSettings() {
+            const activeUsername = localStorage.getItem('active_username');
+            const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
+            if (!activeUser || activeUser.role !== 'Admin') {
+                alert("Quyền hạn bị từ chối: Chỉ Admin hệ thống mới có quyền cấu hình hệ thống.");
+                return;
+            }
             let url = document.getElementById('settings-backend-url').value.trim();
             if (url.endsWith('/')) {
                 url = url.slice(0, -1);
