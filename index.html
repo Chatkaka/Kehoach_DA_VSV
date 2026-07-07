@@ -656,6 +656,11 @@
 
         // Fetch Tasks list
         function fetchTasks(phaseId) {
+            // Record scroll position of table-wrapper
+            const wrapper = document.querySelector('#wbs-tab .table-wrapper');
+            const scrollTop = wrapper ? wrapper.scrollTop : 0;
+            const scrollLeft = wrapper ? wrapper.scrollLeft : 0;
+
             const tableBody = document.getElementById('tasks-table-body');
             tableBody.innerHTML = `
                 <tr>
@@ -732,6 +737,15 @@
                         `;
                         tableBody.appendChild(tr);
                     });
+
+                    // Re-apply search filter state
+                    filterTasks();
+
+                    // Restore scroll position
+                    if (wrapper) {
+                        wrapper.scrollTop = scrollTop;
+                        wrapper.scrollLeft = scrollLeft;
+                    }
                 })
                 .catch(err => {
                     console.error("Error loading tasks:", err);
@@ -1317,7 +1331,15 @@
             renderWeeklyTable();
         }
 
+        let weeklyScrollTop = 0;
+        let weeklyScrollLeft = 0;
+
         function loadWeeklyTabContent() {
+            // Record scroll position of weekly table wrapper
+            const wrapper = document.querySelector('#weekly-tab .table-wrapper');
+            weeklyScrollTop = wrapper ? wrapper.scrollTop : 0;
+            weeklyScrollLeft = wrapper ? wrapper.scrollLeft : 0;
+
             const tableBody = document.getElementById('weekly-table-body');
             tableBody.innerHTML = `
                 <tr>
@@ -1410,6 +1432,13 @@
                 `;
                 tableBody.appendChild(tr);
             });
+
+            // Restore scroll position of weekly table wrapper
+            const wrapper = document.querySelector('#weekly-tab .table-wrapper');
+            if (wrapper) {
+                wrapper.scrollTop = weeklyScrollTop;
+                wrapper.scrollLeft = weeklyScrollLeft;
+            }
         }
 
         function searchWeeklyTasks() {
