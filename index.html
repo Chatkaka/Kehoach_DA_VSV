@@ -28,69 +28,86 @@
             </div>
         </header>
 
-        <!-- Layer 1: Memory & Stats Row -->
-        <div class="stats-grid">
-            <div class="panel stat-card budget">
+        <!-- Layer 1: Operational Stats Row (5 Cards) -->
+        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px;">
+            <div class="panel stat-card" id="card-7days" onclick="selectDashboardFilter('7days')" style="cursor:pointer; border-left: 4px solid var(--warning); transition: transform 0.2s;">
                 <div class="stat-header">
-                    <span>Tổng Ngân Sách Dự Án</span>
-                    <i class="fa-solid fa-wallet"></i>
+                    <span>Cận Hạn 7 Ngày</span>
+                    <i class="fa-solid fa-clock" style="color:var(--warning);"></i>
                 </div>
-                <div class="stat-value" id="stat-total-budget">0.00 Trđ</div>
-                <span style="font-size: 0.75rem; color: var(--text-secondary);">Phân bổ WBS từ file Excel</span>
+                <div class="stat-value" id="count-7days" style="color: var(--warning); font-size: 1.8rem; font-weight: 700; margin: 8px 0;">0</div>
+                <span style="font-size: 0.72rem; color: var(--text-secondary);">Công việc chưa hoàn thành</span>
             </div>
 
-            <div class="panel stat-card spending">
+            <div class="panel stat-card active-card" id="card-overdue" onclick="selectDashboardFilter('overdue')" style="cursor:pointer; border-left: 4px solid var(--danger); transition: transform 0.2s;">
                 <div class="stat-header">
-                    <span>Lũy Kế Thực Chi Đã Duyệt</span>
-                    <i class="fa-solid fa-credit-card"></i>
+                    <span>Đã Quá Hạn</span>
+                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i>
                 </div>
-                <div class="stat-value" id="stat-total-spent" style="color: var(--secondary);">0.00 Trđ</div>
-                <span style="font-size: 0.75rem; color: var(--text-secondary);" id="spending-percentage">0.00% giải ngân</span>
+                <div class="stat-value" id="count-overdue" style="color: var(--danger); font-size: 1.8rem; font-weight: 700; margin: 8px 0;">0</div>
+                <span style="font-size: 0.72rem; color: var(--text-secondary);">Trễ so với thời hạn</span>
             </div>
 
-            <div class="panel stat-card remaining">
+            <div class="panel stat-card" id="card-noplan" onclick="selectDashboardFilter('noplan')" style="cursor:pointer; border-left: 4px solid #a855f7; transition: transform 0.2s;">
                 <div class="stat-header">
-                    <span>Ngân Sách Còn Lại</span>
-                    <i class="fa-solid fa-sack-dollar"></i>
+                    <span>Chưa Lên KH Tuần</span>
+                    <i class="fa-solid fa-file-circle-minus" style="color:#a855f7;"></i>
                 </div>
-                <div class="stat-value" id="stat-remaining" style="color: var(--success);">0.00 Trđ</div>
-                <span style="font-size: 0.75rem; color: var(--text-secondary);">Khả dụng giải ngân</span>
+                <div class="stat-value" id="count-noplan" style="color: #a855f7; font-size: 1.8rem; font-weight: 700; margin: 8px 0;">0</div>
+                <span style="font-size: 0.72rem; color: var(--text-secondary);">Thiếu thông tin kế hoạch</span>
             </div>
 
-            <div class="panel stat-card progress">
+            <div class="panel stat-card" id="card-pending" onclick="selectDashboardFilter('pending')" style="cursor:pointer; border-left: 4px solid #38bdf8; transition: transform 0.2s;">
                 <div class="stat-header">
-                    <span>Tiến Độ Trung Bình Dự Án</span>
-                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Chờ Duyệt KH Tuần</span>
+                    <i class="fa-solid fa-circle-question" style="color:#38bdf8;"></i>
                 </div>
-                <div class="stat-value" id="stat-progress" style="color: var(--warning);">0.00%</div>
-                <span style="font-size: 0.75rem; color: var(--text-secondary);" id="tasks-status-summary">0 tasks hoàn thành</span>
+                <div class="stat-value" id="count-pending" style="color: #38bdf8; font-size: 1.8rem; font-weight: 700; margin: 8px 0;">0</div>
+                <span style="font-size: 0.72rem; color: var(--text-secondary);">Đang đợi quản lý duyệt</span>
+            </div>
+
+            <div class="panel stat-card" id="card-noresult" onclick="selectDashboardFilter('noresult')" style="cursor:pointer; border-left: 4px solid #fb923c; transition: transform 0.2s;">
+                <div class="stat-header">
+                    <span>Chưa Báo Cáo KQ Tuần</span>
+                    <i class="fa-solid fa-file-signature" style="color:#fb923c;"></i>
+                </div>
+                <div class="stat-value" id="count-noresult" style="color: #fb923c; font-size: 1.8rem; font-weight: 700; margin: 8px 0;">0</div>
+                <span style="font-size: 0.72rem; color: var(--text-secondary);">Thiếu báo cáo kết quả</span>
             </div>
         </div>
 
-        <!-- Charts and Financial Risks -->
-        <div class="dashboard-middle">
-            <!-- S-Curve Chart Panel -->
-            <div class="panel">
-                <div class="panel-header">
-                    <span class="panel-title"><i class="fa-solid fa-chart-area"></i> Đường Cong lũy kế S-Curve (Kế hoạch vs Thực tế)</span>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Đơn vị: Triệu VND</span>
-                </div>
-                <div class="chart-container">
-                    <canvas id="sCurveChart"></canvas>
-                </div>
+        <!-- Operational Dashboard Panel (Replaces S-Curve & AI CFO) -->
+        <div class="panel" style="margin-bottom: 20px;">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="panel-title" id="operation-panel-title" style="font-size: 1.05rem; font-weight: 700; color: var(--danger);">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Danh sách công việc đã quá thời hạn hoàn thành
+                </span>
+                <span id="operation-panel-subtitle" style="font-size: 0.8rem; color: var(--text-secondary);">Nhấp vào các thẻ chỉ số ở trên để chuyển nhanh</span>
             </div>
-
-            <!-- AI Risk Observability Panel -->
-            <div class="panel">
-                <div class="panel-header">
-                    <span class="panel-title" style="color: #a855f7;"><i class="fa-solid fa-brain"></i> AI CFO - Đánh Giá Rủi Ro Tài Chính (Gemini Pro)</span>
-                    <button class="btn secondary-btn" style="padding: 4px 10px; font-size: 0.75rem;" onclick="refreshRiskReport()"><i class="fa-solid fa-arrows-rotate"></i> Quét</button>
-                </div>
-                <div class="risk-scroll" id="ai-risk-report">
-                    <p style="color: var(--text-secondary); text-align: center; margin-top: 50px;">
-                        <i class="fa-solid fa-spinner fa-spin"></i> Đang tải đánh giá rủi ro dự án...
-                    </p>
-                </div>
+            
+            <div class="table-wrapper" style="max-height: 250px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="position: sticky; top: 0; background: var(--panel-bg); z-index: 1;">
+                            <th style="width: 80px; text-align: center;">STT</th>
+                            <th style="width: 120px; text-align: center;">Mã WBS</th>
+                            <th>Nội dung công việc</th>
+                            <th style="width: 120px; text-align: center;">Đơn vị</th>
+                            <th style="width: 120px; text-align: center;">Thời hạn</th>
+                            <th>Kế hoạch tuần</th>
+                            <th>Kết quả tuần</th>
+                            <th style="width: 110px; text-align: center;">Duyệt tuần</th>
+                            <th style="width: 80px; text-align: center;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="operation-tasks-body">
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu chỉ số...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -479,8 +496,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchStats();
             fetchTasks(currentPhase);
-            renderSCurveChart();
-            refreshRiskReport();
             setupWebSocket();
         });
 
@@ -590,33 +605,147 @@
             };
         }
 
-        // Fetch Stats
-        function fetchStats() {
-            fetch(backendUrl + '/api/stats')
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById('stat-total-budget').innerText = data.tong_ngan_sach.toLocaleString() + ' Trđ';
-                    document.getElementById('stat-total-spent').innerText = data.tong_thuc_chi.toLocaleString() + ' Trđ';
-                    
-                    const ratio = data.tong_ngan_sach > 0 ? (data.tong_thuc_chi / data.tong_ngan_sach * 100).toFixed(2) : '0.00';
-                    document.getElementById('spending-percentage').innerText = `${ratio}% giải ngân`;
-                    
-                    const remaining = data.con_lai;
-                    document.getElementById('stat-remaining').innerText = remaining.toLocaleString() + ' Trđ';
-                    
-                    document.getElementById('stat-progress').innerText = data.tien_do_trung_binh.toFixed(2) + '%';
-                    
-                    const totalTasks = data.trang_thai_tasks.Todo + data.trang_thai_tasks["In-Progress"] + data.trang_thai_tasks.Done + data.trang_thai_tasks.Delayed;
-                    document.getElementById('tasks-status-summary').innerText = `${data.trang_thai_tasks.Done} / ${totalTasks} công việc Done`;
+        // Fetch Stats (Calculates Operational Metrics on Client Side)
+        let activeDashboardFilter = "overdue"; // Default active card filter
 
-                    // Nếu có mã WBS bị khóa
-                    if (data.so_wbs_bi_khoa > 0) {
-                        const alertPanel = document.getElementById('red-alert-panel');
-                        alertPanel.style.display = 'block';
-                        document.getElementById('red-alert-message').innerText = `Cảnh báo! Hiện tại đang có ${data.so_wbs_bi_khoa} mã ngân sách (WBS) đang bị KHÓA chi tiêu do vượt quá hạn mức ngân sách tổng được duyệt.`;
-                    }
+        function fetchStats() {
+            fetch(backendUrl + '/api/tasks')
+                .then(res => res.json())
+                .then(tasks => {
+                    window.allProjectTasks = tasks;
+                    
+                    const today = new Date("2026-07-07"); // Simulation today date matching current local time metadata
+                    
+                    // Filter 1: Cận hạn 7 ngày (Công việc chưa hoàn thành, có thời hạn và cách hạn <= 7 ngày)
+                    const nearDeadlineTasks = tasks.filter(t => {
+                        if (t.trang_thai === "Done") return false;
+                        if (!t.thoi_han_hoan_thanh) return false;
+                        const deadline = new Date(t.thoi_han_hoan_thanh);
+                        const diffTime = deadline - today;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        return diffDays >= 0 && diffDays <= 7;
+                    });
+
+                    // Filter 2: Đã quá thời hạn (Công việc chưa hoàn thành, có thời hạn và hôm nay đã vượt quá hạn)
+                    const overdueTasks = tasks.filter(t => {
+                        if (t.trang_thai === "Done") return false;
+                        if (!t.thoi_han_hoan_thanh) return false;
+                        const deadline = new Date(t.thoi_han_hoan_thanh);
+                        const diffTime = deadline - today;
+                        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                        return diffDays < 0;
+                    });
+
+                    // Filter 3: Chưa lên KH tuần (Công việc chưa hoàn thành, không có kế hoạch tuần)
+                    const noPlanTasks = tasks.filter(t => {
+                        if (t.trang_thai === "Done") return false;
+                        return !t.ke_hoach_tuan || t.ke_hoach_tuan === "-" || t.ke_hoach_tuan.trim() === "";
+                    });
+
+                    // Filter 4: Chưa phê duyệt KH tuần (Công việc chưa hoàn thành, trạng thái duyệt tuần là Chưa duyệt)
+                    const pendingApprovalTasks = tasks.filter(t => {
+                        if (t.trang_thai === "Done") return false;
+                        return !t.duyet_tuan || t.duyet_tuan === "Chưa duyệt";
+                    });
+
+                    // Filter 5: Chưa báo cáo KQ tuần (Công việc chưa hoàn thành, không có kết quả tuần)
+                    const noResultTasks = tasks.filter(t => {
+                        if (t.trang_thai === "Done") return false;
+                        return !t.ket_qua_tuan || t.ket_qua_tuan === "-" || t.ket_qua_tuan.trim() === "";
+                    });
+
+                    // Update UI Counters
+                    document.getElementById('count-7days').innerText = nearDeadlineTasks.length;
+                    document.getElementById('count-overdue').innerText = overdueTasks.length;
+                    document.getElementById('count-noplan').innerText = noPlanTasks.length;
+                    document.getElementById('count-pending').innerText = pendingApprovalTasks.length;
+                    document.getElementById('count-noresult').innerText = noResultTasks.length;
+
+                    // Choose tasks to display in the operational table
+                    let filteredForTable = [];
+                    if (activeDashboardFilter === "7days") filteredForTable = nearDeadlineTasks;
+                    else if (activeDashboardFilter === "overdue") filteredForTable = overdueTasks;
+                    else if (activeDashboardFilter === "noplan") filteredForTable = noPlanTasks;
+                    else if (activeDashboardFilter === "pending") filteredForTable = pendingApprovalTasks;
+                    else if (activeDashboardFilter === "noresult") filteredForTable = noResultTasks;
+
+                    renderOperationalTable(filteredForTable);
                 })
                 .catch(err => console.error("Error fetching stats:", err));
+        }
+
+        // Render the operational dashboard table rows
+        function renderOperationalTable(tasks) {
+            const tableBody = document.getElementById('operation-tasks-body');
+            if (tasks.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--text-secondary);">Không có công việc nào cần xử lý trong mục này.</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = '';
+            tasks.forEach(task => {
+                const tr = document.createElement('tr');
+                
+                const deadlineText = task.thoi_han_hoan_thanh || '<span style="color:var(--text-secondary);">-</span>';
+                const statusBadge = `<span class="badge ${task.trang_thai.toLowerCase()}">${getStatusTextVietnamese(task.trang_thai)}</span>`;
+                const approvalBadge = `<span class="badge ${task.duyet_tuan === 'Đã duyệt' ? 'done' : (task.duyet_tuan === 'Không duyệt' ? 'delayed' : 'todo')}">${task.duyet_tuan || 'Chưa duyệt'}</span>`;
+                
+                const editBtn = `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa nhanh" style="background:var(--primary); color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem;"><i class="fa-solid fa-pen-to-square"></i></button>`;
+
+                tr.innerHTML = `
+                    <td style="text-align:center; font-weight:bold;">${task.stt}</td>
+                    <td style="text-align:center;"><code>${task.ma_ngan_sach || '-'}</code></td>
+                    <td style="font-weight:500;">${task.ten_cong_viec}</td>
+                    <td style="text-align:center;"><span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-primary); font-size:0.75rem;">${task.phong_ban_thuc_hien || '-'}</span></td>
+                    <td style="text-align:center; font-weight:600; color:var(--danger);">${deadlineText}</td>
+                    <td>${task.ke_hoach_tuan || '<em style="color:var(--text-secondary);">Trống</em>'}</td>
+                    <td>${task.ket_qua_tuan || '<em style="color:var(--text-secondary);">Trống</em>'}</td>
+                    <td style="text-align:center;">${approvalBadge}</td>
+                    <td style="text-align:center;">${editBtn}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // Handle Card selection
+        function selectDashboardFilter(filterType) {
+            activeDashboardFilter = filterType;
+            
+            // Remove active class from all cards, add to selected
+            document.querySelectorAll('.stats-grid .stat-card').forEach(card => card.classList.remove('active-card'));
+            const selectedCard = document.getElementById('card-' + filterType);
+            if (selectedCard) {
+                selectedCard.classList.add('active-card');
+            }
+            
+            // Update Title text dynamically
+            const titles = {
+                '7days': '<i class="fa-solid fa-clock" style="color:var(--warning);"></i> Danh sách công việc sắp cận hạn (Trong 7 ngày tới)',
+                'overdue': '<i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i> Danh sách công việc đã quá thời hạn hoàn thành',
+                'noplan': '<i class="fa-solid fa-file-circle-minus" style="color:#a855f7;"></i> Danh sách công việc chưa lên Kế hoạch tuần',
+                'pending': '<i class="fa-solid fa-circle-question" style="color:#38bdf8;"></i> Danh sách công việc chưa phê duyệt Kế hoạch tuần',
+                'noresult': '<i class="fa-solid fa-file-signature" style="color:#fb923c;"></i> Danh sách công việc chưa báo cáo Kết quả tuần'
+            };
+            
+            const titleEl = document.getElementById('operation-panel-title');
+            if (titleEl) {
+                titleEl.innerHTML = titles[filterType];
+                
+                // Color code the title
+                if (filterType === 'overdue') {
+                    titleEl.style.color = 'var(--danger)';
+                } else if (filterType === '7days') {
+                    titleEl.style.color = 'var(--warning)';
+                } else if (filterType === 'noplan') {
+                    titleEl.style.color = '#a855f7';
+                } else if (filterType === 'pending') {
+                    titleEl.style.color = '#38bdf8';
+                } else if (filterType === 'noresult') {
+                    titleEl.style.color = '#fb923c';
+                }
+            }
+            
+            fetchStats();
         }
 
         // Change Phase
@@ -714,9 +843,6 @@
                             <td>${task.ket_qua_tuan || '-'}</td>
                             <td>${task.vuong_mac_tuan || '-'}</td>
                             <td>${task.cach_giai_quyet || '-'}</td>
-                            <td>
-                                <span class="badge ${task.duyet_tuan === 'Đã duyệt' ? 'done' : (task.duyet_tuan === 'Không duyệt' ? 'delayed' : 'todo')}">
-                                    ${task.duyet_tuan || 'Chưa duyệt'}
                                 </span>
                             </td>
                             <td style="display:flex; align-items:center;">
@@ -761,103 +887,10 @@
             });
         }
 
-        // Render S-Curve Chart
-        function renderSCurveChart() {
-            fetch(backendUrl + '/api/s-curve')
-                .then(res => res.json())
-                .then(data => {
-                    const ctx = document.getElementById('sCurveChart').getContext('2d');
-                    
-                    const periods = data.plan.map(p => p.period);
-                    const planValues = data.plan.map(p => p.value);
-                    const actualValues = data.actual.map(p => p.value);
-
-                    sCurveChart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: periods,
-                            datasets: [
-                                {
-                                    label: 'Lũy kế kế hoạch chi tiêu',
-                                    data: planValues,
-                                    borderColor: '#6366f1',
-                                    backgroundColor: 'rgba(99, 102, 241, 0.05)',
-                                    borderWidth: 3,
-                                    tension: 0.3,
-                                    fill: true
-                                },
-                                {
-                                    label: 'Lũy kế giải ngân thực tế',
-                                    data: actualValues,
-                                    borderColor: '#06b6d4',
-                                    backgroundColor: 'rgba(6, 182, 212, 0.1)',
-                                    borderWidth: 3,
-                                    tension: 0.3,
-                                    fill: true
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    labels: { color: '#f3f4f6' }
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    grid: { color: 'rgba(255,255,255,0.05)' },
-                                    ticks: { color: '#9ca3af' }
-                                },
-                                y: {
-                                    grid: { color: 'rgba(255,255,255,0.05)' },
-                                    ticks: { color: '#9ca3af' }
-                                }
-                            }
-                        }
-                    });
-                });
-        }
-
-        // Update S-Curve Chart values
-        function updateSCurveChart() {
-            fetch(backendUrl + '/api/s-curve')
-                .then(res => res.json())
-                .then(data => {
-                    if (sCurveChart) {
-                        const actualValues = data.actual.map(p => p.value);
-                        sCurveChart.data.datasets[1].data = actualValues;
-                        sCurveChart.update();
-                    }
-                });
-        }
-
-        // Refresh AI Risk Report
-        function refreshRiskReport() {
-            const riskDiv = document.getElementById('ai-risk-report');
-            riskDiv.innerHTML = `
-                <p style="color: var(--text-secondary); text-align: center; margin-top: 50px;">
-                    <i class="fa-solid fa-spinner fa-spin"></i> AI CFO đang tính toán rủi ro tài chính...
-                </p>
-            `;
-
-            fetch(backendUrl + '/api/ai/risk')
-                .then(res => res.json())
-                .then(data => {
-                    // Simple markdown to HTML formatter helper
-                    let formatted = data.risk_report
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                        .replace(/\n/g, '<br>');
-                    
-                    riskDiv.innerHTML = `<div style="padding:10px; color:#e5e7eb;">${formatted}</div>`;
-                })
-                .catch(err => {
-                    console.error("Error loading risk report:", err);
-                    riskDiv.innerHTML = `<p style="color:var(--danger); text-align:center; margin-top:50px;">Không thể lấy báo cáo phân tích rủi ro AI.</p>`;
-                });
-        }
+        // Stub out old financial chart and AI risk report functions
+        function renderSCurveChart() {}
+        function updateSCurveChart() {}
+        function refreshRiskReport() {}
 
         // Open edit modal
         function openEditModal(id, name, progress, status, cond, wbs, dept, deliverables, deadline, budget) {
