@@ -132,12 +132,13 @@ def parse_date(date_str):
     return None
 
 def format_date(d, original_str=None):
-    if not d:
-        return original_str or "Tháng 06/2026"
-    last_day = calendar.monthrange(d.year, d.month)[1]
-    if d.day == last_day:
-        return f"Tháng {d.month:02d}/{d.year}"
-    return d.strftime("%Y-%m-%d")
+    if d:
+        return d.strftime("%Y-%m-%d")
+    if original_str:
+        parsed = parse_date(original_str)
+        if parsed:
+            return parsed.strftime("%Y-%m-%d")
+    return "2026-06-30"
 
 def compute_rolled_up_deadlines(all_tasks):
     computed = {}
