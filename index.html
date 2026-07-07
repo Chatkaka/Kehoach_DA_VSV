@@ -115,6 +115,7 @@
         <div class="tabs-nav">
             <button class="tab-nav-btn active" onclick="switchTab('wbs-tab', this)"><i class="fa-solid fa-sitemap"></i> Cấu trúc WBS & Tiến độ</button>
             <button class="tab-nav-btn" onclick="switchTab('weekly-tab', this)"><i class="fa-solid fa-calendar-week"></i> Báo Cáo Kế Hoạch & Duyệt Báo Cáo Tuần</button>
+            <button class="tab-nav-btn" id="nav-users-tab" onclick="switchTab('users-tab', this)" style="display:none;"><i class="fa-solid fa-users"></i> Quản lý Nhân sự</button>
         </div>
 
         <div id="wbs-tab" class="tab-content">
@@ -211,6 +212,82 @@
             </div>
         </div>
 
+        <div id="users-tab" class="tab-content" style="display:none;">
+            <div class="panel">
+                <div class="panel-header" style="margin-bottom: 10px;">
+                    <span class="panel-title" style="color:var(--primary);"><i class="fa-solid fa-users"></i> Hệ thống Quản trị & Phân quyền Nhân sự</span>
+                </div>
+                
+                <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <!-- Column 1: Add/Edit User Form -->
+                    <div class="panel" style="flex: 1; min-width: 300px; background: rgba(255,255,255,0.02); padding: 15px;">
+                        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; color: var(--text-primary);" id="user-form-title">➕ Thêm nhân sự mới</h3>
+                        
+                        <input type="hidden" id="user-edit-id" value="">
+                        
+                        <div class="form-group">
+                            <label for="user-username">Tên đăng nhập (Username)</label>
+                            <input type="text" id="user-username" class="form-control" placeholder="Ví dụ: nv_ptda">
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label for="user-fullname">Họ tên nhân sự</label>
+                            <input type="text" id="user-fullname" class="form-control" placeholder="Ví dụ: Nguyễn Văn A">
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label for="user-dept">Phòng ban thực hiện</label>
+                            <select id="user-dept" class="form-control">
+                                <option value="PTDA">Phòng Phát triển Dự án (PTDA)</option>
+                                <option value="QHTK">Phòng Quy hoạch Thiết kế (QHTK)</option>
+                                <option value="BQLDA">Ban Quản lý Dự án (BQLDA)</option>
+                                <option value="GPMB">Phòng Giải phóng mặt bằng (GPMB)</option>
+                                <option value="KTKH">Phòng Kinh tế Kế hoạch (KTKH)</option>
+                                <option value="All">Tất cả (All)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label for="user-role">Vai trò & Quyền hạn</label>
+                            <select id="user-role" class="form-control">
+                                <option value="NhanVien">👤 Nhân viên thực hiện</option>
+                                <option value="TruongPhong">💼 Trưởng phòng / CBQL</option>
+                                <option value="PM">👑 Giám đốc Dự án (PM)</option>
+                                <option value="Admin">🛠️ Admin Hệ thống</option>
+                            </select>
+                        </div>
+                        
+                        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                            <button class="btn secondary-btn" id="btn-cancel-user-edit" onclick="resetUserForm()" style="display:none;">Hủy sửa</button>
+                            <button class="btn" id="btn-submit-user" onclick="submitUserForm()">Thêm Mới</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Column 2: User List Table -->
+                    <div style="flex: 2; min-width: 450px;">
+                        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; color: var(--text-primary);">📋 Danh sách nhân sự hiện tại</h3>
+                        
+                        <div class="table-wrapper" style="max-height: 400px; overflow-y: auto;">
+                            <table>
+                                <thead>
+                                    <tr style="position: sticky; top: 0; background: var(--panel-bg); z-index: 1;">
+                                        <th style="width: 60px; text-align: center;">ID</th>
+                                        <th style="width: 120px;">Username</th>
+                                        <th>Họ tên</th>
+                                        <th style="width: 100px; text-align: center;">Phòng ban</th>
+                                        <th style="width: 130px; text-align: center;">Vai trò</th>
+                                        <th style="width: 140px; text-align: center;">Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
 
@@ -522,9 +599,145 @@
                         
                         const activeUsername = localStorage.getItem('active_username') || 'admin';
                         select.value = activeUsername;
+                        
+                        // Check if active user has Admin role to show/hide the User Management tab
+                        const activeUser = users.find(u => u.username === activeUsername);
+                        const navUsersBtn = document.getElementById('nav-users-tab');
+                        if (navUsersBtn) {
+                            if (activeUser && activeUser.role === 'Admin') {
+                                navUsersBtn.style.display = 'inline-block';
+                                fetchUsersList();
+                            } else {
+                                navUsersBtn.style.display = 'none';
+                            }
+                        }
                     }
                 })
                 .catch(err => console.error("Error loading user profiles:", err));
+        }
+
+        function fetchUsersList() {
+            fetch((backendUrl || '') + '/api/users')
+                .then(res => res.json())
+                .then(users => {
+                    const tbody = document.getElementById('users-table-body');
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+                    users.forEach(u => {
+                        const tr = document.createElement('tr');
+                        const roleText = u.role === 'Admin' ? 'Admin' : (u.role === 'PM' ? 'PM' : (u.role === 'TruongPhong' ? 'Trưởng phòng' : 'Nhân viên'));
+                        const deptText = u.phong_ban === 'All' ? 'Tất cả' : u.phong_ban;
+                        
+                        // Escaping JSON for onclick handler safely
+                        const escapedUserJson = JSON.stringify(u).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        const actions = `
+                            <div style="display:flex; justify-content:center; gap:6px;">
+                                <button class="btn" style="padding:4px 8px; font-size:0.75rem; background:var(--primary);" onclick="editUser(${escapedUserJson})"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>
+                                <button class="btn" style="padding:4px 8px; font-size:0.75rem; background:var(--danger);" onclick="deleteUser(${u.id}, '${u.username}')"><i class="fa-solid fa-trash-can"></i> Xóa</button>
+                            </div>
+                        `;
+                        
+                        tr.innerHTML = `
+                            <td style="text-align:center; font-weight:bold;">${u.id}</td>
+                            <td><code>${u.username}</code></td>
+                            <td style="font-weight:600;">${u.ho_ten}</td>
+                            <td style="text-align:center;"><span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-primary); font-size:0.75rem;">${deptText}</span></td>
+                            <td style="text-align:center;"><span class="badge ${u.role === 'Admin' ? 'done' : (u.role === 'PM' ? 'done' : (u.role === 'TruongPhong' ? 'todo' : 'delayed'))}">${roleText}</span></td>
+                            <td style="text-align:center;">${actions}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => console.error("Error fetching users list:", err));
+        }
+
+        function resetUserForm() {
+            document.getElementById('user-edit-id').value = '';
+            document.getElementById('user-username').value = '';
+            document.getElementById('user-fullname').value = '';
+            document.getElementById('user-dept').value = 'PTDA';
+            document.getElementById('user-role').value = 'NhanVien';
+            
+            document.getElementById('user-form-title').innerText = '➕ Thêm nhân sự mới';
+            document.getElementById('btn-submit-user').innerText = 'Thêm Mới';
+            document.getElementById('btn-cancel-user-edit').style.display = 'none';
+        }
+
+        function editUser(userObj) {
+            document.getElementById('user-edit-id').value = userObj.id;
+            document.getElementById('user-username').value = userObj.username;
+            document.getElementById('user-fullname').value = userObj.ho_ten;
+            document.getElementById('user-dept').value = userObj.phong_ban;
+            document.getElementById('user-role').value = userObj.role;
+            
+            document.getElementById('user-form-title').innerText = '📝 Sửa thông tin nhân sự';
+            document.getElementById('btn-submit-user').innerText = 'Lưu Thay Đổi';
+            document.getElementById('btn-cancel-user-edit').style.display = 'inline-block';
+        }
+
+        function submitUserForm() {
+            const editId = document.getElementById('user-edit-id').value;
+            const username = document.getElementById('user-username').value.trim();
+            const fullname = document.getElementById('user-fullname').value.trim();
+            const dept = document.getElementById('user-dept').value;
+            const role = document.getElementById('user-role').value;
+            
+            if (!username || !fullname) {
+                alert("Vui lòng nhập Tên đăng nhập và Họ tên.");
+                return;
+            }
+            
+            const activeUsername = localStorage.getItem('active_username') || 'admin';
+            const isEdit = !!editId;
+            const url = isEdit 
+                ? (backendUrl || '') + `/api/users/${editId}?admin_username=${encodeURIComponent(activeUsername)}`
+                : (backendUrl || '') + `/api/users?admin_username=${encodeURIComponent(activeUsername)}`;
+                
+            fetch(url, {
+                method: isEdit ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: username,
+                    ho_ten: fullname,
+                    phong_ban: dept,
+                    role: role
+                })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (res.ok) {
+                    alert(isEdit ? "Cập nhật nhân sự thành công!" : "Thêm nhân sự mới thành công!");
+                    resetUserForm();
+                    fetchUsersList();
+                } else {
+                    alert(`Lỗi: ${data.detail}`);
+                }
+            })
+            .catch(err => console.error("Error submitting user form:", err));
+        }
+
+        function deleteUser(userId, usernameToDelete) {
+            const activeUsername = localStorage.getItem('active_username') || 'admin';
+            if (activeUsername === usernameToDelete) {
+                alert("Bạn không được tự xóa tài khoản Admin đang đăng nhập!");
+                return;
+            }
+            
+            if (confirm(`Bạn có chắc chắn muốn xóa nhân sự '${usernameToDelete}' khỏi hệ thống?`)) {
+                fetch((backendUrl || '') + `/api/users/${userId}?admin_username=${encodeURIComponent(activeUsername)}`, {
+                    method: 'DELETE'
+                })
+                .then(async res => {
+                    const data = await res.json();
+                    if (res.ok) {
+                        alert("Đã xóa nhân sự thành công!");
+                        fetchUsersList();
+                    } else {
+                        alert(`Lỗi: ${data.detail}`);
+                    }
+                })
+                .catch(err => console.error("Error deleting user:", err));
+            }
         }
 
         // Setup WebSocket client
@@ -1365,10 +1578,13 @@
                 const btns = document.querySelectorAll('.tab-nav-btn');
                 if (tabId === 'wbs-tab') btns[0].classList.add('active');
                 else if (tabId === 'weekly-tab') btns[1].classList.add('active');
+                else if (tabId === 'users-tab' && btns[2]) btns[2].classList.add('active');
             }
             
             if (tabId === 'weekly-tab') {
                 loadWeeklyTabContent();
+            } else if (tabId === 'users-tab') {
+                fetchUsersList();
             }
         }
 
