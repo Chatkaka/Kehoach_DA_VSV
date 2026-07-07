@@ -194,7 +194,7 @@ def calculate_phase2_status(task, rolled_up_deadlines):
     if task.tien_do >= 100 or task.trang_thai == "Done":
         return "Done"
 
-    current_date = datetime.date.today()
+    current_date = datetime.date(2026, 7, 7) # Simulation today date
     comp_date = parse_date(task.thoi_han_hoan_thanh)
     
     # Tìm thời hạn phê duyệt HS TKBVTC tương ứng
@@ -219,6 +219,43 @@ def calculate_phase2_status(task, rolled_up_deadlines):
         return "In-Progress"
 
     return task.trang_thai
+
+def calculate_phase134_status(task, rolled_up_deadlines):
+    # Hoàn thành: tiến độ >= 100% hoặc Done
+    if task.tien_do >= 100 or task.trang_thai == "Done":
+        return "Done"
+        
+    # Lấy thời hạn (đã gộp từ con hoặc gốc)
+    rolled_date = rolled_up_deadlines.get(task.stt)
+    if not rolled_date:
+        rolled_date = parse_date(task.thoi_han_hoan_thanh)
+        
+    if not rolled_date:
+        # Nếu không có thời hạn hoàn thành, giữ nguyên trạng thái
+        return task.trang_thai
+        
+    current_date = datetime.date(2026, 7, 7) # Simulation today date
+    
+    # Nếu thời gian thực < thời hạn thì Đang thực hiện
+    if current_date < rolled_date:
+        return "In-Progress"
+    else:
+        # Nếu thời gian thực >= thời hạn thì Quá hạn
+        return "Delayed"
+
+def get_vietnamese_status(status_str):
+    if not status_str:
+        return "Chưa thực hiện"
+    status_lower = str(status_str).lower()
+    if "todo" in status_lower:
+        return "Chưa thực hiện"
+    elif "in-progress" in status_lower or "in_progress" in status_lower:
+        return "Đang thực hiện"
+    elif "delayed" in status_lower or "chậm" in status_lower or "trễ" in status_lower:
+        return "Quá hạn"
+    elif "done" in status_lower or "hoàn thành" in status_lower:
+        return "Hoàn thành"
+    return status_str
 
 @app.get("/api/project")
 def get_project_info(db: Session = Depends(database.get_db)):
@@ -276,9 +313,11 @@ def get_tasks(
         rolled_date = rolled_up_deadlines.get(t.stt)
         final_deadline = format_date(rolled_date, t.thoi_han_hoan_thanh)
         
-        # Get computed status for Phase 2 Level 3 tasks
+        # Get computed status
         final_status = t.trang_thai
-        if t.phase_id == 2 and t_level == 3:
+        if t.phase_id in (1, 3, 4):
+            final_status = calculate_phase134_status(t, rolled_up_deadlines)
+        elif t.phase_id == 2 and t_level == 3:
             final_status = calculate_phase2_status(t, rolled_up_deadlines)
         
         result.append({
@@ -332,10 +371,14 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
         rolled_date = rolled_up_deadlines.get(t.stt)
         final_deadline = format_date(rolled_date, t.thoi_han_hoan_thanh)
         
-        # Get computed status for Phase 2 Level 3 tasks
+        # Get computed status
         final_status = t.trang_thai
-        if t.phase_id == 2 and t_level == 3:
+        if t.phase_id in (1, 3, 4):
+            final_status = calculate_phase134_status(t, rolled_up_deadlines)
+        elif t.phase_id == 2 and t_level == 3:
             final_status = calculate_phase2_status(t, rolled_up_deadlines)
+            
+        final_status_vn = get_vietnamese_status(final_status)
             
         rows.append({
             "STT": t.stt,
@@ -353,7 +396,7 @@ def export_tasks_to_excel(db: Session = Depends(database.get_db)):
             "Vướng mắc tuần": t.vuong_mac_tuan or "-",
             "Giải quyết của CBQL/Phòng ban": t.cach_giai_quyet or "-",
             "Duyệt tuần": t.duyet_tuan or "Chưa duyệt",
-            "Trạng thái": final_status
+            "Trạng thái": final_status_vn
         })
         
     df = pd.DataFrame(rows)
@@ -469,11 +512,13 @@ def get_task(task_id: int, db: Session = Depends(database.get_db)):
     rolled_date = rolled_up_deadlines.get(task.stt)
     final_deadline = format_date(rolled_date, task.thoi_han_hoan_thanh)
     
-    # Get computed status for Phase 2 Level 3 tasks
+    # Get computed status
     final_status = task.trang_thai
     dot_count = task.stt.count('.')
     t_level = dot_count + 1
-    if task.phase_id == 2 and t_level == 3:
+    if task.phase_id in (1, 3, 4):
+        final_status = calculate_phase134_status(task, rolled_up_deadlines)
+    elif task.phase_id == 2 and t_level == 3:
         final_status = calculate_phase2_status(task, rolled_up_deadlines)
         
     return {
