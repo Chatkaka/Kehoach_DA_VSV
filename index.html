@@ -1383,9 +1383,39 @@
                         const budgetText = task.budget ? task.budget.ngan_sach_tong.toLocaleString() + ' Trđ' : '0.00 Trđ';
                         const lockedIcon = (task.budget && task.budget.is_locked) ? '<i class="fa-solid fa-lock" style="color:var(--danger); margin-left:6px;" title="Mã ngân sách đã bị khóa do vượt chi"></i>' : '';
 
-                        const addBtn = `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-plus"></i></button>`;
-                        const editBtn = `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-pen-to-square"></i></button>`;
-                        const deleteBtn = `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem;"><i class="fa-solid fa-trash"></i></button>`;
+                        const activeUsername = localStorage.getItem('active_username');
+                        const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
+                        
+                        let hasEditPermission = false;
+                        let hasDeletePermission = false;
+                        let hasAddPermission = false;
+                        
+                        if (activeUser) {
+                            if (activeUser.role === 'Admin' || activeUser.role === 'PM') {
+                                hasEditPermission = true;
+                                hasDeletePermission = true;
+                                hasAddPermission = true;
+                            } else {
+                                // Rule 2: non-Admin/PM has no permission for Level 1 & 2 tasks
+                                if (task.level > 2) {
+                                    const userDept = String(activeUser.phong_ban).toUpperCase().trim();
+                                    const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
+                                    if (userDept === taskDept) {
+                                        hasEditPermission = true;
+                                        hasDeletePermission = true;
+                                        hasAddPermission = true;
+                                    }
+                                }
+                            }
+                        } else {
+                            hasEditPermission = true;
+                            hasDeletePermission = true;
+                            hasAddPermission = true;
+                        }
+                        
+                        const addBtn = hasAddPermission ? `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-plus"></i></button>` : '';
+                        const editBtn = hasEditPermission ? `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-pen-to-square"></i></button>` : '';
+                        const deleteBtn = hasDeletePermission ? `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem;"><i class="fa-solid fa-trash"></i></button>` : '';
 
                         tr.innerHTML = `
                             <td>${task.stt} <span style="font-size:0.7rem; color:var(--text-secondary);">(Lv${task.level})</span></td>
@@ -1482,10 +1512,32 @@
                     ket_qua_tuan: "",
                     vuong_mac_tuan: "",
                     cach_giai_quyet: "",
-                    duyet_tuan: "Chưa duyệt"
+                    duyet_tuan: "Chưa duyệt",
+                    stt: "" // empty if not found
                 };
             }
-
+            
+            // Client-side permission checks
+            const activeUsername = localStorage.getItem('active_username');
+            const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
+            if (task && task.stt) {
+                const taskLevel = task.stt.split('.').length;
+                if (activeUser) {
+                    if (activeUser.role !== 'Admin' && activeUser.role !== 'PM') {
+                        if (taskLevel <= 2) {
+                            alert("Chỉ có Admin hoặc Giám đốc dự án mới được phép sửa công việc cấp 1, cấp 2.");
+                            return;
+                        }
+                        const userDept = String(activeUser.phong_ban).toUpperCase().trim();
+                        const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
+                        if (userDept !== taskDept) {
+                            alert(`Quyền hạn bị từ chối: Bạn thuộc phòng ban ${activeUser.phong_ban}, không thể chỉnh sửa công việc của phòng ${task.phong_ban_thuc_hien}.`);
+                            return;
+                        }
+                    }
+                }
+            }
+            
             document.getElementById('edit-id').value = task.id;
             document.getElementById('edit-task-stt').innerText = task.ma_ngan_sach ? '(' + task.ma_ngan_sach + ')' : '';
             document.getElementById('edit-wbs').value = task.ma_ngan_sach || '';
@@ -1737,7 +1789,8 @@
                 return;
             }
 
-            fetch(backendUrl + '/api/tasks', {
+            const activeUsername = localStorage.getItem('active_username') || 'admin';
+            fetch(backendUrl + `/api/tasks?username=${encodeURIComponent(activeUsername)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1766,8 +1819,9 @@
 
         // Delete task action
         function deleteTask(id, stt) {
+            const activeUsername = localStorage.getItem('active_username') || 'admin';
             if (confirm(`Bạn có chắc chắn muốn XÓA công việc ${stt} và tất cả các mục con? Điều này sẽ tự động tính toán lại ngân sách dự án.`)) {
-                fetch(backendUrl + `/api/tasks/${id}`, {
+                fetch(backendUrl + `/api/tasks/${id}?username=${encodeURIComponent(activeUsername)}`, {
                     method: 'DELETE'
                 })
                 .then(async res => {

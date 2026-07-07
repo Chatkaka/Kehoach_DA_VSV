@@ -257,7 +257,53 @@ def get_vietnamese_status(status_str):
         return "Hoàn thành"
     return status_str
 
+def log_action(db: Session, username: Optional[str], action: str, details: str):
+    ho_ten = "Khách vãng lai"
+    user_name = "guest"
+    if username:
+        user = db.query(models.User).filter(models.User.username == username).first()
+        if user:
+            ho_ten = user.ho_ten
+            user_name = user.username
+        else:
+            user_name = username
+            ho_ten = username
+            
+    log_entry = models.ActionLog(
+        username=user_name,
+        ho_ten=ho_ten,
+        hanh_dong=action,
+        chi_tiet=details,
+        thoi_gian=datetime.datetime.now()
+    )
+    db.add(log_entry)
+    db.flush()
+
+@app.get("/api/logs")
+def get_action_logs(db: Session = Depends(database.get_db)):
+    logs = db.query(models.ActionLog).order_by(models.ActionLog.id.desc()).limit(200).all()
+    return [{
+        "id": l.id,
+        "username": l.username,
+        "ho_ten": l.ho_ten,
+        "hanh_dong": l.hanh_dong,
+        "chi_tiet": l.chi_tiet,
+        "thoi_gian": l.thoi_gian.strftime("%Y-%m-%d %H:%M:%S")
+    } for l in logs]
+
 def check_task_update_permissions(user, task, request_data, is_partial=False):
+    # Check task level dynamically based on STT formatting
+    task_level = task.stt.count('.') + 1
+    
+    # Rule 2: Admin or PM only for Level 1 and 2 tasks
+    if task_level in (1, 2):
+        if not user or user.role not in ("Admin", "PM"):
+            raise HTTPException(
+                status_code=403,
+                detail="Chỉ có Admin hoặc Giám đốc dự án mới được phép sửa công việc cấp 1, cấp 2."
+            )
+        return
+
     # If no user is specified, we default to Admin permissions (for backward compatibility and ease of testing)
     if not user:
         return
@@ -266,7 +312,7 @@ def check_task_update_permissions(user, task, request_data, is_partial=False):
     if user.role in ("Admin", "PM"):
         return
         
-    # Department-based check:
+    # Rule 1: Department-based check for Level 3 and 4 tasks:
     # User's phong_ban must match the task's phong_ban_thuc_hien (case insensitive).
     user_dept = str(user.phong_ban).upper().strip()
     task_dept = str(task.phong_ban_thuc_hien).upper().strip()
@@ -274,7 +320,7 @@ def check_task_update_permissions(user, task, request_data, is_partial=False):
     if user_dept != task_dept:
         raise HTTPException(
             status_code=403, 
-            detail=f"Quyen han bi tu choi: Ban thuoc phong ban {user.phong_ban}, khong the chinh sua cong viec cua phong {task.phong_ban_thuc_hien}."
+            detail=f"Quyền hạn bị từ chối: Bạn thuộc phòng ban {user.phong_ban}, không thể chỉnh sửa công việc của phòng {task.phong_ban_thuc_hien}."
         )
         
     # Role-based check for NhanVien:
@@ -285,7 +331,7 @@ def check_task_update_permissions(user, task, request_data, is_partial=False):
             # PUT /api/tasks/{task_id}/progress is meant to update progress/status
             raise HTTPException(
                 status_code=403,
-                detail="Quyen han bi tu choi: Nhan vien khong co quyen cap nhat tien do hoac trang thai cong viec."
+                detail="Quyền hạn bị từ chối: Nhân viên không có quyền cập nhật tiến độ hoặc trạng thái công việc."
             )
         else:
             # PUT /api/tasks/{task_id}
@@ -306,7 +352,7 @@ def check_task_update_permissions(user, task, request_data, is_partial=False):
             if has_forbidden_changes:
                 raise HTTPException(
                     status_code=403,
-                    detail="Quyen han bi tu choi: Nhan vien chi co quyen cap nhat Ke hoach tuan, Ket qua tuan va Vuong mac tuan."
+                    detail="Quyền hạn bị từ chối: Nhân viên chỉ có quyền cập nhật Kế hoạch tuần, Kết quả tuần và Vướng mắc tuần."
                 )
 
 class UserCreate(BaseModel):
@@ -314,11 +360,57 @@ class UserCreate(BaseModel):
     ho_ten: str
     phong_ban: str
     role: str
+    password: Optional[str] = "123456"
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/auth/login")
+def login_auth(request: LoginRequest, db: Session = Depends(database.get_db)):
+    user = db.query(models.User).filter(models.User.username == request.username).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Tài khoản không tồn tại!")
+    if user.password != request.password:
+        raise HTTPException(status_code=400, detail="Mật khẩu không chính xác!")
+    
+    log_action(db, user.username, "Đăng nhập", f"Nhân sự {user.ho_ten} đăng nhập thành công.")
+    
+    return {
+        "status": "success",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "ho_ten": user.ho_ten,
+            "phong_ban": user.phong_ban,
+            "role": user.role
+        }
+    }
+
+class ChangePasswordRequest(BaseModel):
+    username: str
+    old_password: str
+    new_password: str
+
+@app.put("/api/users/change-password")
+def change_password(request: ChangePasswordRequest, db: Session = Depends(database.get_db)):
+    user = db.query(models.User).filter(models.User.username == request.username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Tài khoản không tồn tại!")
+    
+    if user.password != request.old_password:
+        raise HTTPException(status_code=400, detail="Mật khẩu cũ không chính xác!")
+    
+    user.password = request.new_password
+    db.add(user)
+    log_action(db, user.username, "Đổi mật khẩu", f"Nhân sự {user.ho_ten} đã thay đổi mật khẩu thành công.")
+    db.commit()
+    return {"status": "success", "message": "Thay đổi mật khẩu thành công!"}
 
 @app.get("/api/users")
 def get_users(db: Session = Depends(database.get_db)):
     users = db.query(models.User).all()
-    return [{"id": u.id, "username": u.username, "ho_ten": u.ho_ten, "phong_ban": u.phong_ban, "role": u.role} for u in users]
+    return [{"id": u.id, "username": u.username, "ho_ten": u.ho_ten, "phong_ban": u.phong_ban, "role": u.role, "password": u.password} for u in users]
 
 @app.post("/api/users")
 def create_user(
@@ -327,20 +419,21 @@ def create_user(
     db: Session = Depends(database.get_db)
 ):
     if not admin_username:
-        raise HTTPException(status_code=403, detail="Yeu cau dang nhap admin de thuc hien.")
+        raise HTTPException(status_code=403, detail="Yêu cầu đăng nhập admin để thực hiện.")
     admin = db.query(models.User).filter(models.User.username == admin_username).first()
     if not admin or admin.role != "Admin":
-        raise HTTPException(status_code=403, detail="Chi co Admin he thong moi duoc phep them nhan su.")
+        raise HTTPException(status_code=403, detail="Chỉ có Admin hệ thống mới được phép thêm nhân sự.")
         
     existing = db.query(models.User).filter(models.User.username == user_data.username).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Ten dang nhap da ton tai.")
+        raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại.")
         
     new_user = models.User(
         username=user_data.username.strip(),
         ho_ten=user_data.ho_ten.strip(),
         phong_ban=user_data.phong_ban.strip(),
-        role=user_data.role.strip()
+        role=user_data.role.strip(),
+        password=user_data.password.strip() if user_data.password else "123456"
     )
     db.add(new_user)
     db.commit()
@@ -372,6 +465,8 @@ def update_user(
     user.ho_ten = user_data.ho_ten.strip()
     user.phong_ban = user_data.phong_ban.strip()
     user.role = user_data.role.strip()
+    if user_data.password:
+        user.password = user_data.password.strip()
     db.add(user)
     db.commit()
     return {"status": "success"}
@@ -717,6 +812,7 @@ async def update_task_progress(
         task.dieu_kien_ghi_nhan = update_data.dieu_kien_ghi_nhan
 
     db.add(task)
+    log_action(db, username, "Cap nhat tien do", f"Cap nhat tien do cong viec {task.stt} - {task.ten_cong_viec} thanh {task.tien_do}%. Trang thai: {task.trang_thai}.")
     db.commit()
 
     # Trigger real-time WebSocket broadcast
@@ -770,6 +866,7 @@ async def add_spending(
         trang_thai_duyet=spending.trang_thai_duyet
     )
     db.add(new_spend)
+    log_action(db, spending.nguoi_cap_nhat, "De xuat giai ngan", f"Giai ngan thuc te {spending.so_tien_chi} Trd cho cong viec {task.stt} - {task.ten_cong_viec}.")
     db.commit()
 
     # Broadcast spending update
@@ -1150,13 +1247,43 @@ def recalculate_budgets(db: Session):
     db.flush()
 
 @app.post("/api/tasks")
-async def create_task(request: TaskCreate, db: Session = Depends(database.get_db)):
+async def create_task(
+    request: TaskCreate, 
+    username: Optional[str] = None,
+    db: Session = Depends(database.get_db)
+):
     parent = db.query(models.Task).filter(models.Task.stt == request.parent_stt).first()
     if not parent:
         raise HTTPException(status_code=404, detail=f"Không tìm thấy công việc cha có STT {request.parent_stt}")
         
     parent_parts = parent.stt.split('.')
     parent_level = len(parent_parts)
+    child_level = parent_level + 1
+    
+    user = None
+    if username:
+        user = db.query(models.User).filter(models.User.username == username).first()
+        
+    # Rule 2: Admin or PM only for Level 1 & 2 tasks
+    if child_level <= 2:
+        if not user or user.role not in ("Admin", "PM"):
+            raise HTTPException(
+                status_code=403,
+                detail="Chỉ có Admin hoặc Giám đốc dự án mới được phép thêm công việc cấp 1, cấp 2."
+            )
+            
+    # Rule 1: Department-based check for Level 3 & 4 tasks
+    if child_level >= 3:
+        if not user:
+            raise HTTPException(status_code=403, detail="Yêu cầu đăng nhập để thêm công việc con.")
+        if user.role not in ("Admin", "PM"):
+            user_dept = str(user.phong_ban).upper().strip()
+            parent_dept = str(parent.phong_ban_thuc_hien).upper().strip()
+            if user_dept != parent_dept:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban}) không trùng khớp với phòng thực hiện công việc cha ({parent.phong_ban_thuc_hien})."
+                )
         
     siblings = db.query(models.Task).filter(models.Task.stt.like(f"{request.parent_stt}.%")).all()
     sibling_indices = []
@@ -1203,6 +1330,7 @@ async def create_task(request: TaskCreate, db: Session = Depends(database.get_db
     db.flush()
     
     recalculate_budgets(db)
+    log_action(db, username, "Thêm mới công việc con", f"Thêm công việc con {new_stt} - {new_task.ten_cong_viec} dưới WBS cha {request.parent_stt}")
     db.commit()
     
     update_msg = {
@@ -1298,6 +1426,8 @@ async def update_task_details(
     db.flush()
     
     recalculate_budgets(db)
+    log_details = f"Cap nhat cong viec {task.stt} - {task.ten_cong_viec}. Tien do: {task.tien_do}%. Trang thai duyet: {task.duyet_tuan}."
+    log_action(db, username, "Cap nhat cong viec", log_details)
     db.commit()
     
     update_msg = {
@@ -1326,10 +1456,41 @@ async def update_task_details(
     return {"status": "success", "task": update_msg}
 
 @app.delete("/api/tasks/{task_id}")
-async def delete_task_route(task_id: int, db: Session = Depends(database.get_db)):
+async def delete_task_route(
+    task_id: int, 
+    username: Optional[str] = None,
+    db: Session = Depends(database.get_db)
+):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
+        
+    user = None
+    if username:
+        user = db.query(models.User).filter(models.User.username == username).first()
+        
+    task_level = task.stt.count('.') + 1
+    
+    # Rule 2: Admin or PM only for Level 1 & 2 tasks
+    if task_level <= 2:
+        if not user or user.role not in ("Admin", "PM"):
+            raise HTTPException(
+                status_code=403,
+                detail="Chỉ có Admin hoặc Giám đốc dự án mới được phép xóa công việc cấp 1, cấp 2."
+            )
+            
+    # Rule 1: Department-based check for Level 3 & 4 tasks
+    if task_level >= 3:
+        if not user:
+            raise HTTPException(status_code=403, detail="Yêu cầu đăng nhập để thực hiện xóa công việc.")
+        if user.role not in ("Admin", "PM"):
+            user_dept = str(user.phong_ban).upper().strip()
+            task_dept = str(task.phong_ban_thuc_hien).upper().strip()
+            if user_dept != task_dept:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban}) không trùng khớp với phòng thực hiện công việc này ({task.phong_ban_thuc_hien})."
+                )
         
     stt = task.stt
     children = db.query(models.Task).filter(
@@ -1342,6 +1503,7 @@ async def delete_task_route(task_id: int, db: Session = Depends(database.get_db)
     db.flush()
     
     recalculate_budgets(db)
+    log_action(db, username, "Xóa công việc", f"Xóa công việc {stt} - {task.ten_cong_viec} và {len(children)-1} công việc con.")
     db.commit()
     
     await manager.broadcast({
