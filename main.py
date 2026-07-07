@@ -309,10 +309,95 @@ def check_task_update_permissions(user, task, request_data, is_partial=False):
                     detail="Quyen han bi tu choi: Nhan vien chi co quyen cap nhat Ke hoach tuan, Ket qua tuan va Vuong mac tuan."
                 )
 
+class UserCreate(BaseModel):
+    username: str
+    ho_ten: str
+    phong_ban: str
+    role: str
+
 @app.get("/api/users")
 def get_users(db: Session = Depends(database.get_db)):
     users = db.query(models.User).all()
     return [{"id": u.id, "username": u.username, "ho_ten": u.ho_ten, "phong_ban": u.phong_ban, "role": u.role} for u in users]
+
+@app.post("/api/users")
+def create_user(
+    user_data: UserCreate, 
+    admin_username: Optional[str] = None, 
+    db: Session = Depends(database.get_db)
+):
+    if not admin_username:
+        raise HTTPException(status_code=403, detail="Yeu cau dang nhap admin de thuc hien.")
+    admin = db.query(models.User).filter(models.User.username == admin_username).first()
+    if not admin or admin.role != "Admin":
+        raise HTTPException(status_code=403, detail="Chi co Admin he thong moi duoc phep them nhan su.")
+        
+    existing = db.query(models.User).filter(models.User.username == user_data.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ten dang nhap da ton tai.")
+        
+    new_user = models.User(
+        username=user_data.username.strip(),
+        ho_ten=user_data.ho_ten.strip(),
+        phong_ban=user_data.phong_ban.strip(),
+        role=user_data.role.strip()
+    )
+    db.add(new_user)
+    db.commit()
+    return {"status": "success", "user": {"id": new_user.id, "username": new_user.username}}
+
+@app.put("/api/users/{user_id}")
+def update_user(
+    user_id: int, 
+    user_data: UserCreate, 
+    admin_username: Optional[str] = None, 
+    db: Session = Depends(database.get_db)
+):
+    if not admin_username:
+        raise HTTPException(status_code=403, detail="Yeu cau dang nhap admin de thuc hien.")
+    admin = db.query(models.User).filter(models.User.username == admin_username).first()
+    if not admin or admin.role != "Admin":
+        raise HTTPException(status_code=403, detail="Chi co Admin he thong moi duoc phep sua nhan su.")
+        
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Khong tim thay nhan su.")
+        
+    if user.username != user_data.username:
+        existing = db.query(models.User).filter(models.User.username == user_data.username).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Ten dang nhap da ton tai.")
+            
+    user.username = user_data.username.strip()
+    user.ho_ten = user_data.ho_ten.strip()
+    user.phong_ban = user_data.phong_ban.strip()
+    user.role = user_data.role.strip()
+    db.add(user)
+    db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/users/{user_id}")
+def delete_user(
+    user_id: int, 
+    admin_username: Optional[str] = None, 
+    db: Session = Depends(database.get_db)
+):
+    if not admin_username:
+        raise HTTPException(status_code=403, detail="Yeu cau dang nhap admin de thuc hien.")
+    admin = db.query(models.User).filter(models.User.username == admin_username).first()
+    if not admin or admin.role != "Admin":
+        raise HTTPException(status_code=403, detail="Chi co Admin he thong moi duoc phep xoa nhan su.")
+        
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Khong tim thay nhan su.")
+        
+    if user.username == admin_username:
+        raise HTTPException(status_code=400, detail="Khong duoc tu xoa tai khoan dang dang nhap.")
+        
+    db.delete(user)
+    db.commit()
+    return {"status": "success"}
 
 @app.get("/api/project")
 def get_project_info(db: Session = Depends(database.get_db)):

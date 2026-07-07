@@ -111,7 +111,8 @@ tabs = st.tabs([
     "🗺️ Cấu trúc cây WBS", 
     "📅 Báo cáo & Phê duyệt Tuần",
     "💸 Quản lý Giải ngân", 
-    "🤖 Trợ lý AI & Rủi ro"
+    "🤖 Trợ lý AI & Rủi ro",
+    "👥 Quản lý Nhân sự"
 ])
 
 # ----------------- TAB 1: DASHBOARD C-LEVEL -----------------
@@ -860,3 +861,117 @@ Danh sách một số công việc tiêu biểu:
                     st.error(f"Lỗi kết nối AI: {e}")
         else:
             st.warning("Vui lòng nhập câu hỏi.")
+
+# ----------------- TAB 6: QUẢN LÝ NHÂN SỰ -----------------
+with tabs[5]:
+    st.subheader("👥 Hệ thống Quản trị & Phân quyền Nhân sự")
+    
+    if active_role != "Admin":
+        st.error("🔒 Quyền hạn bị từ chối: Mục này chỉ dành cho Admin hệ thống.")
+        st.info("Chỉ tài khoản có vai trò 'Admin' mới được quyền Thêm, Sửa, Xóa nhân sự.")
+    else:
+        st.success(f"🔓 Xin chào Admin: {active_user['ho_ten']}. Bạn có toàn quyền quản lý nhân sự.")
+        
+        try:
+            users_res = requests.get(f"{API_URL}/api/users")
+            if users_res.status_code == 200:
+                current_users = users_res.json()
+            else:
+                current_users = []
+        except Exception as e:
+            st.error(f"Không thể kết nối đến Backend: {e}")
+            current_users = []
+            
+        if current_users:
+            df_users = pd.DataFrame([{
+                "ID": u["id"],
+                "Tên đăng nhập (Username)": u["username"],
+                "Họ tên": u["ho_ten"],
+                "Phòng ban": "Tất cả" if u["phong_ban"] == "All" else u["phong_ban"],
+                "Vai trò": "Admin" if u["role"] == "Admin" else ("PM" if u["role"] == "PM" else ("Trưởng phòng" if u["role"] == "TruongPhong" else "Nhân viên"))
+            } for u in current_users])
+            
+            st.markdown("### 📋 Danh sách nhân sự hiện tại")
+            st.dataframe(df_users, use_container_width=True, hide_index=True)
+            
+            c_crud1, c_crud2 = st.columns(2)
+            
+            with c_crud1:
+                st.markdown("#### ➕ Thêm nhân sự mới")
+                new_username = st.text_input("Tên đăng nhập (username):", key="new_user_name").strip()
+                new_fullname = st.text_input("Họ tên nhân sự:", key="new_user_fullname").strip()
+                new_dept = st.selectbox("Phòng ban thực hiện:", ["PTDA", "QHTK", "BQLDA", "GPMB", "KTKH", "All"], key="new_user_dept")
+                new_role = st.selectbox("Vai trò & Quyền hạn:", ["NhanVien", "TruongPhong", "PM", "Admin"], format_func=lambda x: "Nhân viên" if x=="NhanVien" else ("Trưởng phòng" if x=="TruongPhong" else ("PM" if x=="PM" else "Admin")), key="new_user_role")
+                
+                if st.button("Thêm nhân viên", key="btn_add_user"):
+                    if not new_username or not new_fullname:
+                        st.error("Vui lòng điền đầy đủ Tên đăng nhập và Họ tên.")
+                    else:
+                        res_add = requests.post(
+                            f"{API_URL}/api/users?admin_username={active_username}",
+                            json={
+                                "username": new_username,
+                                "ho_ten": new_fullname,
+                                "phong_ban": new_dept,
+                                "role": new_role
+                            }
+                        )
+                        if res_add.status_code == 200:
+                            st.success(f"Đã thêm nhân sự '{new_fullname}' thành công!")
+                            st.rerun()
+                        else:
+                            st.error(f"Lỗi: {res_add.json()['detail']}")
+                            
+            with c_crud2:
+                st.markdown("#### ⚙️ Điều chỉnh hoặc Xóa nhân sự")
+                user_edit_options = {f"{u['ho_ten']} ({u['username']})": u for u in current_users}
+                selected_edit_label = st.selectbox("Chọn nhân sự cần sửa/xóa:", list(user_edit_options.keys()))
+                user_to_edit = user_edit_options[selected_edit_label]
+                
+                edit_username = st.text_input("Sửa Tên đăng nhập:", value=user_to_edit["username"], key="edit_user_name").strip()
+                edit_fullname = st.text_input("Sửa Họ tên:", value=user_to_edit["ho_ten"], key="edit_user_fullname").strip()
+                edit_dept = st.selectbox(
+                    "Sửa Phòng ban:", 
+                    ["PTDA", "QHTK", "BQLDA", "GPMB", "KTKH", "All"], 
+                    index=["PTDA", "QHTK", "BQLDA", "GPMB", "KTKH", "All"].index(user_to_edit["phong_ban"]),
+                    key="edit_user_dept"
+                )
+                edit_role = st.selectbox(
+                    "Sửa Vai trò:", 
+                    ["NhanVien", "TruongPhong", "PM", "Admin"], 
+                    index=["NhanVien", "TruongPhong", "PM", "Admin"].index(user_to_edit["role"]),
+                    format_func=lambda x: "Nhân viên" if x=="NhanVien" else ("Trưởng phòng" if x=="TruongPhong" else ("PM" if x=="PM" else "Admin")),
+                    key="edit_user_role"
+                )
+                
+                c_sub1, c_sub2 = st.columns(2)
+                with c_sub1:
+                    if st.button("Lưu Thay Đổi", key="btn_save_user"):
+                        if not edit_username or not edit_fullname:
+                            st.error("Tên đăng nhập và Họ tên không được để trống.")
+                        else:
+                            res_edit = requests.put(
+                                f"{API_URL}/api/users/{user_to_edit['id']}?admin_username={active_username}",
+                                json={
+                                    "username": edit_username,
+                                    "ho_ten": edit_fullname,
+                                    "phong_ban": edit_dept,
+                                    "role": edit_role
+                                }
+                            )
+                            if res_edit.status_code == 200:
+                                st.success("Cập nhật thông tin nhân sự thành công!")
+                                st.rerun()
+                            else:
+                                st.error(f"Lỗi: {res_edit.json()['detail']}")
+                                
+                with c_sub2:
+                    if st.button("🔴 Xóa Nhân Sự", key="btn_delete_user"):
+                        res_del = requests.delete(
+                            f"{API_URL}/api/users/{user_to_edit['id']}?admin_username={active_username}"
+                        )
+                        if res_del.status_code == 200:
+                            st.success("Đã xóa nhân sự thành công!")
+                            st.rerun()
+                        else:
+                            st.error(f"Lỗi: {res_del.json()['detail']}")
