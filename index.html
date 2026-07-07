@@ -262,6 +262,11 @@
                             </select>
                         </div>
                         
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label for="user-password">Mật khẩu</label>
+                            <input type="text" id="user-password" class="form-control" placeholder="Mặc định: 123456">
+                        </div>
+                        
                         <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
                             <button class="btn secondary-btn" id="btn-cancel-user-edit" onclick="resetUserForm()" style="display:none;">Hủy sửa</button>
                             <button class="btn" id="btn-submit-user" onclick="submitUserForm()">Thêm Mới</button>
@@ -572,7 +577,14 @@
             
             <div class="form-group">
                 <label for="login-username-input">Tên đăng nhập (Username)</label>
-                <input type="text" id="login-username-input" class="form-control" placeholder="Ví dụ: admin, tp_ptda, nv_ptda..." style="text-align: center; font-size: 1.1rem; letter-spacing: 1px;">
+                <select id="login-username-input" class="form-control" style="text-align-last: center; font-size: 1.1rem; height: auto; padding: 10px; border: 1px solid var(--primary);">
+                    <option value="">-- Đang tải danh sách tài khoản --</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-top: 10px;">
+                <label for="login-password-input">Mật khẩu</label>
+                <input type="password" id="login-password-input" class="form-control" placeholder="Nhập mật khẩu..." style="text-align: center; font-size: 1.1rem; letter-spacing: 1px;" value="123456">
             </div>
             
             <div style="margin-top: 15px;">
@@ -581,6 +593,37 @@
             
             <div style="text-align: center; margin-top: 15px; font-size: 0.75rem; color: var(--text-secondary);">
                 * Mẹo: Sử dụng <code>admin</code> (Admin), <code>tp_ptda</code> (CBQL), hoặc <code>nv_ptda</code> (Nhân viên) để đăng nhập nhanh.
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Change Password -->
+    <div id="change-pwd-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(5px); z-index:1001; justify-content:center; align-items:center;">
+        <div class="panel" style="width: 400px; max-width: 90%; box-shadow: 0 8px 32px rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.3); padding: 25px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <i class="fa-solid fa-key" style="font-size: 2.5rem; color: var(--warning); margin-bottom: 10px;"></i>
+                <h2 style="margin: 0; font-size: 1.3rem; color: var(--text-primary);">THAY ĐỔI MẬT KHẨU</h2>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 6px 0 0 0;" id="change-pwd-username-display"></p>
+            </div>
+            
+            <div class="form-group">
+                <label for="change-pwd-old-input">Mật khẩu hiện tại</label>
+                <input type="password" id="change-pwd-old-input" class="form-control" placeholder="Nhập mật khẩu cũ...">
+            </div>
+            
+            <div class="form-group" style="margin-top: 10px;">
+                <label for="change-pwd-new-input">Mật khẩu mới</label>
+                <input type="password" id="change-pwd-new-input" class="form-control" placeholder="Nhập mật khẩu mới...">
+            </div>
+            
+            <div class="form-group" style="margin-top: 10px;">
+                <label for="change-pwd-confirm-input">Xác nhận mật khẩu mới</label>
+                <input type="password" id="change-pwd-confirm-input" class="form-control" placeholder="Nhập lại mật khẩu mới...">
+            </div>
+            
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn secondary-btn" onclick="closeChangePasswordModal()">Hủy</button>
+                <button class="btn" style="background:var(--warning); color:#000; font-weight:bold;" onclick="performChangePassword()">Cập Nhật</button>
             </div>
         </div>
     </div>
@@ -703,6 +746,9 @@
                                 container.innerHTML = `
                                     <div style="display:flex; align-items:center; gap:10px;">
                                         <span style="color:var(--success); font-weight:600;"><i class="fa-solid fa-user-shield"></i> ${user.ho_ten} (${roleText})</span>
+                                        <button class="btn" style="padding:4px 8px; font-size:0.75rem; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); color:var(--warning);" onclick="openChangePasswordModal()">
+                                            <i class="fa-solid fa-key"></i> Đổi mật khẩu
+                                        </button>
                                         <button class="btn" style="padding:4px 8px; font-size:0.75rem; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);" onclick="openLoginModal()">
                                             <i class="fa-solid fa-arrows-rotate"></i> Đổi tài khoản
                                         </button>
@@ -740,6 +786,28 @@
             } else {
                 closeBtn.style.display = 'none';
             }
+            
+            fetch((backendUrl || '') + '/api/users')
+                .then(res => res.json())
+                .then(users => {
+                    const loginSelect = document.getElementById('login-username-input');
+                    if (loginSelect) {
+                        const prevVal = loginSelect.value || activeUsername || '';
+                        loginSelect.innerHTML = '<option value="">-- Chọn tài khoản để đăng nhập --</option>';
+                        users.forEach(u => {
+                            const opt = document.createElement('option');
+                            opt.value = u.username;
+                            const roleText = u.role === 'Admin' ? 'Admin' : (u.role === 'PM' ? 'PM' : (u.role === 'TruongPhong' ? 'Trưởng phòng' : 'Nhân viên'));
+                            const deptText = u.phong_ban === 'All' ? 'Tất cả' : u.phong_ban;
+                            opt.text = `${u.ho_ten} (${roleText} - Phòng ${deptText})`;
+                            loginSelect.add(opt);
+                        });
+                        if (prevVal) {
+                            loginSelect.value = prevVal;
+                        }
+                    }
+                })
+                .catch(err => console.error("Error populating login dropdown:", err));
         }
 
         function closeLoginModal() {
@@ -750,31 +818,92 @@
         }
 
         function performLogin() {
-            const usernameInput = document.getElementById('login-username-input').value.trim();
+            const usernameInput = document.getElementById('login-username-input').value;
+            const passwordInput = document.getElementById('login-password-input').value;
             if (!usernameInput) {
-                alert("Vui lòng nhập tên đăng nhập.");
+                alert("Vui lòng chọn tài khoản để đăng nhập.");
                 return;
             }
             
-            fetch((backendUrl || '') + '/api/users')
-                .then(res => res.json())
-                .then(users => {
-                    const user = users.find(u => u.username === usernameInput);
-                    if (user) {
-                        localStorage.setItem('active_username', user.username);
-                        const roleForUI = (user.role === 'Admin' || user.role === 'PM' || user.role === 'TruongPhong') ? 'CBQL' : 'NhanVien';
-                        localStorage.setItem('user_role', roleForUI);
-                        
-                        closeLoginModal();
-                        window.location.reload();
-                    } else {
-                        alert("Tên đăng nhập không đúng hoặc tài khoản chưa được kích hoạt!");
-                    }
+            fetch((backendUrl || '') + '/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usernameInput, password: passwordInput })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (res.ok) {
+                    const user = data.user;
+                    localStorage.setItem('active_username', user.username);
+                    const roleForUI = (user.role === 'Admin' || user.role === 'PM' || user.role === 'TruongPhong') ? 'CBQL' : 'NhanVien';
+                    localStorage.setItem('user_role', roleForUI);
+                    
+                    closeLoginModal();
+                    window.location.reload();
+                } else {
+                    alert(`Đăng nhập thất bại: ${data.detail}`);
+                }
+            })
+            .catch(err => {
+                console.error("Login connection error:", err);
+                alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại địa chỉ Backend.");
+            });
+        }
+
+        function openChangePasswordModal() {
+            const activeUsername = localStorage.getItem('active_username');
+            if (!activeUsername) return;
+            document.getElementById('change-pwd-username-display').innerText = `Tài khoản: ${activeUsername}`;
+            document.getElementById('change-pwd-old-input').value = '';
+            document.getElementById('change-pwd-new-input').value = '';
+            document.getElementById('change-pwd-confirm-input').value = '';
+            document.getElementById('change-pwd-modal').style.display = 'flex';
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('change-pwd-modal').style.display = 'none';
+        }
+
+        function performChangePassword() {
+            const activeUsername = localStorage.getItem('active_username');
+            if (!activeUsername) return;
+            
+            const oldPwd = document.getElementById('change-pwd-old-input').value;
+            const newPwd = document.getElementById('change-pwd-new-input').value;
+            const confirmPwd = document.getElementById('change-pwd-confirm-input').value;
+            
+            if (!oldPwd || !newPwd || !confirmPwd) {
+                alert("Vui lòng nhập đầy đủ các trường mật khẩu.");
+                return;
+            }
+            
+            if (newPwd !== confirmPwd) {
+                alert("Mật khẩu mới và xác nhận mật khẩu mới không khớp!");
+                return;
+            }
+            
+            fetch((backendUrl || '') + '/api/users/change-password', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: activeUsername,
+                    old_password: oldPwd,
+                    new_password: newPwd
                 })
-                .catch(err => {
-                    console.error("Login connection error:", err);
-                    alert("Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại địa chỉ Backend.");
-                });
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (res.ok) {
+                    alert("Thay đổi mật khẩu thành công!");
+                    closeChangePasswordModal();
+                } else {
+                    alert(`Lỗi: ${data.detail}`);
+                }
+            })
+            .catch(err => {
+                console.error("Change password connection error:", err);
+                alert("Không thể kết nối đến máy chủ.");
+            });
         }
 
         function logoutUser() {
@@ -854,6 +983,7 @@
             document.getElementById('user-fullname').value = '';
             document.getElementById('user-dept').value = 'PTDA';
             document.getElementById('user-role').value = 'NhanVien';
+            document.getElementById('user-password').value = '';
             
             document.getElementById('user-form-title').innerText = '➕ Thêm nhân sự mới';
             document.getElementById('btn-submit-user').innerText = 'Thêm Mới';
@@ -866,6 +996,7 @@
             document.getElementById('user-fullname').value = userObj.ho_ten;
             document.getElementById('user-dept').value = userObj.phong_ban;
             document.getElementById('user-role').value = userObj.role;
+            document.getElementById('user-password').value = userObj.password || '123456';
             
             document.getElementById('user-form-title').innerText = '📝 Sửa thông tin nhân sự';
             document.getElementById('btn-submit-user').innerText = 'Lưu Thay Đổi';
@@ -878,6 +1009,7 @@
             const fullname = document.getElementById('user-fullname').value.trim();
             const dept = document.getElementById('user-dept').value;
             const role = document.getElementById('user-role').value;
+            const password = document.getElementById('user-password').value.trim();
             
             if (!username || !fullname) {
                 alert("Vui lòng nhập Tên đăng nhập và Họ tên.");
@@ -897,7 +1029,8 @@
                     username: username,
                     ho_ten: fullname,
                     phong_ban: dept,
-                    role: role
+                    role: role,
+                    password: password || undefined
                 })
             })
             .then(async res => {
