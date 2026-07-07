@@ -309,7 +309,10 @@ with tabs[1]:
                 
                 c_add1, c_add2, c_add3 = st.columns(3)
                 with c_add1:
-                    new_task_pb = st.text_input("Đơn vị/Phòng ban thực hiện:", value="PTDA")
+                    new_task_pb = st.selectbox(
+                        "Đơn vị/Phòng ban thực hiện:",
+                        ["PTDA", "QHTK", "BQLDA", "GPMB", "KTKH"]
+                    )
                 with c_add2:
                     new_task_cq = st.text_input("Cơ quan giải quyết/phê duyệt:", value="-")
                 with c_add3:
