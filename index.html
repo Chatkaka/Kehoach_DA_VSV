@@ -783,7 +783,7 @@
         
         // --- FETCH INTERCEPTOR FOR OFFLINE LOCAL STORAGE MODE ---
         const originalFetch = window.fetch;
-        let isOfflineMode = false;
+        let isOfflineMode = true;
 
         window.fetch = async function(url, options) {
             const urlStr = String(url);
@@ -1016,14 +1016,21 @@
 
         // On document load
         document.addEventListener('DOMContentLoaded', async () => {
-            // Self-heal and discover working backend first
-            const isOnline = await autoDiscoverBackend();
-            if (!isOnline) {
-                console.warn("Backend API offline. Switching to client-side localStorage mode!");
-                isOfflineMode = true;
-                
+            // If the user has explicitly saved a backend URL in localStorage, try connecting to it.
+            // Otherwise, we default to client-side localStorage mode instantly!
+            const customBackend = localStorage.getItem('backend_url');
+            if (customBackend && customBackend !== 'http://127.0.0.1:8000' && customBackend !== 'http://localhost:8000') {
+                const isOnline = await autoDiscoverBackend();
+                if (isOnline) {
+                    isOfflineMode = false;
+                }
+            }
+
+            if (isOfflineMode) {
+                console.log("Running in serverless client-side mode (localStorage)");
                 // Show offline mode banner
                 const banner = document.createElement('div');
+                banner.id = 'offline-mode-banner';
                 banner.style.background = 'rgba(99, 102, 241, 0.25)';
                 banner.style.borderBottom = '1px solid var(--primary)';
                 banner.style.color = '#fff';
@@ -1032,7 +1039,10 @@
                 banner.style.fontSize = '0.85rem';
                 banner.style.fontWeight = '500';
                 banner.innerHTML = '<i class="fa-solid fa-cloud-arrow-down" style="color:var(--primary); margin-right:6px;"></i> Hệ thống đang chạy ngoại tuyến (Offline Mode). Dữ liệu được lưu trữ tự động trên Trình duyệt này.';
-                document.body.insertBefore(banner, document.body.firstChild);
+                
+                if (!document.getElementById('offline-mode-banner')) {
+                    document.body.insertBefore(banner, document.body.firstChild);
+                }
             }
             
             checkLoginState();
@@ -1253,8 +1263,10 @@
                 return;
             }
             
-            // Try to auto discover and self-heal the backend URL before sending requests
-            await autoDiscoverBackend();
+            // Try to auto discover and self-heal the backend URL before sending requests only if not in offline mode
+            if (!isOfflineMode) {
+                await autoDiscoverBackend();
+            }
             
             fetch((backendUrl || '') + '/api/auth/login', {
                 method: 'POST',
