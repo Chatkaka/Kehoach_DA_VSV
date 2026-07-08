@@ -11,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="local_db.js"></script>
     <script src="ai_service.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -1028,21 +1029,6 @@
 
             if (isOfflineMode) {
                 console.log("Running in serverless client-side mode (localStorage)");
-                // Show offline mode banner
-                const banner = document.createElement('div');
-                banner.id = 'offline-mode-banner';
-                banner.style.background = 'rgba(99, 102, 241, 0.25)';
-                banner.style.borderBottom = '1px solid var(--primary)';
-                banner.style.color = '#fff';
-                banner.style.textAlign = 'center';
-                banner.style.padding = '8px';
-                banner.style.fontSize = '0.85rem';
-                banner.style.fontWeight = '500';
-                banner.innerHTML = '<i class="fa-solid fa-cloud-arrow-down" style="color:var(--primary); margin-right:6px;"></i> Hệ thống đang chạy ngoại tuyến (Offline Mode). Dữ liệu được lưu trữ tự động trên Trình duyệt này.';
-                
-                if (!document.getElementById('offline-mode-banner')) {
-                    document.body.insertBefore(banner, document.body.firstChild);
-                }
             }
             
             checkLoginState();
@@ -1076,7 +1062,27 @@
         });
 
         function exportToExcel() {
-            window.open((backendUrl || '') + '/api/tasks/export', '_blank');
+            if (isOfflineMode) {
+                console.log("Exporting to Excel client-side...");
+                const tasks = LocalDBManager.getTasks();
+                const data = tasks.map(t => ({
+                    "STT": t.stt,
+                    "Mã Ngân Sách (WBS)": t.ma_ngan_sach,
+                    "Tên Hạng Mục Công Việc": t.ten_cong_viec,
+                    "Đơn Vị Thực Hiện": t.don_vi_thuc_hien,
+                    "Ngân Sách (Trđ)": t.ngan_sach,
+                    "Thực Chi (Trđ)": t.thuc_chi,
+                    "Tiến Độ (%)": t.tien_do,
+                    "Trạng Thái": t.trang_thai,
+                    "Ghi Chú": t.ghi_chu || ""
+                }));
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "DanhSachCongViec");
+                XLSX.writeFile(wb, "Danh_Sach_Cong_Viec_VSV.xlsx");
+            } else {
+                window.open((backendUrl || '') + '/api/tasks/export', '_blank');
+            }
         }
 
         function loadUserProfiles() {
@@ -1516,10 +1522,10 @@
         // Setup WebSocket client
         function setupWebSocket() {
             if (isOfflineMode) {
-                document.getElementById('ws-status-dot').style.backgroundColor = '#6366f1';
-                document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #6366f1';
-                document.getElementById('ws-status-text').innerText = 'Chế độ Offline (Lưu trữ Trình duyệt)';
-                console.log("WebSocket connection skipped in offline mode.");
+                document.getElementById('ws-status-dot').style.backgroundColor = '#10b981';
+                document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #10b981';
+                document.getElementById('ws-status-text').innerText = 'Hệ thống: Sẵn sàng (Trình duyệt)';
+                console.log("System ready in serverless client-side mode.");
                 return;
             }
 
@@ -1558,25 +1564,10 @@
                     console.warn("Backend offline during run. Switching to offline mode.");
                     isOfflineMode = true;
                     
-                    // Show offline banner if not already shown
-                    if (!document.getElementById('offline-mode-banner')) {
-                        const banner = document.createElement('div');
-                        banner.id = 'offline-mode-banner';
-                        banner.style.background = 'rgba(99, 102, 241, 0.25)';
-                        banner.style.borderBottom = '1px solid var(--primary)';
-                        banner.style.color = '#fff';
-                        banner.style.textAlign = 'center';
-                        banner.style.padding = '8px';
-                        banner.style.fontSize = '0.85rem';
-                        banner.style.fontWeight = '500';
-                        banner.innerHTML = '<i class="fa-solid fa-cloud-arrow-down" style="color:var(--primary); margin-right:6px;"></i> Hệ thống đang chạy ngoại tuyến (Offline Mode). Dữ liệu được lưu trữ tự động trên Trình duyệt này.';
-                        document.body.insertBefore(banner, document.body.firstChild);
-                    }
-                    
-                    // Render status offline on the dot
-                    document.getElementById('ws-status-dot').style.backgroundColor = '#6366f1';
-                    document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #6366f1';
-                    document.getElementById('ws-status-text').innerText = 'Chế độ Offline (Lưu trữ Trình duyệt)';
+                    // Render status offline on the dot as a positive green ready state
+                    document.getElementById('ws-status-dot').style.backgroundColor = '#10b981';
+                    document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #10b981';
+                    document.getElementById('ws-status-text').innerText = 'Hệ thống: Sẵn sàng (Trình duyệt)';
                     
                     // Reload data from localStorage
                     fetchStats();
