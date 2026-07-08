@@ -591,6 +591,14 @@
                 <button class="btn" style="width:100%; padding: 12px; font-size: 1rem;" onclick="performLogin()">ĐĂNG NHẬP</button>
             </div>
             
+            <div id="login-connection-warning" style="display:none; margin-top:12px; padding:10px; background:rgba(239,68,68,0.1); border:1px solid var(--danger); border-radius:6px; font-size:0.85rem;">
+                <p style="color:var(--danger); margin:0 0 6px 0;"><i class="fa-solid fa-triangle-exclamation"></i> Không thể kết nối tới máy chủ API.</p>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="login-backend-url-input" class="form-control" style="font-size:0.8rem; padding:4px 8px; height:auto; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2);" placeholder="Ví dụ: http://192.168.1.5:8000">
+                    <button type="button" class="btn btn-primary" style="font-size:0.8rem; padding:4px 10px; height:auto; white-space:nowrap;" onclick="updateLoginBackendUrl()">Kết nối</button>
+                </div>
+            </div>
+            
             <div style="text-align: center; margin-top: 15px; font-size: 0.75rem; color: var(--text-secondary);">
                 * Mẹo: Sử dụng <code>admin</code> (Admin), <code>tp_ptda</code> (CBQL), hoặc <code>nv_ptda</code> (Nhân viên) để đăng nhập nhanh.
             </div>
@@ -653,6 +661,12 @@
             if (window.location.protocol !== 'file:') {
                 candidates.push(window.location.origin);
                 candidates.push(''); // relative path
+                
+                // If accessed via remote IP/hostname, test port 8000 on that IP/hostname
+                if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    const proto = window.location.protocol === 'https:' ? 'https:' : 'http:';
+                    candidates.push(`${proto}//${window.location.hostname}:8000`);
+                }
             }
             
             // Candidate 2: stored backend_url
@@ -857,6 +871,8 @@
             fetch((backendUrl || '') + '/api/users')
                 .then(res => res.json())
                 .then(users => {
+                    // Hide connection warning on success
+                    document.getElementById('login-connection-warning').style.display = 'none';
                     const loginSelect = document.getElementById('login-username-input');
                     if (loginSelect) {
                         const prevVal = loginSelect.value || activeUsername || '';
@@ -874,7 +890,32 @@
                         }
                     }
                 })
-                .catch(err => console.error("Error populating login dropdown:", err));
+                .catch(err => {
+                    console.error("Error populating login dropdown:", err);
+                    // Show warning panel and populate input with current backendUrl
+                    document.getElementById('login-connection-warning').style.display = 'block';
+                    document.getElementById('login-backend-url-input').value = backendUrl || '';
+                });
+        }
+
+        function updateLoginBackendUrl() {
+            let inputUrl = document.getElementById('login-backend-url-input').value.trim();
+            if (!inputUrl) {
+                alert("Vui lòng nhập địa chỉ máy chủ API.");
+                return;
+            }
+            if (inputUrl.endsWith('/')) {
+                inputUrl = inputUrl.slice(0, -1);
+            }
+            localStorage.setItem('backend_url', inputUrl);
+            backendUrl = inputUrl;
+            
+            // Try to load again
+            openLoginModal();
+            // Re-run WebSocket setup
+            if (typeof setupWebSocket === 'function') {
+                setupWebSocket();
+            }
         }
 
         function closeLoginModal() {
