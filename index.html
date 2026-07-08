@@ -372,7 +372,7 @@
                 </div>
                 <div class="form-group">
                     <label for="edit-budget">Ngân Sách Tổng (Trđ)</label>
-                    <input type="number" id="edit-budget" class="form-control" step="0.1">
+                    <input type="text" id="edit-budget" class="form-control" placeholder="Ví dụ: 10.000.000">
                 </div>
             </div>
 
@@ -494,7 +494,7 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
                     <label for="add-budget">Ngân Sách Đề Xuất (Trđ)</label>
-                    <input type="number" id="add-budget" class="form-control" value="0.0" step="0.1">
+                    <input type="text" id="add-budget" class="form-control" placeholder="Ví dụ: 10.000.000">
                 </div>
             </div>
 
@@ -643,23 +643,53 @@
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
-        // Resolve backend URL
-        let backendUrl = localStorage.getItem('backend_url');
-        if (window.location.protocol === 'file:') {
-            // Local file mode - relative requests fail on file:/// so we force point to localhost:8000 backend
-            if (!backendUrl || backendUrl === '') {
-                backendUrl = 'http://127.0.0.1:8000';
-                localStorage.setItem('backend_url', backendUrl);
+        // Resolve backend URL with auto-discovery and self-healing
+        let backendUrl = localStorage.getItem('backend_url') || 'http://127.0.0.1:8000';
+
+        async function autoDiscoverBackend() {
+            const candidates = [];
+            
+            // Candidate 1: current window.location.origin (if not file://)
+            if (window.location.protocol !== 'file:') {
+                candidates.push(window.location.origin);
+                candidates.push(''); // relative path
             }
-        } else {
-            if (backendUrl === null) {
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    backendUrl = '';
-                } else {
-                    backendUrl = 'http://127.0.0.1:8000';
+            
+            // Candidate 2: stored backend_url
+            const stored = localStorage.getItem('backend_url');
+            if (stored) {
+                candidates.push(stored);
+            }
+            
+            // Candidate 3: localhost / 127.0.0.1 defaults
+            candidates.push('http://127.0.0.1:8000');
+            candidates.push('http://localhost:8000');
+            
+            const uniqueCandidates = [...new Set(candidates)];
+            
+            for (let url of uniqueCandidates) {
+                let cleanUrl = url;
+                if (cleanUrl.endsWith('/')) {
+                    cleanUrl = cleanUrl.slice(0, -1);
                 }
-                localStorage.setItem('backend_url', backendUrl);
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 1200);
+                    
+                    const res = await fetch(cleanUrl + '/api/users', { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    
+                    if (res.ok) {
+                        console.log("Successfully discovered working backend:", cleanUrl);
+                        backendUrl = cleanUrl;
+                        localStorage.setItem('backend_url', cleanUrl);
+                        return true;
+                    }
+                } catch (e) {
+                    console.warn(`Backend candidate failed: ${cleanUrl}`);
+                }
             }
+            return false;
         }
 
         let currentPhase = 1;
@@ -667,12 +697,38 @@
         let ws = null;
 
         // On document load
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Self-heal and discover working backend first
+            await autoDiscoverBackend();
+            
             checkLoginState();
             fetchStats();
             fetchTasks(currentPhase);
             loadUserProfiles();
             setupWebSocket();
+            
+            // Format budget inputs dynamically as user types
+            const formatInput = function(e) {
+                let cursor = this.selectionStart;
+                let originalLength = this.value.length;
+                let cleanVal = this.value.replace(/[^\d]/g, '');
+                if (cleanVal) {
+                    this.value = Number(cleanVal).toLocaleString('vi-VN');
+                } else {
+                    this.value = '';
+                }
+                let newLength = this.value.length;
+                this.setSelectionRange(cursor + (newLength - originalLength), cursor + (newLength - originalLength));
+            };
+            
+            const editBudgetEl = document.getElementById('edit-budget');
+            if (editBudgetEl) {
+                editBudgetEl.addEventListener('input', formatInput);
+            }
+            const addBudgetEl = document.getElementById('add-budget');
+            if (addBudgetEl) {
+                addBudgetEl.addEventListener('input', formatInput);
+            }
         });
 
         function exportToExcel() {
@@ -828,13 +884,16 @@
             }
         }
 
-        function performLogin() {
+        async function performLogin() {
             const usernameInput = document.getElementById('login-username-input').value;
             const passwordInput = document.getElementById('login-password-input').value;
             if (!usernameInput) {
                 alert("Vui lòng chọn tài khoản để đăng nhập.");
                 return;
             }
+            
+            // Try to auto discover and self-heal the backend URL before sending requests
+            await autoDiscoverBackend();
             
             fetch((backendUrl || '') + '/api/auth/login', {
                 method: 'POST',
@@ -1102,17 +1161,18 @@
                 console.log("WebSocket connected.");
             };
 
-            ws.onclose = () => {
+            ws.onclose = async () => {
                 document.getElementById('ws-status-dot').style.backgroundColor = '#ef4444';
                 document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #ef4444';
                 
                 if (window.location.protocol === 'https:' && backendUrl.startsWith('http:')) {
                     document.getElementById('ws-status-text').innerHTML = 'Mất kết nối (Lỗi HTTPS/HTTP) <i class="fa-solid fa-circle-question" style="cursor:pointer;color:var(--warning);margin-left:4px;" onclick="showConnectionTip()" title="Xem hướng dẫn khắc phục"></i>';
                 } else {
-                    document.getElementById('ws-status-text').innerText = 'Mất kết nối. Đang thử lại...';
+                    document.getElementById('ws-status-text').innerText = 'Mất kết nối. Đang kiểm tra đường truyền...';
                 }
                 
-                console.log("WebSocket disconnected. Reconnecting...");
+                console.log("WebSocket disconnected. Auto-healing backend...");
+                await autoDiscoverBackend();
                 setTimeout(setupWebSocket, 3000); // retry after 3s
             };
 
@@ -1611,9 +1671,22 @@
             }
             document.getElementById('edit-deadline').value = formattedDeadline;
 
-            document.getElementById('edit-budget').value = (task.budget ? task.budget.ngan_sach_tong : 0) || 0;
+            const budgetRaw = (task.budget ? task.budget.ngan_sach_tong : 0) || 0;
+            document.getElementById('edit-budget').value = budgetRaw ? Number(budgetRaw).toLocaleString('vi-VN') : '0';
             document.getElementById('edit-progress').value = task.tien_do || 0;
             document.getElementById('edit-status').value = task.trang_thai || 'Todo';
+
+            // Disable status editing for all roles except Admin
+            const statusSelect = document.getElementById('edit-status');
+            if (statusSelect) {
+                const activeUsername = localStorage.getItem('active_username');
+                const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
+                if (activeUser && activeUser.role === 'Admin') {
+                    statusSelect.removeAttribute('disabled');
+                } else {
+                    statusSelect.setAttribute('disabled', 'true');
+                }
+            }
 
             // Parse & set checkboxes/custom field for Conditions (Điều kiện ghi nhận)
             const condChks = document.querySelectorAll('.cond-chk');
@@ -1675,7 +1748,8 @@
             const name = document.getElementById('edit-name').value;
             const dept = document.getElementById('edit-dept').value;
             const deadline = document.getElementById('edit-deadline').value;
-            const budget = parseFloat(document.getElementById('edit-budget').value) || 0;
+            const budgetStr = document.getElementById('edit-budget').value || '0';
+            const budget = parseFloat(budgetStr.replace(/\./g, '').replace(/,/g, '')) || 0;
             const progress = parseFloat(document.getElementById('edit-progress').value) || 0;
             const status = document.getElementById('edit-status').value;
 
@@ -1771,7 +1845,8 @@
             const name = document.getElementById('add-name').value;
             const dept = document.getElementById('add-dept').value;
             const deadline = document.getElementById('add-deadline').value;
-            const budget = parseFloat(document.getElementById('add-budget').value) || 0;
+            const budgetStr = document.getElementById('add-budget').value || '0';
+            const budget = parseFloat(budgetStr.replace(/\./g, '').replace(/,/g, '')) || 0;
 
             // Gather deliverables checkboxes and custom field
             const selectedDeliverables = [];
