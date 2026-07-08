@@ -662,52 +662,65 @@
         }
 
         async function autoDiscoverBackend() {
-            // If loaded via HTTP/HTTPS, relative paths are native and 100% correct
-            if (window.location.protocol !== 'file:') {
-                backendUrl = "";
-                return true;
-            }
-
             const candidates = [];
             
-            // Candidate 1: Server LAN IP fallback (so remote users opening index.html connect instantly)
+            // Candidate 1: current window.location.origin (if not file://)
+            if (window.location.protocol !== 'file:') {
+                candidates.push(window.location.origin);
+                candidates.push(''); // relative path
+                
+                // If accessed via remote IP/hostname, test port 8000 on that IP/hostname
+                if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    const proto = window.location.protocol === 'https:' ? 'https:' : 'http:';
+                    candidates.push(`${proto}//${window.location.hostname}:8000`);
+                }
+            }
+            
+            // Candidate 2: Server LAN IP fallback (so remote users opening index.html connect instantly)
             candidates.push('http://192.168.80.208:8000');
             
-            // Candidate 2: stored backend_url
+            // Candidate 3: stored backend_url
             const stored = localStorage.getItem('backend_url');
             if (stored) {
                 candidates.push(stored);
             }
             
-            // Candidate 3: localhost / 127.0.0.1 defaults
+            // Candidate 4: localhost / 127.0.0.1 defaults
             candidates.push('http://127.0.0.1:8000');
             candidates.push('http://localhost:8000');
             
             const uniqueCandidates = [...new Set(candidates)];
             
-            for (let url of uniqueCandidates) {
+            const checkUrl = async (url) => {
                 let cleanUrl = url;
                 if (cleanUrl.endsWith('/')) {
                     cleanUrl = cleanUrl.slice(0, -1);
                 }
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 1000);
+                
                 try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 1200);
-                    
                     const res = await fetch(cleanUrl + '/api/users', { signal: controller.signal });
                     clearTimeout(timeoutId);
-                    
                     if (res.ok) {
-                        console.log("Successfully discovered working backend:", cleanUrl);
-                        backendUrl = cleanUrl;
-                        localStorage.setItem('backend_url', cleanUrl);
-                        return true;
+                        return cleanUrl;
                     }
                 } catch (e) {
-                    console.warn(`Backend candidate failed: ${cleanUrl}`);
+                    // Fail silently for Promise.any
                 }
+                throw new Error("unreachable");
+            };
+            
+            try {
+                const workingUrl = await Promise.any(uniqueCandidates.map(checkUrl));
+                console.log("Successfully discovered working backend:", workingUrl);
+                backendUrl = workingUrl;
+                localStorage.setItem('backend_url', workingUrl);
+                return true;
+            } catch (e) {
+                console.warn("All backend candidates failed. Switching to offline mode.");
+                return false;
             }
-            return false;
         }
 
         let currentPhase = 1;
@@ -726,9 +739,35 @@
                 console.log(`[Offline DB] Intercepted fetch to ${urlStr}`);
                 
                 try {
-                    const parsedUrl = new URL(urlStr, window.location.origin);
-                    const path = parsedUrl.pathname;
+                    // Extract path starting from /api/ or /ws defensively
+                    let path = urlStr;
+                    if (path.includes('?')) {
+                        path = path.split('?')[0];
+                    }
+                    const apiIdx = path.indexOf('/api/');
+                    if (apiIdx !== -1) {
+                        path = path.substring(apiIdx);
+                    } else {
+                        const wsIdx = path.indexOf('/ws');
+                        if (wsIdx !== -1) {
+                            path = path.substring(wsIdx);
+                        }
+                    }
+                    
                     const method = (options && options.method || 'GET').toUpperCase();
+                    
+                    // Parse query parameters manually
+                    const getQueryParam = (name) => {
+                        const qIdx = urlStr.indexOf('?');
+                        if (qIdx === -1) return null;
+                        const qStr = urlStr.substring(qIdx + 1);
+                        const pairs = qStr.split('&');
+                        for (let pair of pairs) {
+                            const [k, v] = pair.split('=');
+                            if (k === name) return decodeURIComponent(v || '');
+                        }
+                        return null;
+                    };
                     
                     // GET /api/users
                     if (path === '/api/users' && method === 'GET') {
@@ -776,8 +815,7 @@
                     if (progressMatch && method === 'PUT') {
                         const taskId = parseInt(progressMatch[1]);
                         const body = JSON.parse(options.body);
-                        const params = parsedUrl.searchParams;
-                        const username = params.get('username') || '';
+                        const username = getQueryParam('username') || '';
                         
                         const t = LocalDBManager.updateTaskProgress(taskId, body.tien_do, body.trang_thai, body.dieu_kien_ghi_nhan, username);
                         if (t) {
@@ -791,8 +829,7 @@
                     if (taskMatch && method === 'PUT') {
                         const taskId = parseInt(taskMatch[1]);
                         const body = JSON.parse(options.body);
-                        const params = parsedUrl.searchParams;
-                        const username = params.get('username') || '';
+                        const username = getQueryParam('username') || '';
                         
                         const t = LocalDBManager.updateTask(taskId, body, username);
                         if (t) {
@@ -805,8 +842,7 @@
                     // DELETE /api/tasks/{task_id}
                     if (taskMatch && method === 'DELETE') {
                         const taskId = parseInt(taskMatch[1]);
-                        const params = parsedUrl.searchParams;
-                        const username = params.get('username') || '';
+                        const username = getQueryParam('username') || '';
                         
                         const success = LocalDBManager.deleteTask(taskId, username);
                         if (success) {
@@ -819,8 +855,7 @@
                     // POST /api/tasks (create child WBS)
                     if (path === '/api/tasks' && method === 'POST') {
                         const body = JSON.parse(options.body);
-                        const params = parsedUrl.searchParams;
-                        const username = params.get('username') || '';
+                        const username = getQueryParam('username') || '';
                         
                         const t = LocalDBManager.createChildTask(body.parent_stt, body, username);
                         if (t) {
@@ -832,10 +867,9 @@
                     
                     // GET /api/tasks
                     if (path === '/api/tasks' && method === 'GET') {
-                        const params = parsedUrl.searchParams;
-                        const phaseId = params.get('phase_id');
-                        const search = params.get('search');
-                        const level = params.get('level');
+                        const phaseId = getQueryParam('phase_id');
+                        const search = getQueryParam('search');
+                        const level = getQueryParam('level');
                         const list = LocalDBManager.getTasksList(phaseId, search, level);
                         return new Response(JSON.stringify(list), { status: 200, headers: { 'Content-Type': 'application/json' } });
                     }
@@ -894,8 +928,7 @@
                     // POST /api/users
                     if (path === '/api/users' && method === 'POST') {
                         const body = JSON.parse(options.body);
-                        const params = parsedUrl.searchParams;
-                        const adminUsername = params.get('admin_username') || 'admin';
+                        const adminUsername = getQueryParam('admin_username') || 'admin';
                         const res = LocalDBManager.addUser(body, adminUsername);
                         if (res.success) {
                             return new Response(JSON.stringify(res.user), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -908,8 +941,7 @@
                     const userMatch = path.match(/^\/api\/users\/(\d+)$/);
                     if (userMatch && method === 'DELETE') {
                         const userId = parseInt(userMatch[1]);
-                        const params = parsedUrl.searchParams;
-                        const adminUsername = params.get('admin_username') || 'admin';
+                        const adminUsername = getQueryParam('admin_username') || 'admin';
                         const res = LocalDBManager.deleteUser(userId, adminUsername);
                         if (res.success) {
                             return new Response(JSON.stringify({ status: 'success' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -1455,8 +1487,37 @@
                 }
                 
                 console.log("WebSocket disconnected. Auto-healing backend...");
-                await autoDiscoverBackend();
-                setTimeout(setupWebSocket, 3000); // retry after 3s
+                const isOnline = await autoDiscoverBackend();
+                if (!isOnline) {
+                    console.warn("Backend offline during run. Switching to offline mode.");
+                    isOfflineMode = true;
+                    
+                    // Show offline banner if not already shown
+                    if (!document.getElementById('offline-mode-banner')) {
+                        const banner = document.createElement('div');
+                        banner.id = 'offline-mode-banner';
+                        banner.style.background = 'rgba(99, 102, 241, 0.25)';
+                        banner.style.borderBottom = '1px solid var(--primary)';
+                        banner.style.color = '#fff';
+                        banner.style.textAlign = 'center';
+                        banner.style.padding = '8px';
+                        banner.style.fontSize = '0.85rem';
+                        banner.style.fontWeight = '500';
+                        banner.innerHTML = '<i class="fa-solid fa-cloud-arrow-down" style="color:var(--primary); margin-right:6px;"></i> Hệ thống đang chạy ngoại tuyến (Offline Mode). Dữ liệu được lưu trữ tự động trên Trình duyệt này.';
+                        document.body.insertBefore(banner, document.body.firstChild);
+                    }
+                    
+                    // Render status offline on the dot
+                    document.getElementById('ws-status-dot').style.backgroundColor = '#6366f1';
+                    document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #6366f1';
+                    document.getElementById('ws-status-text').innerText = 'Chế độ Offline (Lưu trữ Trình duyệt)';
+                    
+                    // Reload data from localStorage
+                    fetchStats();
+                    fetchTasks(currentPhase);
+                } else {
+                    setTimeout(setupWebSocket, 3000); // retry after 3s
+                }
             };
 
             ws.onerror = (err) => {
