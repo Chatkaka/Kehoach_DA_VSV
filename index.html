@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="local_db.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -593,8 +594,11 @@
             
             <div id="login-connection-warning" style="display:none; margin-top:12px; padding:10px; background:rgba(239,68,68,0.1); border:1px solid var(--danger); border-radius:6px; font-size:0.85rem;">
                 <p style="color:var(--danger); margin:0 0 6px 0;"><i class="fa-solid fa-triangle-exclamation"></i> Không thể kết nối tới máy chủ API.</p>
+                <p style="color:var(--text-secondary); font-size:0.75rem; margin:0 0 8px 0; line-height:1.3;">
+                    Nếu truy cập từ máy tính khác, vui lòng nhập IP máy chủ: <strong style="color:var(--warning); font-family:monospace;">http://192.168.80.208:8000</strong> rồi bấm <strong>Kết nối</strong>.
+                </p>
                 <div style="display:flex; gap:6px;">
-                    <input type="text" id="login-backend-url-input" class="form-control" style="font-size:0.8rem; padding:4px 8px; height:auto; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2);" placeholder="Ví dụ: http://192.168.1.5:8000">
+                    <input type="text" id="login-backend-url-input" class="form-control" style="font-size:0.8rem; padding:4px 8px; height:auto; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2);" placeholder="Ví dụ: http://192.168.80.208:8000">
                     <button type="button" class="btn btn-primary" style="font-size:0.8rem; padding:4px 10px; height:auto; white-space:nowrap;" onclick="updateLoginBackendUrl()">Kết nối</button>
                 </div>
             </div>
@@ -652,22 +656,22 @@
         }
 
         // Resolve backend URL with auto-discovery and self-healing
-        let backendUrl = localStorage.getItem('backend_url') || 'http://127.0.0.1:8000';
+        let backendUrl = "";
+        if (window.location.protocol === 'file:') {
+            backendUrl = localStorage.getItem('backend_url') || 'http://127.0.0.1:8000';
+        }
 
         async function autoDiscoverBackend() {
+            // If loaded via HTTP/HTTPS, relative paths are native and 100% correct
+            if (window.location.protocol !== 'file:') {
+                backendUrl = "";
+                return true;
+            }
+
             const candidates = [];
             
-            // Candidate 1: current window.location.origin (if not file://)
-            if (window.location.protocol !== 'file:') {
-                candidates.push(window.location.origin);
-                candidates.push(''); // relative path
-                
-                // If accessed via remote IP/hostname, test port 8000 on that IP/hostname
-                if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                    const proto = window.location.protocol === 'https:' ? 'https:' : 'http:';
-                    candidates.push(`${proto}//${window.location.hostname}:8000`);
-                }
-            }
+            // Candidate 1: Server LAN IP fallback (so remote users opening index.html connect instantly)
+            candidates.push('http://192.168.80.208:8000');
             
             // Candidate 2: stored backend_url
             const stored = localStorage.getItem('backend_url');
@@ -709,11 +713,241 @@
         let currentPhase = 1;
         let sCurveChart = null;
         let ws = null;
+        
+        // --- FETCH INTERCEPTOR FOR OFFLINE LOCAL STORAGE MODE ---
+        const originalFetch = window.fetch;
+        let isOfflineMode = false;
+
+        window.fetch = async function(url, options) {
+            const urlStr = String(url);
+            
+            // Check if it is an API request and we are in offline mode
+            if (isOfflineMode && (urlStr.includes('/api/') || urlStr.includes('/ws'))) {
+                console.log(`[Offline DB] Intercepted fetch to ${urlStr}`);
+                
+                try {
+                    const parsedUrl = new URL(urlStr, window.location.origin);
+                    const path = parsedUrl.pathname;
+                    const method = (options && options.method || 'GET').toUpperCase();
+                    
+                    // GET /api/users
+                    if (path === '/api/users' && method === 'GET') {
+                        const users = LocalDBManager.getUsers();
+                        return new Response(JSON.stringify(users), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                    }
+                    
+                    // POST /api/auth/login
+                    if (path === '/api/auth/login' && method === 'POST') {
+                        const body = JSON.parse(options.body);
+                        const result = LocalDBManager.login(body.username, body.password);
+                        if (result.success) {
+                            return new Response(JSON.stringify({ user: result.user }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: result.detail }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                    // PUT /api/users/change-password
+                    if (path === '/api/users/change-password' && method === 'PUT') {
+                        const body = JSON.parse(options.body);
+                        const result = LocalDBManager.changePassword(body.username, body.old_password, body.new_password);
+                        if (result.success) {
+                            return new Response(JSON.stringify({ status: 'success' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: result.detail }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                    // GET /api/tasks/{task_id}
+                    const taskMatch = path.match(/^\/api\/tasks\/(\d+)$/);
+                    if (taskMatch && method === 'GET') {
+                        const taskId = parseInt(taskMatch[1]);
+                        const tasks = LocalDBManager.getTasks();
+                        const t = tasks.find(item => item.id === taskId);
+                        if (t) {
+                            return new Response(JSON.stringify(t), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: "Task not found" }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                    // PUT /api/tasks/{task_id}/progress
+                    const progressMatch = path.match(/^\/api\/tasks\/(\d+)\/progress$/);
+                    if (progressMatch && method === 'PUT') {
+                        const taskId = parseInt(progressMatch[1]);
+                        const body = JSON.parse(options.body);
+                        const params = parsedUrl.searchParams;
+                        const username = params.get('username') || '';
+                        
+                        const t = LocalDBManager.updateTaskProgress(taskId, body.tien_do, body.trang_thai, body.dieu_kien_ghi_nhan, username);
+                        if (t) {
+                            return new Response(JSON.stringify(t), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: "Task not found" }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                    // PUT /api/tasks/{task_id}
+                    if (taskMatch && method === 'PUT') {
+                        const taskId = parseInt(taskMatch[1]);
+                        const body = JSON.parse(options.body);
+                        const params = parsedUrl.searchParams;
+                        const username = params.get('username') || '';
+                        
+                        const t = LocalDBManager.updateTask(taskId, body, username);
+                        if (t) {
+                            return new Response(JSON.stringify(t), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: "Task not found" }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                    // DELETE /api/tasks/{task_id}
+                    if (taskMatch && method === 'DELETE') {
+                        const taskId = parseInt(taskMatch[1]);
+                        const params = parsedUrl.searchParams;
+                        const username = params.get('username') || '';
+                        
+                        const success = LocalDBManager.deleteTask(taskId, username);
+                        if (success) {
+                            return new Response(JSON.stringify({ status: 'success' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: "Task not found" }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                    // POST /api/tasks (create child WBS)
+                    if (path === '/api/tasks' && method === 'POST') {
+                        const body = JSON.parse(options.body);
+                        const params = parsedUrl.searchParams;
+                        const username = params.get('username') || '';
+                        
+                        const t = LocalDBManager.createChildTask(body.parent_stt, body, username);
+                        if (t) {
+                            return new Response(JSON.stringify(t), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: "Parent task not found" }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                    // GET /api/tasks
+                    if (path === '/api/tasks' && method === 'GET') {
+                        const params = parsedUrl.searchParams;
+                        const phaseId = params.get('phase_id');
+                        const search = params.get('search');
+                        const level = params.get('level');
+                        const list = LocalDBManager.getTasksList(phaseId, search, level);
+                        return new Response(JSON.stringify(list), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                    }
+                    
+                    // GET /api/stats
+                    if (path === '/api/stats' && method === 'GET') {
+                        const stats = LocalDBManager.getStats();
+                        return new Response(JSON.stringify(stats), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                    }
+                    
+                    // GET /api/s-curve
+                    if (path === '/api/s-curve' && method === 'GET') {
+                        const sc = LocalDBManager.getSCurve();
+                        return new Response(JSON.stringify(sc), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                    }
+                    
+                    // GET /api/spending
+                    if (path === '/api/spending' && method === 'GET') {
+                        const list = LocalDBManager.getSpendings();
+                        const tasks = LocalDBManager.getTasks();
+                        const result = list.map(s => {
+                            const t = tasks.find(item => item.id === s.task_id);
+                            return {
+                                id: s.id,
+                                task_id: s.task_id,
+                                ma_ngan_sach: t ? t.ma_ngan_sach : 'N/A',
+                                ten_cong_viec: t ? t.ten_cong_viec : 'N/A',
+                                so_tien_chi: s.so_tien_chi,
+                                ngay_chi: s.ngay_chi,
+                                nguoi_cap_nhat: s.nguoi_cap_nhat,
+                                chung_tu_kem_theo: s.chung_tu_kem_theo,
+                                trang_thai_duyet: s.trang_thai_duyet
+                            };
+                        });
+                        return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                    }
+                    
+                    // POST /api/spending
+                    if (path === '/api/spending' && method === 'POST') {
+                        const body = JSON.parse(options.body);
+                        const s = LocalDBManager.addSpending(body.task_id, body.so_tien_chi, body.nguoi_cap_nhat, body.chung_tu_kem_theo);
+                        if (s) {
+                            return new Response(JSON.stringify(s), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: "Task not found" }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                    // GET /api/logs
+                    if (path === '/api/logs' && method === 'GET') {
+                        const logs = LocalDBManager.getLogs();
+                        const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                        return new Response(JSON.stringify(sortedLogs), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                    }
+                    
+                    // POST /api/users
+                    if (path === '/api/users' && method === 'POST') {
+                        const body = JSON.parse(options.body);
+                        const params = parsedUrl.searchParams;
+                        const adminUsername = params.get('admin_username') || 'admin';
+                        const res = LocalDBManager.addUser(body, adminUsername);
+                        if (res.success) {
+                            return new Response(JSON.stringify(res.user), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: res.detail }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                    // DELETE /api/users/{user_id}
+                    const userMatch = path.match(/^\/api\/users\/(\d+)$/);
+                    if (userMatch && method === 'DELETE') {
+                        const userId = parseInt(userMatch[1]);
+                        const params = parsedUrl.searchParams;
+                        const adminUsername = params.get('admin_username') || 'admin';
+                        const res = LocalDBManager.deleteUser(userId, adminUsername);
+                        if (res.success) {
+                            return new Response(JSON.stringify({ status: 'success' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        } else {
+                            return new Response(JSON.stringify({ detail: res.detail }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+                        }
+                    }
+                    
+                } catch (e) {
+                    console.error("Error inside offline fetch interceptor:", e);
+                    return new Response(JSON.stringify({ detail: e.message }), { status: 500 });
+                }
+            }
+            
+            // Standard fetch call
+            return originalFetch(url, options);
+        };
 
         // On document load
         document.addEventListener('DOMContentLoaded', async () => {
             // Self-heal and discover working backend first
-            await autoDiscoverBackend();
+            const isOnline = await autoDiscoverBackend();
+            if (!isOnline) {
+                console.warn("Backend API offline. Switching to client-side localStorage mode!");
+                isOfflineMode = true;
+                
+                // Show offline mode banner
+                const banner = document.createElement('div');
+                banner.style.background = 'rgba(99, 102, 241, 0.25)';
+                banner.style.borderBottom = '1px solid var(--primary)';
+                banner.style.color = '#fff';
+                banner.style.textAlign = 'center';
+                banner.style.padding = '8px';
+                banner.style.fontSize = '0.85rem';
+                banner.style.fontWeight = '500';
+                banner.innerHTML = '<i class="fa-solid fa-cloud-arrow-down" style="color:var(--primary); margin-right:6px;"></i> Hệ thống đang chạy ngoại tuyến (Offline Mode). Dữ liệu được lưu trữ tự động trên Trình duyệt này.';
+                document.body.insertBefore(banner, document.body.firstChild);
+            }
             
             checkLoginState();
             fetchStats();
@@ -1183,6 +1417,14 @@
 
         // Setup WebSocket client
         function setupWebSocket() {
+            if (isOfflineMode) {
+                document.getElementById('ws-status-dot').style.backgroundColor = '#6366f1';
+                document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #6366f1';
+                document.getElementById('ws-status-text').innerText = 'Chế độ Offline (Lưu trữ Trình duyệt)';
+                console.log("WebSocket connection skipped in offline mode.");
+                return;
+            }
+
             let wsUri = "";
             if (backendUrl) {
                 let wsProto = backendUrl.startsWith('https:') ? 'wss:' : 'ws:';
