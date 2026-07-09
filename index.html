@@ -1345,14 +1345,12 @@
 
         // On document load
         document.addEventListener('DOMContentLoaded', async () => {
-            // If the user has explicitly saved a backend URL in localStorage, try connecting to it.
-            // Otherwise, we default to client-side localStorage mode instantly!
-            const customBackend = localStorage.getItem('backend_url');
-            if (customBackend && customBackend !== 'http://127.0.0.1:8000' && customBackend !== 'http://localhost:8000') {
-                const isOnline = await autoDiscoverBackend();
-                if (isOnline) {
-                    isOfflineMode = false;
-                }
+            // Auto-discover if any working backend is online, otherwise fall back to offline mode
+            const isOnline = await autoDiscoverBackend();
+            if (isOnline) {
+                isOfflineMode = false;
+            } else {
+                isOfflineMode = true;
             }
 
             if (isOfflineMode) {
@@ -2328,7 +2326,6 @@
             }
         }
 
-        // Setup WebSocket client
         function setupWebSocket() {
             if (isOfflineMode) {
                 document.getElementById('ws-status-dot').style.backgroundColor = '#10b981';
@@ -2338,119 +2335,127 @@
                 return;
             }
 
-            let wsUri = "";
-            if (backendUrl) {
-                let wsProto = backendUrl.startsWith('https:') ? 'wss:' : 'ws:';
-                let hostAndPort = backendUrl.replace(/^https?:\/\//, '');
-                wsUri = `${wsProto}//${hostAndPort}/ws`;
-            } else {
-                let wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                wsUri = `${wsProto}//${window.location.host}/ws`;
-            }
-            
-            ws = new WebSocket(wsUri);
-
-            ws.onopen = () => {
-                document.getElementById('ws-status-dot').style.backgroundColor = '#10b981';
-                document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #10b981';
-                document.getElementById('ws-status-text').innerText = 'Kết nối Real-time Online';
-                console.log("WebSocket connected.");
-            };
-
-            ws.onclose = async () => {
-                document.getElementById('ws-status-dot').style.backgroundColor = '#ef4444';
-                document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #ef4444';
-                
-                if (window.location.protocol === 'https:' && backendUrl.startsWith('http:')) {
-                    document.getElementById('ws-status-text').innerHTML = 'Mất kết nối (Lỗi HTTPS/HTTP) <i class="fa-solid fa-circle-question" style="cursor:pointer;color:var(--warning);margin-left:4px;" onclick="showConnectionTip()" title="Xem hướng dẫn khắc phục"></i>';
+            try {
+                let wsUri = "";
+                if (backendUrl) {
+                    let wsProto = backendUrl.startsWith('https:') ? 'wss:' : 'ws:';
+                    let hostAndPort = backendUrl.replace(/^https?:\/\//, '');
+                    wsUri = `${wsProto}//${hostAndPort}/ws`;
                 } else {
-                    document.getElementById('ws-status-text').innerText = 'Mất kết nối. Đang kiểm tra đường truyền...';
+                    let wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    wsUri = `${wsProto}//${window.location.host}/ws`;
                 }
                 
-                console.log("WebSocket disconnected. Auto-healing backend...");
-                const isOnline = await autoDiscoverBackend();
-                if (!isOnline) {
-                    console.warn("Backend offline during run. Switching to offline mode.");
-                    isOfflineMode = true;
-                    
-                    // Render status offline on the dot as a positive green ready state
+                ws = new WebSocket(wsUri);
+
+                ws.onopen = () => {
                     document.getElementById('ws-status-dot').style.backgroundColor = '#10b981';
                     document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #10b981';
-                    document.getElementById('ws-status-text').innerText = 'Hệ thống: Sẵn sàng (Trình duyệt)';
+                    document.getElementById('ws-status-text').innerText = 'Kết nối Real-time Online';
+                    console.log("WebSocket connected.");
+                };
+
+                ws.onclose = async () => {
+                    document.getElementById('ws-status-dot').style.backgroundColor = '#ef4444';
+                    document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #ef4444';
                     
-                    // Reload data from localStorage
-                    fetchStats();
-                    fetchTasks(currentPhase);
-                } else {
-                    setTimeout(setupWebSocket, 3000); // retry after 3s
-                }
-            };
-
-            ws.onerror = (err) => {
-                console.error("WebSocket error: ", err);
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                console.log("WebSocket message received: ", data);
-
-                if (data.type === "task_update") {
-                    // Cập nhật dòng tương ứng trong bảng nếu đang hiển thị phase đó
-                    const row = document.getElementById(`task-row-${data.task_id}`);
-                    if (row) {
-                        // Highlight dòng bị thay đổi
-                        row.classList.add('updated-row');
-                        setTimeout(() => row.classList.remove('updated-row'), 2500);
-
-                        // Cập nhật tiến độ
-                        const progressCell = row.querySelector('.progress-cell');
-                        if (progressCell) {
-                            progressCell.innerHTML = `
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <span style="font-weight:600;">${data.tien_do}%</span>
-                                    <div class="progress-bar-container">
-                                        <div class="progress-bar-fill" style="width: ${data.tien_do}%"></div>
-                                    </div>
-                                </div>
-                            `;
-                        }
-
-                        // Cập nhật trạng thái badge
-                        const statusCell = row.querySelector('.status-cell');
-                        if (statusCell) {
-                            statusCell.innerHTML = `<span class="badge ${data.trang_thai.toLowerCase()}">${data.trang_thai}</span>`;
-                        }
-
-                        // Cập nhật điều kiện ghi nhận
-                        const condCell = row.querySelector('.cond-cell');
-                        if (condCell) {
-                            condCell.innerText = data.dieu_kien_ghi_nhan || '-';
-                        }
+                    if (window.location.protocol === 'https:' && backendUrl.startsWith('http:')) {
+                        document.getElementById('ws-status-text').innerHTML = 'Mất kết nối (Lỗi HTTPS/HTTP) <i class="fa-solid fa-circle-question" style="cursor:pointer;color:var(--warning);margin-left:4px;" onclick="showConnectionTip()" title="Xem hướng dẫn khắc phục"></i>';
+                    } else {
+                        document.getElementById('ws-status-text').innerText = 'Mất kết nối. Đang kiểm tra đường truyền...';
                     }
+                    
+                    console.log("WebSocket disconnected. Auto-healing backend...");
+                    const isOnline = await autoDiscoverBackend();
+                    if (!isOnline) {
+                        console.warn("Backend offline during run. Switching to offline mode.");
+                        isOfflineMode = true;
+                        
+                        // Render status offline on the dot as a positive green ready state
+                        document.getElementById('ws-status-dot').style.backgroundColor = '#10b981';
+                        document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #10b981';
+                        document.getElementById('ws-status-text').innerText = 'Hệ thống: Sẵn sàng (Trình duyệt)';
+                        
+                        // Reload data from localStorage
+                        fetchStats();
+                        fetchTasks(currentPhase);
+                    } else {
+                        setTimeout(setupWebSocket, 3000); // retry after 3s
+                    }
+                };
 
-                    // Tải lại các số liệu thống kê chung
-                    fetchStats();
-                } else if (data.type === "spending_update") {
-                    // Tải lại thống kê và S-Curve
-                    fetchStats();
-                    updateSCurveChart();
-                } else if (data.type === "red_alert") {
-                    // Hiển thị khung báo động đỏ
-                    const alertPanel = document.getElementById('red-alert-panel');
-                    alertPanel.style.display = 'block';
-                    document.getElementById('red-alert-message').innerText = data.message;
-                    
-                    // Cuộn lên đầu
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    
-                    // Ẩn sau 10 giây
-                    setTimeout(() => {
-                        alertPanel.style.display = 'none';
-                    }, 15000);
-                    
-                    fetchStats();
-                }
-            };
+                ws.onerror = (err) => {
+                    console.error("WebSocket error: ", err);
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log("WebSocket message received: ", data);
+
+                    if (data.type === "task_update") {
+                        // Cập nhật dòng tương ứng trong bảng nếu đang hiển thị phase đó
+                        const row = document.getElementById(`task-row-${data.task_id}`);
+                        if (row) {
+                            // Highlight dòng bị thay đổi
+                            row.classList.add('updated-row');
+                            setTimeout(() => row.classList.remove('updated-row'), 2500);
+
+                            // Cập nhật tiến độ
+                            const progressCell = row.querySelector('.progress-cell');
+                            if (progressCell) {
+                                progressCell.innerHTML = `
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-weight:600;">${data.tien_do}%</span>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar-fill" style="width: ${data.tien_do}%"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+
+                            // Cập nhật trạng thái badge
+                            const statusCell = row.querySelector('.status-cell');
+                            if (statusCell) {
+                                statusCell.innerHTML = `<span class="badge ${data.trang_thai.toLowerCase()}">${data.trang_thai}</span>`;
+                            }
+
+                            // Cập nhật điều kiện ghi nhận
+                            const condCell = row.querySelector('.cond-cell');
+                            if (condCell) {
+                                condCell.innerText = data.dieu_kien_ghi_nhan || '-';
+                            }
+                        }
+
+                        // Tải lại các số liệu thống kê chung
+                        fetchStats();
+                    } else if (data.type === "spending_update") {
+                        // Tải lại thống kê và S-Curve
+                        fetchStats();
+                        updateSCurveChart();
+                    } else if (data.type === "red_alert") {
+                        // Hiển thị khung báo động đỏ
+                        const alertPanel = document.getElementById('red-alert-panel');
+                        alertPanel.style.display = 'block';
+                        document.getElementById('red-alert-message').innerText = data.message;
+                        
+                        // Cuộn lên đầu
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        
+                        // Ẩn sau 10 giây
+                        setTimeout(() => {
+                            alertPanel.style.display = 'none';
+                        }, 15000);
+                        
+                        fetchStats();
+                    }
+                };
+            } catch (e) {
+                console.error("Failed to connect WebSocket:", e);
+                // Fallback to offline indicator
+                document.getElementById('ws-status-dot').style.backgroundColor = '#10b981';
+                document.getElementById('ws-status-dot').style.boxShadow = '0 0 8px #10b981';
+                document.getElementById('ws-status-text').innerText = 'Hệ thống: Sẵn sàng (Trình duyệt)';
+            }
         }
 
         // Fetch Stats (Calculates Operational Metrics on Client Side)
