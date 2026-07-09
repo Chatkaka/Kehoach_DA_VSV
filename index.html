@@ -125,6 +125,7 @@
             <button class="tab-nav-btn active" onclick="switchTab('wbs-tab', this)"><i class="fa-solid fa-sitemap"></i> Cấu trúc WBS & Tiến độ</button>
             <button class="tab-nav-btn" onclick="switchTab('weekly-tab', this)"><i class="fa-solid fa-calendar-week"></i> Báo Cáo Kế Hoạch & Duyệt Báo Cáo Tuần</button>
             <button class="tab-nav-btn" id="nav-users-tab" onclick="switchTab('users-tab', this)" style="display:none;"><i class="fa-solid fa-users"></i> Quản lý Nhân sự</button>
+            <button class="tab-nav-btn" onclick="switchTab('sync-tab', this)"><i class="fa-solid fa-database"></i> Sao lưu & Đồng bộ</button>
         </div>
 
         <div id="wbs-tab" class="tab-content">
@@ -220,6 +221,33 @@
                             <!-- Populated dynamically -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sync Tab for Database Backup & Restore -->
+        <div id="sync-tab" class="tab-content" style="display:none;">
+            <div class="panel">
+                <div class="panel-header" style="margin-bottom: 10px;">
+                    <span class="panel-title" style="color:var(--success);"><i class="fa-solid fa-database"></i> Sao Lưu & Đồng Bộ Dữ Liệu Ngoại Tuyến</span>
+                </div>
+                <div style="max-width: 650px; margin: 20px 0; padding: 25px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                    <p style="font-size: 0.9rem; color: var(--text-primary); margin-top: 0; line-height: 1.5;">
+                        Tính năng này cho phép bạn xuất toàn bộ cơ sở dữ liệu hiện tại trên trình duyệt của máy này ra một file dữ liệu bảo mật (.json). Bạn có thể gửi file này cho thành viên khác hoặc mở trên thiết bị khác để đồng bộ dữ liệu ngoại tuyến mà không cần máy chủ API trung gian.
+                    </p>
+                    <p style="font-size: 0.8rem; color: var(--warning); margin-bottom: 20px; line-height: 1.4;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Cảnh báo: Việc tải lên file sao lưu mới sẽ thay thế hoàn toàn dữ liệu cũ trên thiết bị này.
+                    </p>
+                    
+                    <div style="display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
+                        <button type="button" class="btn" onclick="exportOfflineDatabase()" style="flex: 1; padding: 12px 20px; background: var(--success); font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fa-solid fa-download"></i> Tải Về File Sao Lưu (.json)
+                        </button>
+                        <button type="button" class="btn" onclick="triggerImportDatabase()" style="flex: 1; padding: 12px 20px; background: var(--warning); color: #000; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fa-solid fa-upload"></i> Nhập File Sao Lưu Dữ Liệu
+                        </button>
+                        <input type="file" id="tab-import-db-file" accept=".json" onchange="importOfflineDatabase(event)" style="display:none;">
+                    </div>
                 </div>
             </div>
         </div>
@@ -614,27 +642,6 @@
                 <button type="button" id="btn-test-telegram" class="btn" onclick="testTelegramMessage()" style="background: rgba(56,189,248,0.2); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                     <i class="fa-solid fa-paper-plane"></i> Gửi thử tin nhắn test
                 </button>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 20px 0;">
-
-            <!-- 4. Database Backup & Restore -->
-            <div class="form-group" style="margin-bottom: 15px;">
-                <span style="font-weight: 700; font-size: 0.95rem; color: #10b981; display: flex; align-items: center; gap: 6px; margin-bottom: 10px;">
-                    <i class="fa-solid fa-database"></i> Sao Lưu & Đồng Bộ Dữ Liệu
-                </span>
-                <p style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.3;">
-                    Tải về hoặc tải lên file dữ liệu (.json) để đồng bộ giữa các máy tính/điện thoại khác nhau khi dùng chế độ Ngoại tuyến.
-                </p>
-                <div style="display:flex; gap:10px;">
-                    <button type="button" class="btn" onclick="exportOfflineDatabase()" style="background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.4); padding: 8px 12px; font-size: 0.8rem; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i class="fa-solid fa-download"></i> Tải Về File Sao Lưu
-                    </button>
-                    <button type="button" class="btn" onclick="triggerImportDatabase()" style="background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.4); padding: 8px 12px; font-size: 0.8rem; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i class="fa-solid fa-upload"></i> Nhập File Sao Lưu
-                    </button>
-                    <input type="file" id="import-db-file" accept=".json" onchange="importOfflineDatabase(event)" style="display:none;">
-                </div>
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
@@ -2925,7 +2932,7 @@
         }
         
         function triggerImportDatabase() {
-            document.getElementById('import-db-file').click();
+            document.getElementById('tab-import-db-file').click();
         }
         
         function importOfflineDatabase(event) {
