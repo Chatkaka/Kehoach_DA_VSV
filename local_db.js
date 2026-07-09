@@ -6310,6 +6310,24 @@ class LocalDBManager {
                 vuong_mac_tuan: t.vuong_mac_tuan || '',
                 cach_giai_quyet: t.cach_giai_quyet || '',
                 duyet_tuan: t.duyet_tuan || 'Chưa duyệt',
+                ngay_khoi_tao: t.ngay_khoi_tao || '',
+                cong_trinh: t.cong_trinh || '',
+                doi_tac: t.doi_tac || '',
+                so_dien_thoai: t.so_dien_thoai || '',
+                ngay_bat_dau: t.ngay_bat_dau || '',
+                ngay_ket_thuc: t.ngay_ket_thuc || '',
+                gia_han_den_ngay: t.gia_han_den_ngay || '',
+                thoi_gian_bao_hanh: t.thoi_gian_bao_hanh || '',
+                mo_ta: t.mo_ta || '',
+                dieu_khoan: t.dieu_khoan || '',
+                nguoi_phu_trach: t.nguoi_phu_trach || '',
+                nguoi_bao_cao: t.nguoi_bao_cao || '',
+                nguoi_duyet: t.nguoi_duyet || '',
+                gia_tri_quyet_toan: t.gia_tri_quyet_toan || 0,
+                da_nghiem_thu: t.da_nghiem_thu || 0,
+                da_thanh_toan: t.da_thanh_toan || 0,
+                tam_ung: t.tam_ung || 0,
+                da_thu_hoi_tam_ung: t.da_thu_hoi_tam_ung || 0,
                 budget: t.budget
             });
         });
@@ -6461,6 +6479,28 @@ class LocalDBManager {
         task.cach_giai_quyet = data.cach_giai_quyet ? data.cach_giai_quyet.trim() : '';
         task.duyet_tuan = data.duyet_tuan ? data.duyet_tuan.trim() : 'Chưa duyệt';
         
+        // Map new fields
+        task.ngay_khoi_tao = data.ngay_khoi_tao ? data.ngay_khoi_tao.trim() : '';
+        task.cong_trinh = data.cong_trinh ? data.cong_trinh.trim() : '';
+        task.doi_tac = data.doi_tac ? data.doi_tac.trim() : '';
+        task.so_dien_thoai = data.so_dien_thoai ? data.so_dien_thoai.trim() : '';
+        task.ngay_bat_dau = data.ngay_bat_dau ? data.ngay_bat_dau.trim() : '';
+        task.ngay_ket_thuc = data.ngay_ket_thuc ? data.ngay_ket_thuc.trim() : '';
+        task.gia_han_den_ngay = data.gia_han_den_ngay ? data.gia_han_den_ngay.trim() : '';
+        task.thoi_gian_bao_hanh = data.thoi_gian_bao_hanh ? data.thoi_gian_bao_hanh.trim() : '';
+        task.mo_ta = data.mo_ta ? data.mo_ta.trim() : '';
+        task.dieu_khoan = data.dieu_khoan ? data.dieu_khoan.trim() : '';
+        
+        task.nguoi_phu_trach = data.nguoi_phu_trach ? data.nguoi_phu_trach.trim() : '';
+        task.nguoi_bao_cao = data.nguoi_bao_cao ? data.nguoi_bao_cao.trim() : '';
+        task.nguoi_duyet = data.nguoi_duyet ? data.nguoi_duyet.trim() : '';
+        
+        task.gia_tri_quyet_toan = parseFloat(data.gia_tri_quyet_toan) || 0;
+        task.da_nghiem_thu = parseFloat(data.da_nghiem_thu) || 0;
+        task.da_thanh_toan = parseFloat(data.da_thanh_toan) || 0;
+        task.tam_ung = parseFloat(data.tam_ung) || 0;
+        task.da_thu_hoi_tam_ung = parseFloat(data.da_thu_hoi_tam_ung) || 0;
+        
         if (task.budget) {
             task.budget.ngan_sach_tong = parseFloat(data.ngan_sach) || 0;
         }
@@ -6587,6 +6627,24 @@ class LocalDBManager {
             vuong_mac_tuan: '',
             cach_giai_quyet: '',
             duyet_tuan: 'Chưa duyệt',
+            ngay_khoi_tao: new Date().toLocaleDateString('vi-VN'),
+            cong_trinh: '',
+            doi_tac: '',
+            so_dien_thoai: '',
+            ngay_bat_dau: '',
+            ngay_ket_thuc: '',
+            gia_han_den_ngay: '',
+            thoi_gian_bao_hanh: '',
+            mo_ta: '',
+            dieu_khoan: '',
+            nguoi_phu_trach: '',
+            nguoi_bao_cao: '',
+            nguoi_duyet: '',
+            gia_tri_quyet_toan: 0,
+            da_nghiem_thu: 0,
+            da_thanh_toan: 0,
+            tam_ung: 0,
+            da_thu_hoi_tam_ung: 0,
             budget: {
                 id: newId,
                 task_id: newId,

@@ -399,79 +399,317 @@
 
     </div>
 
+    <!-- Modal for task details & dashboard -->
+    <div id="detail-task-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:100; justify-content:center; align-items:center;">
+        <div class="panel" style="width: 850px; max-width: 95%; max-height: 90vh; overflow-y: auto;">
+            <div class="panel-header" style="border-bottom: none; padding-bottom: 0;">
+                <div>
+                    <span class="panel-title" id="detail-task-title" style="font-size: 1.5rem; font-weight: 800; color: #fff;">60/2024/HĐGK</span>
+                    <span id="detail-task-subtitle" style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">ID Hợp đồng: 1910ccfe</span>
+                </div>
+                <i class="fa-solid fa-xmark" style="cursor:pointer; font-size: 1.2rem;" onclick="closeDetailModal()"></i>
+            </div>
+            
+            <!-- Dashboard Row -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 15px;">
+                <!-- Card 1: Acceptance & Production Progress -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 16px; border-radius: 10px; display: flex; align-items: center; gap: 15px;">
+                    <!-- Circular Widget -->
+                    <div style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2); border-radius:50%; flex-shrink: 0;">
+                        <svg width="80" height="80" viewBox="0 0 80 80">
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="#10b981" stroke-width="6" stroke-dasharray="213.6" stroke-dashoffset="213.6" id="circle-nghiem-thu-progress" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+                        </svg>
+                        <div style="position:absolute; text-align:center;">
+                            <span id="label-nghiem-thu-pct" style="font-size:0.95rem; font-weight:700; color: #10b981;">0%</span>
+                            <span style="font-size:0.5rem; display:block; color:var(--text-muted); text-transform:uppercase; margin-top:-2px; font-weight: 600;">Nghiệm Thu</span>
+                        </div>
+                    </div>
+                    <!-- Details -->
+                    <div style="flex: 1;">
+                        <span style="display: block; font-size: 0.65rem; color: #10b981; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px; width: fit-content; margin-bottom: 6px;">Tiến độ nghiệm thu / sản lượng</span>
+                        <div style="font-size: 0.8rem; line-height: 1.5;">
+                            <div>Giá trị HĐ: <strong id="detail-val-hd" style="color: #fff;">0đ</strong></div>
+                            <div>Đã nghiệm thu: <strong id="detail-val-nghiem-thu" style="color: #10b981;">0đ</strong></div>
+                            <div>Còn lại: <strong id="detail-val-con-lai" style="color: #fff;">0đ</strong></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Card 2: Recovery & Payment Progress -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 16px; border-radius: 10px; display: flex; align-items: center; gap: 15px;">
+                    <!-- Circular Widget -->
+                    <div style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2); border-radius:50%; flex-shrink: 0;">
+                        <svg width="80" height="80" viewBox="0 0 80 80">
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="#f59e0b" stroke-width="6" stroke-dasharray="213.6" stroke-dashoffset="213.6" id="circle-thanh-toan-progress" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+                        </svg>
+                        <div style="position:absolute; text-align:center;">
+                            <span id="label-thanh-toan-pct" style="font-size:0.95rem; font-weight:700; color: #f59e0b;">0%</span>
+                            <span style="font-size:0.5rem; display:block; color:var(--text-muted); text-transform:uppercase; margin-top:-2px; font-weight: 600;">Thanh Toán</span>
+                        </div>
+                    </div>
+                    <!-- Details -->
+                    <div style="flex: 1;">
+                        <span style="display: block; font-size: 0.65rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(245,158,11,0.1); padding: 2px 6px; border-radius: 4px; width: fit-content; margin-bottom: 6px;">Tiến độ thu hồi & thanh toán</span>
+                        <div style="font-size: 0.8rem; line-height: 1.5;">
+                            <div>Tạm ứng: <strong id="detail-val-tam-ung" style="color: #fff;">0đ</strong></div>
+                            <div>Đã thanh toán: <strong id="detail-val-thanh-toan" style="color: #f59e0b;">0đ</strong></div>
+                            <div>Đã thu hồi T.Ứ: <strong id="detail-val-thu-hoi-tu" style="color: #c084fc;">0đ</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation Tabs -->
+            <div style="display:flex; border-bottom: 1px solid rgba(255,255,255,0.08); margin-top: 20px; gap: 20px;">
+                <button type="button" class="tab-btn active" id="btn-detail-tab-overview" onclick="switchDetailTab('overview')" style="background:none; border:none; border-bottom:2px solid var(--primary); color:#fff; padding: 8px 12px; font-weight:600; cursor:pointer; font-size:0.9rem;">Thông tin tổng quan</button>
+                <button type="button" class="tab-btn" id="btn-detail-tab-history" onclick="switchDetailTab('history')" style="background:none; border:none; border-bottom:2px solid transparent; color:var(--text-muted); padding: 8px 12px; font-weight:600; cursor:pointer; font-size:0.9rem;">Nhật ký báo cáo & phê duyệt</button>
+            </div>
+            
+            <!-- Tab Content 1: Overview -->
+            <div id="detail-content-overview" style="margin-top: 15px;">
+                <h3 style="font-size: 1rem; color: #fff; margin-bottom: 10px; font-weight: 700;">Thông tin chi tiết</h3>
+                
+                <!-- Info Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); padding: 16px; border-radius: 8px; font-size: 0.85rem;">
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Ngày khởi tạo</div>
+                        <div id="detail-ngay-khoi-tao" style="color: #fff; font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Công trình</div>
+                        <div id="detail-cong-trinh" style="color: #fff; font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Đối tác</div>
+                        <div id="detail-doi-tac" style="color: #fff; font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Số điện thoại</div>
+                        <div id="detail-so-dien-thoai" style="color: #fff; font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Ngày bắt đầu</div>
+                        <div id="detail-ngay-bat-dau" style="color: #fff; font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Ngày kết thúc</div>
+                        <div id="detail-ngay-ket-thuc" style="color: #fff; font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Gia hạn đến ngày</div>
+                        <div id="detail-gia-han-den-ngay" style="color: #fff; font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Trạng thái</div>
+                        <div style="margin-top: 4px;"><span id="detail-trang-thai-badge" class="badge">Todo</span></div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Người phụ trách thực hiện</div>
+                        <div id="detail-nguoi-phu-trach" style="color: #fff; font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Thời gian bảo hành</div>
+                        <div id="detail-thoi-gian-bao-hanh" style="color: #fff; font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Giá trị quyết toán</div>
+                        <div id="detail-gia-tri-quyet-toan" style="color: #fff; font-weight: 600; margin-top: 4px;">0đ</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Người báo cáo</div>
+                        <div id="detail-nguoi-bao-cao" style="color: var(--primary); font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                    <div style="grid-column: span 3;">
+                        <div style="color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Người duyệt chốt chặn</div>
+                        <div id="detail-nguoi-duyet" style="color: var(--success); font-weight: 600; margin-top: 4px;">-</div>
+                    </div>
+                </div>
+                
+                <!-- Descriptions -->
+                <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr; gap: 12px;">
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 6px;">
+                        <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Mô tả công việc</div>
+                        <div id="detail-mo_ta" style="color: #fff; font-size: 0.85rem; line-height: 1.4;">-</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 6px;">
+                        <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Điều khoản hợp đồng & Ghi chú</div>
+                        <div id="detail-dieu_khoan" style="color: #fff; font-size: 0.85rem; line-height: 1.4;">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab Content 2: History -->
+            <div id="detail-content-history" style="display: none; margin-top: 15px; max-height: 300px; overflow-y: auto;">
+                <h3 style="font-size: 1rem; color: #fff; margin-bottom: 10px; font-weight: 700;">Nhật ký báo cáo & phê duyệt</h3>
+                <table class="table" style="font-size: 0.8rem; width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="width: 150px;">Thời gian</th>
+                            <th style="width: 120px;">Tài khoản</th>
+                            <th>Nội dung thay đổi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-history-tbody">
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: var(--text-muted);">Chưa có nhật ký hoạt động cho công việc này.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08);">
+                <button class="btn secondary-btn" onclick="closeDetailModal()">Đóng</button>
+                <button class="btn" onclick="triggerEditFromDetail()" style="background: var(--primary); font-weight: 600;"><i class="fa-solid fa-pen-to-square"></i> Cập nhật / Gia hạn / Báo cáo tuần</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal for task edit -->
     <div id="edit-task-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:100; justify-content:center; align-items:center;">
-        <div class="panel" style="width: 850px; max-width: 95%; max-height: 90vh; overflow-y: auto;">
+        <div class="panel" style="width: 880px; max-width: 95%; max-height: 90vh; overflow-y: auto;">
             <div class="panel-header">
-                <span class="panel-title"><i class="fa-solid fa-pen-to-square"></i> Chỉnh Sửa Công Việc <span id="edit-task-stt" style="color:var(--secondary);"></span></span>
+                <span class="panel-title" id="edit-modal-title"><i class="fa-solid fa-pen-to-square"></i> Chỉnh Sửa Công Việc <span id="edit-task-stt" style="color:var(--secondary);"></span></span>
                 <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeEditModal()"></i>
             </div>
             <input type="hidden" id="edit-id">
             
-            <!-- Row 1: WBS, Name, Status -->
-            <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 12px; margin-top: 10px;">
-                <div class="form-group">
-                    <label for="edit-wbs">Mã Ngân Sách (WBS)</label>
-                    <input type="text" id="edit-wbs" class="form-control">
+            <!-- SECTION 1: Cấu trúc WBS & Giao việc (Trường Cố định / Fixed) -->
+            <div style="margin-top: 10px;">
+                <h4 style="font-size: 0.8rem; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--secondary); padding-left: 6px; margin-bottom: 8px;">Thông tin WBS & Giao Việc</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="edit-wbs">Mã Ngân Sách (WBS)</label>
+                        <input type="text" id="edit-wbs" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-name">Tên Công Việc</label>
+                        <input type="text" id="edit-name" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-status">Trạng thái</label>
+                        <select id="edit-status" class="form-control">
+                            <option value="Todo">Chưa thực hiện</option>
+                            <option value="In-Progress">Đang triển khai</option>
+                            <option value="Done">Hoàn thành</option>
+                            <option value="Delayed">Trễ hạn</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="edit-name">Tên Công Việc</label>
-                    <input type="text" id="edit-name" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="edit-status">Trạng thái</label>
-                    <select id="edit-status" class="form-control">
-                        <option value="Todo">Chưa thực hiện</option>
-                        <option value="In-Progress">Đang triển khai</option>
-                        <option value="Done">Hoàn thành</option>
-                        <option value="Delayed">Trễ hạn</option>
-                    </select>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 4px;">
+                    <div class="form-group">
+                        <label for="edit-dept">Phòng Ban Thực Hiện</label>
+                        <select id="edit-dept" class="form-control">
+                            <option value="PTDA">PTDA (Phát triển dự án)</option>
+                            <option value="QHTK">QHTK (Quy hoạch thiết kế)</option>
+                            <option value="BQLDA">BQLDA (Ban Quản lý Dự án)</option>
+                            <option value="GPMB">GPMB (Giải phóng mặt bằng)</option>
+                            <option value="KTKH">KTKH (Kinh tế kế hoạch)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-deadline">Thời Hạn Hoàn Thành</label>
+                        <input type="date" id="edit-deadline" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-budget">Ngân Sách Tổng (Trđ)</label>
+                        <input type="text" id="edit-budget" class="form-control" placeholder="Ví dụ: 10.000.000">
+                    </div>
                 </div>
             </div>
 
-            <!-- Row 2: Dept, Deadline, Budget -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
-                <div class="form-group">
-                    <label for="edit-dept">Phòng Ban Thực Hiện</label>
-                    <select id="edit-dept" class="form-control">
-                        <option value="PTDA">PTDA (Phát triển dự án)</option>
-                        <option value="QHTK">QHTK (Quy hoạch thiết kế)</option>
-                        <option value="BQLDA">BQLDA (Ban Quản lý Dự án)</option>
-                        <option value="GPMB">GPMB (Giải phóng mặt bằng)</option>
-                        <option value="KTKH">KTKH (Kinh tế kế hoạch)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="edit-deadline">Thời Hạn Hoàn Thành</label>
-                    <input type="date" id="edit-deadline" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="edit-budget">Ngân Sách Tổng (Trđ)</label>
-                    <input type="text" id="edit-budget" class="form-control" placeholder="Ví dụ: 10.000.000">
+            <!-- SECTION 2: Phụ Trách & Phân Vai Vận Hành (Operational Roles) -->
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
+                <h4 style="font-size: 0.8rem; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--primary); padding-left: 6px; margin-bottom: 8px;">Nhân Sự & Phân Vai Vận Hành</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="edit-nguoi-phu-trach">Người phụ trách thực hiện</label>
+                        <input type="text" id="edit-nguoi-phu-trach" class="form-control" placeholder="Họ và tên">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-nguoi-bao-cao">Người báo cáo tuần</label>
+                        <input type="text" id="edit-nguoi-bao-cao" class="form-control" placeholder="Họ và tên">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-nguoi-duyet">Người duyệt chốt chặn (Admin/CBQL)</label>
+                        <input type="text" id="edit-nguoi-duyet" class="form-control" placeholder="Họ và tên">
+                    </div>
                 </div>
             </div>
 
-            <!-- Row 3: Progress & Approval dropdown (moved here for vertical compactness) -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="form-group">
-                    <label for="edit-progress">Tiến độ (%)</label>
-                    <input type="number" id="edit-progress" class="form-control" min="0" max="100">
+            <!-- SECTION 3: Thông Tin Đối Tác & Tài Chính Nghiệm Thu (Financial Dashboard Fields) -->
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
+                <h4 style="font-size: 0.8rem; color: var(--warning); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--warning); padding-left: 6px; margin-bottom: 8px;">Hợp Đồng, Đối Tác & Tiến Độ Tài Chính</h4>
+                
+                <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="edit-cong-trinh">Công trình / Hạng mục</label>
+                        <input type="text" id="edit-cong-trinh" class="form-control" placeholder="Tên công trình dự án">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-doi-tac">Đối tác / Nhà thầu</label>
+                        <input type="text" id="edit-doi-tac" class="form-control" placeholder="Tên đối tác">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-so-dien-thoai">Số điện thoại liên hệ</label>
+                        <input type="text" id="edit-so-dien-thoai" class="form-control" placeholder="SĐT đối tác">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="edit-duyet-tuan">Cấp Quản Lý (CBQL) Duyệt Tuần</label>
-                    <select id="edit-duyet-tuan" class="form-control" style="border: 1px solid var(--primary);">
-                        <option value="Chưa duyệt">⏳ Chưa duyệt (Chờ phê duyệt)</option>
-                        <option value="Đã duyệt">✅ Đã duyệt (Approved)</option>
-                        <option value="Không duyệt">❌ Không duyệt (Rejected)</option>
-                    </select>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 4px;">
+                    <div class="form-group">
+                        <label for="edit-da-nghiem-thu">Đã Nghiệm Thu / Sản Lượng</label>
+                        <input type="text" id="edit-da-nghiem-thu" class="form-control" placeholder="Giá trị sản lượng">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-tam-ung">Tạm Ứng HĐ</label>
+                        <input type="text" id="edit-tam-ung" class="form-control" placeholder="Số tiền tạm ứng">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-da-thanh-toan">Đã Thanh Toán</label>
+                        <input type="text" id="edit-da-thanh-toan" class="form-control" placeholder="Số tiền đã trả">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-da-thu-hoi-tam-ung">Đã Thu Hồi Tạm Ứng</label>
+                        <input type="text" id="edit-da-thu-hoi-tam-ung" class="form-control" placeholder="Số đã cấn trừ">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-gia-tri-quyet-toan">Giá Trị Quyết Toán</label>
+                        <input type="text" id="edit-gia-tri-quyet-toan" class="form-control" placeholder="Giá trị quyết toán cuối cùng">
+                    </div>
                 </div>
             </div>
 
-            <!-- Side-by-Side Grid for Deliverables and Conditions (Saves immense vertical space) -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px;">
+            <!-- SECTION 4: Thời gian & Bảo hành (Timeline & Warranty) -->
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
+                <h4 style="font-size: 0.8rem; color: #a855f7; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #a855f7; padding-left: 6px; margin-bottom: 8px;">Mốc Thời Gian & Bảo Hành</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label for="edit-ngay-bat-dau">Ngày bắt đầu</label>
+                        <input type="date" id="edit-ngay-bat-dau" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-ngay-ket-thuc">Ngày kết thúc</label>
+                        <input type="date" id="edit-ngay-ket-thuc" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-gia-han-den-ngay">Gia hạn hoàn thành</label>
+                        <input type="date" id="edit-gia-han-den-ngay" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-thoi-gian-bao-hanh">Thời gian bảo hành</label>
+                        <input type="text" id="edit-thoi-gian-bao-hanh" class="form-control" placeholder="Ví dụ: 12 tháng">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 5: Hồ sơ đầu ra & Điều kiện ghi nhận -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
                 <div class="form-group">
                     <label style="font-weight:600;">Hồ Sơ Đầu Ra (Tích chọn & tự điền)</label>
-                    <div id="edit-deliverables-checkboxes" style="display: grid; grid-template-columns: 1fr; gap: 4px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 100px; overflow-y: auto; margin-bottom: 6px;">
+                    <div id="edit-deliverables-checkboxes" style="display: grid; grid-template-columns: 1fr; gap: 4px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 80px; overflow-y: auto; margin-bottom: 6px;">
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Báo cáo nghiên cứu"> Báo cáo nghiên cứu</label>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Quyết định phê duyệt"> Quyết định phê duyệt</label>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="deliverable-chk" value="Quyết định chủ trương"> Quyết định chủ trương</label>
@@ -488,10 +726,10 @@
                 
                 <div class="form-group">
                     <label style="font-weight:600;">Điều kiện ghi nhận kết quả</label>
-                    <div id="edit-cond-checkboxes" style="display: grid; grid-template-columns: 1fr; gap: 4px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 100px; overflow-y: auto; margin-bottom: 6px;">
+                    <div id="edit-cond-checkboxes" style="display: grid; grid-template-columns: 1fr; gap: 4px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; max-height: 80px; overflow-y: auto; margin-bottom: 6px;">
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Tờ trình được duyệt"> Tờ trình được duyệt</label>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Biên bản nghiệm thu được ký"> Biên bản nghiệm thu được ký</label>
-                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Có quyết định/văn bản chính thức"> Có quyết định chính thức</label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Có quyết định chính thức"> Có quyết định chính thức</label>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Báo cáo được ký duyệt"> Báo cáo được ký duyệt</label>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Hợp đồng được ký kết"> Hợp đồng được ký kết</label>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:0.8rem;"><input type="checkbox" class="cond-chk" value="Có chứng nhận/chứng chỉ"> Có chứng nhận/chứng chỉ</label>
@@ -501,9 +739,9 @@
                 </div>
             </div>
 
-            <!-- Báo cáo & Phê duyệt tuần -->
-            <div style="border-top: 1px solid var(--panel-border); margin: 10px 0; padding-top: 10px;">
-                <h4 style="font-size: 0.9rem; color: var(--secondary); margin-bottom: 8px;"><i class="fa-solid fa-calendar-week"></i> Báo Cáo & Phê Duyệt Tuần</h4>
+            <!-- SECTION 6: Báo cáo & Phê duyệt tuần (Trường Biến đổi / Variable) -->
+            <div style="border-top: 1px solid var(--panel-border); margin-top: 12px; padding-top: 10px;">
+                <h4 style="font-size: 0.8rem; color: var(--success); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--success); padding-left: 6px; margin-bottom: 8px;"><i class="fa-solid fa-calendar-week"></i> Báo Cáo Tuần & Ý Kiến CBQL</h4>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="form-group">
@@ -522,15 +760,27 @@
                         <input type="text" id="edit-vuong-mac-tuan" class="form-control" placeholder="-">
                     </div>
                     <div class="form-group">
-                        <label for="edit-cach-giai-quyet">Cách thức giải quyết của CBQL/Phòng ban</label>
+                        <label for="edit-cach-giai-quyet">Cách thức giải quyết của CBQL/Phòng ban (Ý kiến CBQL)</label>
                         <input type="text" id="edit-cach-giai-quyet" class="form-control" placeholder="-">
                     </div>
                 </div>
             </div>
 
+            <!-- SECTION 7: Mô tả chi tiết & Điều khoản hợp đồng -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
+                <div class="form-group">
+                    <label for="edit-mo-ta">Mô tả công việc chi tiết</label>
+                    <textarea id="edit-mo-ta" class="form-control" style="height: 60px; font-size: 0.8rem;" placeholder="Nhập mô tả..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-dieu-khoan">Điều khoản hợp đồng & Ghi chú</label>
+                    <textarea id="edit-dieu-khoan" class="form-control" style="height: 60px; font-size: 0.8rem;" placeholder="Nhập điều khoản..."></textarea>
+                </div>
+            </div>
+
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px; padding-bottom: 5px;">
                 <button class="btn secondary-btn" onclick="closeEditModal()">Hủy</button>
-                <button class="btn" onclick="saveTaskProgress()">Lưu Thay Đổi</button>
+                <button class="btn" onclick="saveTaskProgress()" style="background: var(--primary); font-weight: 700;">Lưu Thay Đổi</button>
             </div>
         </div>
     </div>
@@ -1159,6 +1409,15 @@
             if (addBudgetEl) {
                 addBudgetEl.addEventListener('input', formatInput);
             }
+            
+            // Format new financial input fields
+            const financialFields = ['edit-da-nghiem-thu', 'edit-tam-ung', 'edit-da-thanh-toan', 'edit-da-thu-hoi-tam-ung', 'edit-gia-tri-quyet-toan'];
+            financialFields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', formatInput);
+                }
+            });
         });
 
         async function exportToExcel() {
@@ -2527,8 +2786,14 @@
         function updateSCurveChart() {}
         function refreshRiskReport() {}
 
-        // Open edit modal
-        function openEditModal(id, name, progress, status, cond, wbs, dept, deliverables, deadline, budget) {
+        let currentDetailTaskId = null;
+
+        function openEditModal(id) {
+            openDetailModal(id);
+        }
+
+        async function openDetailModal(id) {
+            currentDetailTaskId = id;
             let task = null;
             if (window.currentTasks) {
                 task = window.currentTasks.find(t => t.id === id);
@@ -2536,27 +2801,157 @@
             if (!task && window.allProjectTasks) {
                 task = window.allProjectTasks.find(t => t.id === id);
             }
-            if (!task) {
-                // fallback to params
-                task = {
-                    id: id,
-                    ten_cong_viec: name,
-                    tien_do: progress,
-                    trang_thai: status,
-                    dieu_kien_ghi_nhan: cond,
-                    ma_ngan_sach: wbs,
-                    phong_ban_thuc_hien: dept,
-                    ho_so_dau_ra: deliverables,
-                    thoi_han_hoan_thanh: deadline,
-                    budget: { ngan_sach_tong: budget },
-                    ke_hoach_tuan: "",
-                    ket_qua_tuan: "",
-                    vuong_mac_tuan: "",
-                    cach_giai_quyet: "",
-                    duyet_tuan: "Chưa duyệt",
-                    stt: "" // empty if not found
-                };
+            if (!task) return;
+            
+            // Set title and subtitle
+            document.getElementById('detail-task-title').innerText = task.ma_ngan_sach || task.stt || 'Công Việc';
+            document.getElementById('detail-task-subtitle').innerText = `ID Hợp đồng / STT: ${task.stt || task.id}`;
+            
+            // Circular Progress 1: Nghiệm thu / sản lượng
+            const nganSach = (task.budget ? task.budget.ngan_sach_tong : 0) || 0;
+            const daNghiemThu = task.da_nghiem_thu || 0;
+            const conLai = Math.max(0, nganSach - daNghiemThu);
+            
+            const pctNghiemThu = nganSach > 0 ? Math.round((daNghiemThu / nganSach) * 100) : 0;
+            document.getElementById('label-nghiem-thu-pct').innerText = `${pctNghiemThu}%`;
+            
+            const offsetNghiemThu = 213.6 - (213.6 * Math.min(100, pctNghiemThu) / 100);
+            document.getElementById('circle-nghiem-thu-progress').style.strokeDashoffset = offsetNghiemThu;
+            
+            document.getElementById('detail-val-hd').innerText = formatCurrency(nganSach);
+            document.getElementById('detail-val-nghiem-thu').innerText = formatCurrency(daNghiemThu);
+            document.getElementById('detail-val-con-lai').innerText = formatCurrency(conLai);
+            
+            // Circular Progress 2: Thu hồi & thanh toán
+            const tamUng = task.tam_ung || 0;
+            const daThanhToan = task.da_thanh_toan || 0;
+            const daThuHoi = task.da_thu_hoi_tam_ung || 0;
+            
+            const pctThanhToan = nganSach > 0 ? Math.round((daThanhToan / nganSach) * 100) : 0;
+            document.getElementById('label-thanh-toan-pct').innerText = `${pctThanhToan}%`;
+            const offsetThanhToan = 213.6 - (213.6 * Math.min(100, pctThanhToan) / 100);
+            document.getElementById('circle-thanh-toan-progress').style.strokeDashoffset = offsetThanhToan;
+            
+            document.getElementById('detail-val-tam-ung').innerText = formatCurrency(tamUng);
+            document.getElementById('detail-val-thanh-toan').innerText = formatCurrency(daThanhToan);
+            document.getElementById('detail-val-thu-hoi-tu').innerText = formatCurrency(daThuHoi);
+            
+            // Switch tab to overview by default
+            switchDetailTab('overview');
+            
+            // Populate detail grid metadata
+            document.getElementById('detail-ngay-khoi-tao').innerText = task.ngay_khoi_tao || '-';
+            document.getElementById('detail-cong-trinh').innerText = task.cong_trinh || '-';
+            document.getElementById('detail-doi-tac').innerText = task.doi_tac || '-';
+            document.getElementById('detail-so-dien-thoai').innerText = task.so_dien_thoai || '-';
+            document.getElementById('detail-ngay-bat-dau').innerText = task.ngay_bat_dau || '-';
+            document.getElementById('detail-ngay-ket-thuc').innerText = task.ngay_ket_thuc || '-';
+            document.getElementById('detail-gia-han-den-ngay').innerText = task.gia_han_den_ngay || 'Không gia hạn';
+            
+            // Status badge
+            const statusBadge = document.getElementById('detail-trang-thai-badge');
+            statusBadge.className = `badge ${task.trang_thai.toLowerCase()}`;
+            statusBadge.innerText = getStatusTextVietnamese(task.trang_thai);
+            
+            document.getElementById('detail-nguoi-phu-trach').innerText = task.nguoi_phu_trach || '-';
+            document.getElementById('detail-thoi-gian-bao-hanh').innerText = task.thoi_gian_bao_hanh || 'Không có';
+            document.getElementById('detail-gia-tri-quyet-toan').innerText = formatCurrency(task.gia_tri_quyet_toan || 0);
+            document.getElementById('detail-nguoi-bao-cao').innerText = task.nguoi_bao_cao || '-';
+            document.getElementById('detail-nguoi-duyet').innerText = task.nguoi_duyet || '-';
+            
+            document.getElementById('detail-mo_ta').innerText = task.mo_ta || 'Không có mô tả chi tiết.';
+            document.getElementById('detail-dieu_khoan').innerText = task.dieu_khoan || 'Chưa quy định điều khoản hợp đồng.';
+            
+            // Render history logs
+            const historyTbody = document.getElementById('detail-history-tbody');
+            historyTbody.innerHTML = '';
+            
+            let taskLogs = [];
+            if (window.actionLogs) {
+                taskLogs = window.actionLogs.filter(log => {
+                    const logStr = (log.chi_tiet || log.details || '').toLowerCase();
+                    return logStr.includes(task.stt.toLowerCase()) || logStr.includes(task.ten_cong_viec.toLowerCase());
+                });
             }
+            
+            if (taskLogs.length > 0) {
+                taskLogs.forEach(log => {
+                    const timeStr = log.thoi_gian || log.timestamp || '';
+                    const dateFormatted = timeStr ? new Date(timeStr).toLocaleString('vi-VN') : '-';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${dateFormatted}</td>
+                        <td style="font-weight: 600;">${log.ho_ten || log.username}</td>
+                        <td>${log.chi_tiet || log.details || log.hanh_dong}</td>
+                    `;
+                    historyTbody.appendChild(tr);
+                });
+            } else {
+                historyTbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-muted);">Chưa có lịch sử cập nhật/báo cáo cho công việc này.</td>
+                    </tr>
+                `;
+            }
+            
+            document.getElementById('detail-task-modal').style.display = 'flex';
+        }
+        
+        function closeDetailModal() {
+            document.getElementById('detail-task-modal').style.display = 'none';
+        }
+        
+        function switchDetailTab(tabName) {
+            const overviewTab = document.getElementById('btn-detail-tab-overview');
+            const historyTab = document.getElementById('btn-detail-tab-history');
+            const overviewContent = document.getElementById('detail-content-overview');
+            const historyContent = document.getElementById('detail-content-history');
+            
+            if (tabName === 'overview') {
+                overviewTab.classList.add('active');
+                overviewTab.style.borderBottomColor = 'var(--primary)';
+                overviewTab.style.color = '#fff';
+                
+                historyTab.classList.remove('active');
+                historyTab.style.borderBottomColor = 'transparent';
+                historyTab.style.color = 'var(--text-muted)';
+                
+                overviewContent.style.display = 'block';
+                historyContent.style.display = 'none';
+            } else {
+                historyTab.classList.add('active');
+                historyTab.style.borderBottomColor = 'var(--primary)';
+                historyTab.style.color = '#fff';
+                
+                overviewTab.classList.remove('active');
+                overviewTab.style.borderBottomColor = 'transparent';
+                overviewTab.style.color = 'var(--text-muted)';
+                
+                overviewContent.style.display = 'none';
+                historyContent.style.display = 'block';
+            }
+        }
+        
+        function formatCurrency(val) {
+            if (val === undefined || val === null) return '0đ';
+            if (typeof val === 'string') return val;
+            return Number(val).toLocaleString('vi-VN') + 'đ';
+        }
+        
+        function triggerEditFromDetail() {
+            closeDetailModal();
+            showActualEditForm(currentDetailTaskId);
+        }
+
+        function showActualEditForm(id) {
+            let task = null;
+            if (window.currentTasks) {
+                task = window.currentTasks.find(t => t.id === id);
+            }
+            if (!task && window.allProjectTasks) {
+                task = window.allProjectTasks.find(t => t.id === id);
+            }
+            if (!task) return;
             
             // Client-side permission checks
             const activeUsername = localStorage.getItem('active_username');
@@ -2649,8 +3044,6 @@
             // Disable status editing for all roles except Admin
             const statusSelect = document.getElementById('edit-status');
             if (statusSelect) {
-                const activeUsername = localStorage.getItem('active_username');
-                const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
                 if (activeUser && activeUser.role === 'Admin') {
                     statusSelect.removeAttribute('disabled');
                 } else {
@@ -2688,22 +3081,65 @@
             document.getElementById('edit-cach-giai-quyet').value = task.cach_giai_quyet || '';
             document.getElementById('edit-duyet-tuan').value = task.duyet_tuan || 'Chưa duyệt';
 
-            // Disable non-weekly fields to prevent editing WBS structural data
-            document.getElementById('edit-wbs').disabled = true;
-            document.getElementById('edit-name').disabled = true;
-            document.getElementById('edit-dept').disabled = true;
-            document.getElementById('edit-deadline').disabled = true;
-            document.getElementById('edit-budget').disabled = true;
-            document.getElementById('edit-progress').disabled = true;
-            document.getElementById('edit-status').disabled = true;
-            document.getElementById('edit-deliverables-custom').disabled = true;
-            document.getElementById('edit-cond-custom').disabled = true;
+            // Populate new fields
+            document.getElementById('edit-ngay-khoi-tao').value = task.ngay_khoi_tao || '';
+            document.getElementById('edit-cong-trinh').value = task.cong_trinh || '';
+            document.getElementById('edit-doi-tac').value = task.doi_tac || '';
+            document.getElementById('edit-so-dien-thoai').value = task.so_dien_thoai || '';
+            document.getElementById('edit-ngay-bat-dau').value = task.ngay_bat_dau || '';
+            document.getElementById('edit-ngay-ket-thuc').value = task.ngay_ket_thuc || '';
+            document.getElementById('edit-gia-han-den-ngay').value = task.gia_han_den_ngay || '';
+            document.getElementById('edit-thoi-gian-bao-hanh').value = task.thoi_gian_bao_hanh || '';
+            document.getElementById('edit-mo-ta').value = task.mo_ta || '';
+            document.getElementById('edit-dieu-khoan').value = task.dieu_khoan || '';
             
-            document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = true);
-            document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = true);
+            document.getElementById('edit-nguoi-phu-trach').value = task.nguoi_phu_trach || '';
+            document.getElementById('edit-nguoi-bao-cao').value = task.nguoi_bao_cao || '';
+            document.getElementById('edit-nguoi-duyet').value = task.nguoi_duyet || '';
+            
+            document.getElementById('edit-gia-tri-quyet-toan').value = task.gia_tri_quyet_toan ? Number(task.gia_tri_quyet_toan).toLocaleString('vi-VN') : '0';
+            document.getElementById('edit-da-nghiem-thu').value = task.da_nghiem_thu ? Number(task.da_nghiem_thu).toLocaleString('vi-VN') : '0';
+            document.getElementById('edit-da-thanh-toan').value = task.da_thanh_toan ? Number(task.da_thanh_toan).toLocaleString('vi-VN') : '0';
+            document.getElementById('edit-tam-ung').value = task.tam_ung ? Number(task.tam_ung).toLocaleString('vi-VN') : '0';
+            document.getElementById('edit-da-thu-hoi-tam-ung').value = task.da_thu_hoi_tam_ung ? Number(task.da_thu_hoi_tam_ung).toLocaleString('vi-VN') : '0';
 
             // Apply role permissions to form fields
-            const userRole = localStorage.getItem('user_role') || 'CBQL';
+            const isAdminOrPM = activeUser && (activeUser.role === 'Admin' || activeUser.role === 'PM');
+            
+            document.getElementById('edit-wbs').disabled = !isAdminOrPM;
+            document.getElementById('edit-name').disabled = !isAdminOrPM;
+            document.getElementById('edit-dept').disabled = !isAdminOrPM;
+            document.getElementById('edit-deadline').disabled = !isAdminOrPM;
+            document.getElementById('edit-budget').disabled = !isAdminOrPM;
+            document.getElementById('edit-ngay-khoi-tao').disabled = !isAdminOrPM;
+            document.getElementById('edit-cong-trinh').disabled = !isAdminOrPM;
+            document.getElementById('edit-doi-tac').disabled = !isAdminOrPM;
+            document.getElementById('edit-so-dien-thoai').disabled = !isAdminOrPM;
+            document.getElementById('edit-ngay-bat-dau').disabled = !isAdminOrPM;
+            document.getElementById('edit-ngay-ket-thuc').disabled = !isAdminOrPM;
+            document.getElementById('edit-thoi-gian-bao-hanh').disabled = !isAdminOrPM;
+            document.getElementById('edit-dieu-khoan').disabled = !isAdminOrPM;
+            document.getElementById('edit-nguoi-duyet').disabled = !isAdminOrPM;
+
+            document.getElementById('edit-progress').disabled = false;
+            document.getElementById('edit-deliverables-custom').disabled = false;
+            document.getElementById('edit-cond-custom').disabled = false;
+            document.getElementById('edit-gia-han-den-ngay').disabled = false;
+            document.getElementById('edit-mo-ta').disabled = false;
+            
+            document.getElementById('edit-nguoi-phu-trach').disabled = false;
+            document.getElementById('edit-nguoi-bao-cao').disabled = false;
+            
+            document.getElementById('edit-gia-tri-quyet-toan').disabled = false;
+            document.getElementById('edit-da-nghiem-thu').disabled = false;
+            document.getElementById('edit-da-thanh-toan').disabled = false;
+            document.getElementById('edit-tam-ung').disabled = false;
+            document.getElementById('edit-da-thu-hoi-tam-ung').disabled = false;
+            
+            document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = false);
+            document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = false);
+
+            const userRole = activeUser ? activeUser.role : 'NhanVien';
             if (userRole === 'NhanVien') {
                 document.getElementById('edit-duyet-tuan').disabled = true;
                 document.getElementById('edit-cach-giai-quyet').disabled = true;
@@ -2725,7 +3161,6 @@
             document.getElementById('edit-task-modal').style.display = 'none';
         }
 
-        // Save Task progress/details via API
         function saveTaskProgress() {
             const id = document.getElementById('edit-id').value;
             const wbs = document.getElementById('edit-wbs').value;
@@ -2766,39 +3201,96 @@
             const cachGiaiQuyet = document.getElementById('edit-cach-giai-quyet').value.trim();
             const duyetTuan = document.getElementById('edit-duyet-tuan').value;
 
+            // Gather new fields
+            const ngayKhoiTao = document.getElementById('edit-ngay-khoi-tao').value.trim();
+            const congTrinh = document.getElementById('edit-cong-trinh').value.trim();
+            const doiTac = document.getElementById('edit-doi-tac').value.trim();
+            const soDienThoai = document.getElementById('edit-so-dien-thoai').value.trim();
+            const ngayBatDau = document.getElementById('edit-ngay-bat-dau').value;
+            const ngayKetThuc = document.getElementById('edit-ngay-ket-thuc').value;
+            const giaHanDenNgay = document.getElementById('edit-gia-han-den-ngay').value;
+            const thoiGianBaoHanh = document.getElementById('edit-thoi-gian-bao-hanh').value.trim();
+            const moTa = document.getElementById('edit-mo-ta').value.trim();
+            const dieuKhoan = document.getElementById('edit-dieu-khoan').value.trim();
+            
+            const nguoiPhuTrach = document.getElementById('edit-nguoi-phu-trach').value.trim();
+            const nguoiBaoCao = document.getElementById('edit-nguoi-bao-cao').value.trim();
+            const nguoiDuyet = document.getElementById('edit-nguoi-duyet').value.trim();
+            
+            const giaTriQuyetToan = parseFloat(document.getElementById('edit-gia-tri-quyet-toan').value.replace(/\./g, '').replace(/,/g, '')) || 0;
+            const daNghiemThu = parseFloat(document.getElementById('edit-da-nghiem-thu').value.replace(/\./g, '').replace(/,/g, '')) || 0;
+            const daThanhToan = parseFloat(document.getElementById('edit-da-thanh-toan').value.replace(/\./g, '').replace(/,/g, '')) || 0;
+            const tamUng = parseFloat(document.getElementById('edit-tam-ung').value.replace(/\./g, '').replace(/,/g, '')) || 0;
+            const daThuHoiTamUng = parseFloat(document.getElementById('edit-da-thu-hoi-tam-ung').value.replace(/\./g, '').replace(/,/g, '')) || 0;
+
             const activeUsername = localStorage.getItem('active_username') || 'admin';
-            fetch(backendUrl + `/api/tasks/${id}?username=${encodeURIComponent(activeUsername)}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ma_ngan_sach: wbs,
-                    ten_cong_viec: name,
-                    phong_ban_thuc_hien: dept,
-                    co_quan_giai_quyet: '-',
-                    ho_so_dau_ra: deliverables,
-                    dieu_kien_ghi_nhan: cond,
-                    thoi_han_hoan_thanh: deadline,
-                    tien_do: progress,
-                    trang_thai: status,
-                    ngan_sach: budget,
-                    ke_hoach_tuan: keHoachTuan,
-                    ket_qua_tuan: ketQuaTuan,
-                    vuong_mac_tuan: vuongMacTuan,
-                    cach_giai_quyet: cachGiaiQuyet,
-                    duyet_tuan: duyetTuan
-                })
-            })
-            .then(async res => {
-                const data = await res.json();
-                if (res.ok) {
+            
+            const payload = {
+                ma_ngan_sach: wbs,
+                ten_cong_viec: name,
+                phong_ban_thuc_hien: dept,
+                co_quan_giai_quyet: '-',
+                ho_so_dau_ra: deliverables,
+                dieu_kien_ghi_nhan: cond,
+                thoi_han_hoan_thanh: deadline,
+                tien_do: progress,
+                trang_thai: status,
+                ngan_sach: budget,
+                ke_hoach_tuan: keHoachTuan,
+                ket_qua_tuan: ketQuaTuan,
+                vuong_mac_tuan: vuongMacTuan,
+                cach_giai_quyet: cachGiaiQuyet,
+                duyet_tuan: duyetTuan,
+                
+                ngay_khoi_tao: ngayKhoiTao,
+                cong_trinh: congTrinh,
+                doi_tac: doiTac,
+                so_dien_thoai: soDienThoai,
+                ngay_bat_dau: ngayBatDau,
+                ngay_ket_thuc: ngayKetThuc,
+                gia_han_den_ngay: giaHanDenNgay,
+                thoi_gian_bao_hanh: thoiGianBaoHanh,
+                mo_ta: moTa,
+                dieu_khoan: dieuKhoan,
+                nguoi_phu_trach: nguoiPhuTrach,
+                nguoi_bao_cao: nguoiBaoCao,
+                nguoi_duyet: nguoiDuyet,
+                
+                gia_tri_quyet_toan: giaTriQuyetToan,
+                da_nghiem_thu: daNghiemThu,
+                da_thanh_toan: daThanhToan,
+                tam_ung: tamUng,
+                da_thu_hoi_tam_ung: daThuHoiTamUng
+            };
+
+            if (isOfflineMode) {
+                const updated = LocalDBManager.updateTask(id, payload, activeUsername);
+                if (updated) {
                     closeEditModal();
+                    autoSyncGitHub();
                     fetchStats();
                     fetchTasks(currentPhase);
                 } else {
-                    alert(`LỖI HỆ THỐNG: ${data.detail}`);
+                    alert("Lỗi: Không thể cập nhật công việc ngoại tuyến.");
                 }
-            })
-            .catch(err => console.error("Error updating task details:", err));
+            } else {
+                fetch(backendUrl + `/api/tasks/${id}?username=${encodeURIComponent(activeUsername)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(async res => {
+                    const data = await res.json();
+                    if (res.ok) {
+                        closeEditModal();
+                        fetchStats();
+                        fetchTasks(currentPhase);
+                    } else {
+                        alert(`LỖI HỆ THỐNG: ${data.detail}`);
+                    }
+                })
+                .catch(err => console.error("Error updating task details:", err));
+            }
         }
 
         // Add Child modal actions

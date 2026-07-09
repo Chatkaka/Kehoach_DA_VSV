@@ -587,6 +587,24 @@ def get_tasks(
             "vuong_mac_tuan": t.vuong_mac_tuan,
             "cach_giai_quyet": t.cach_giai_quyet,
             "duyet_tuan": t.duyet_tuan,
+            "ngay_khoi_tao": t.ngay_khoi_tao,
+            "cong_trinh": t.cong_trinh,
+            "doi_tac": t.doi_tac,
+            "so_dien_thoai": t.so_dien_thoai,
+            "ngay_bat_dau": t.ngay_bat_dau,
+            "ngay_ket_thuc": t.ngay_ket_thuc,
+            "gia_han_den_ngay": t.gia_han_den_ngay,
+            "thoi_gian_bao_hanh": t.thoi_gian_bao_hanh,
+            "mo_ta": t.mo_ta,
+            "dieu_khoan": t.dieu_khoan,
+            "nguoi_phu_trach": t.nguoi_phu_trach,
+            "nguoi_bao_cao": t.nguoi_bao_cao,
+            "nguoi_duyet": t.nguoi_duyet,
+            "gia_tri_quyet_toan": t.gia_tri_quyet_toan,
+            "da_nghiem_thu": t.da_nghiem_thu,
+            "da_thanh_toan": t.da_thanh_toan,
+            "tam_ung": t.tam_ung,
+            "da_thu_hoi_tam_ung": t.da_thu_hoi_tam_ung,
             "budget": {
                 "ngan_sach_tong": t.budget.ngan_sach_tong if t.budget else 0.0,
                 "is_locked": t.budget.is_locked if t.budget else False
@@ -1400,6 +1418,28 @@ class TaskUpdate(BaseModel):
     vuong_mac_tuan: Optional[str] = ""
     cach_giai_quyet: Optional[str] = ""
     duyet_tuan: Optional[str] = "Chưa duyệt"
+    
+    # New Operational and Financial fields
+    ngay_khoi_tao: Optional[str] = ""
+    cong_trinh: Optional[str] = ""
+    doi_tac: Optional[str] = ""
+    so_dien_thoai: Optional[str] = ""
+    ngay_bat_dau: Optional[str] = ""
+    ngay_ket_thuc: Optional[str] = ""
+    gia_han_den_ngay: Optional[str] = ""
+    thoi_gian_bao_hanh: Optional[str] = ""
+    mo_ta: Optional[str] = ""
+    dieu_khoan: Optional[str] = ""
+    
+    nguoi_phu_trach: Optional[str] = ""
+    nguoi_bao_cao: Optional[str] = ""
+    nguoi_duyet: Optional[str] = ""
+    
+    gia_tri_quyet_toan: Optional[float] = 0.0
+    da_nghiem_thu: Optional[float] = 0.0
+    da_thanh_toan: Optional[float] = 0.0
+    tam_ung: Optional[float] = 0.0
+    da_thu_hoi_tam_ung: Optional[float] = 0.0
 
 @app.put("/api/tasks/{task_id}")
 async def update_task_details(
@@ -1471,6 +1511,28 @@ async def update_task_details(
     task.vuong_mac_tuan = request.vuong_mac_tuan.strip() if request.vuong_mac_tuan else ""
     task.cach_giai_quyet = request.cach_giai_quyet.strip() if request.cach_giai_quyet else ""
     task.duyet_tuan = request.duyet_tuan.strip() if request.duyet_tuan else "Chưa duyệt"
+    
+    # Map new fields
+    task.ngay_khoi_tao = request.ngay_khoi_tao.strip() if request.ngay_khoi_tao else ""
+    task.cong_trinh = request.cong_trinh.strip() if request.cong_trinh else ""
+    task.doi_tac = request.doi_tac.strip() if request.doi_tac else ""
+    task.so_dien_thoai = request.so_dien_thoai.strip() if request.so_dien_thoai else ""
+    task.ngay_bat_dau = request.ngay_bat_dau.strip() if request.ngay_bat_dau else ""
+    task.ngay_ket_thuc = request.ngay_ket_thuc.strip() if request.ngay_ket_thuc else ""
+    task.gia_han_den_ngay = request.gia_han_den_ngay.strip() if request.gia_han_den_ngay else ""
+    task.thoi_gian_bao_hanh = request.thoi_gian_bao_hanh.strip() if request.thoi_gian_bao_hanh else ""
+    task.mo_ta = request.mo_ta.strip() if request.mo_ta else ""
+    task.dieu_khoan = request.dieu_khoan.strip() if request.dieu_khoan else ""
+    
+    task.nguoi_phu_trach = request.nguoi_phu_trach.strip() if request.nguoi_phu_trach else ""
+    task.nguoi_bao_cao = request.nguoi_bao_cao.strip() if request.nguoi_bao_cao else ""
+    task.nguoi_duyet = request.nguoi_duyet.strip() if request.nguoi_duyet else ""
+    
+    task.gia_tri_quyet_toan = request.gia_tri_quyet_toan or 0.0
+    task.da_nghiem_thu = request.da_nghiem_thu or 0.0
+    task.da_thanh_toan = request.da_thanh_toan or 0.0
+    task.tam_ung = request.tam_ung or 0.0
+    task.da_thu_hoi_tam_ung = request.da_thu_hoi_tam_ung or 0.0
     
     if task.budget:
         task.budget.ngan_sach_tong = request.ngan_sach
@@ -1545,6 +1607,24 @@ async def update_task_details(
         "vuong_mac_tuan": task.vuong_mac_tuan,
         "cach_giai_quyet": task.cach_giai_quyet,
         "duyet_tuan": task.duyet_tuan,
+        "ngay_khoi_tao": task.ngay_khoi_tao,
+        "cong_trinh": task.cong_trinh,
+        "doi_tac": task.doi_tac,
+        "so_dien_thoai": task.so_dien_thoai,
+        "ngay_bat_dau": task.ngay_bat_dau,
+        "ngay_ket_thuc": task.ngay_ket_thuc,
+        "gia_han_den_ngay": task.gia_han_den_ngay,
+        "thoi_gian_bao_hanh": task.thoi_gian_bao_hanh,
+        "mo_ta": task.mo_ta,
+        "dieu_khoan": task.dieu_khoan,
+        "nguoi_phu_trach": task.nguoi_phu_trach,
+        "nguoi_bao_cao": task.nguoi_bao_cao,
+        "nguoi_duyet": task.nguoi_duyet,
+        "gia_tri_quyet_toan": task.gia_tri_quyet_toan,
+        "da_nghiem_thu": task.da_nghiem_thu,
+        "da_thanh_toan": task.da_thanh_toan,
+        "tam_ung": task.tam_ung,
+        "da_thu_hoi_tam_ung": task.da_thu_hoi_tam_ung,
         "budget": {
             "ngan_sach_tong": task.budget.ngan_sach_tong if task.budget else 0.0,
             "is_locked": task.budget.is_locked if task.budget else False
