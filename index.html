@@ -977,8 +977,16 @@
                     // GET /api/logs
                     if (path === '/api/logs' && method === 'GET') {
                         const logs = LocalDBManager.getLogs();
-                        const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                        return new Response(JSON.stringify(sortedLogs), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                        const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp || b.thoi_gian) - new Date(a.timestamp || a.thoi_gian));
+                        const translatedLogs = sortedLogs.map(l => ({
+                            id: l.id,
+                            username: l.username,
+                            ho_ten: l.ho_ten,
+                            hanh_dong: l.action || l.hanh_dong || 'Cập nhật',
+                            chi_tiet: l.details || l.chi_tiet || '',
+                            thoi_gian: l.timestamp ? l.timestamp.replace('T', ' ').substring(0, 19) : (l.thoi_gian || '')
+                        }));
+                        return new Response(JSON.stringify(translatedLogs), { status: 200, headers: { 'Content-Type': 'application/json' } });
                     }
                     
                     // POST /api/users
@@ -1674,14 +1682,15 @@
                     logs.forEach(l => {
                         const tr = document.createElement('tr');
                         
+                        const actionName = l.hanh_dong || '';
                         let badgeClass = 'todo';
-                        if (l.hanh_dong.toLowerCase().includes('xóa')) badgeClass = 'delayed';
-                        else if (l.hanh_dong.toLowerCase().includes('thêm') || l.hanh_dong.toLowerCase().includes('tạo')) badgeClass = 'done';
+                        if (actionName.toLowerCase().includes('xóa')) badgeClass = 'delayed';
+                        else if (actionName.toLowerCase().includes('thêm') || actionName.toLowerCase().includes('tạo') || actionName.toLowerCase().includes('cập nhật')) badgeClass = 'done';
                         
                         tr.innerHTML = `
-                            <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian}</td>
+                            <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian || ''}</td>
                             <td style="font-weight:600;">${l.ho_ten} (<code>${l.username}</code>)</td>
-                            <td style="text-align:center;"><span class="badge ${badgeClass}">${l.hanh_dong}</span></td>
+                            <td style="text-align:center;"><span class="badge ${badgeClass}">${actionName}</span></td>
                             <td style="color:var(--text-primary); font-size:0.85rem;">${l.chi_tiet || '-'}</td>
                         `;
                         tbody.appendChild(tr);
