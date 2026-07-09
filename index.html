@@ -12,6 +12,7 @@
     <script src="local_db.js"></script>
     <script src="ai_service.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -1061,25 +1062,196 @@
             }
         });
 
-        function exportToExcel() {
+        async function exportToExcel() {
             if (isOfflineMode) {
-                console.log("Exporting to Excel client-side...");
-                const tasks = LocalDBManager.getTasks();
-                const data = tasks.map(t => ({
-                    "STT": t.stt,
-                    "Mã Ngân Sách (WBS)": t.ma_ngan_sach,
-                    "Tên Hạng Mục Công Việc": t.ten_cong_viec,
-                    "Đơn Vị Thực Hiện": t.don_vi_thuc_hien,
-                    "Ngân Sách (Trđ)": t.ngan_sach,
-                    "Thực Chi (Trđ)": t.thuc_chi,
-                    "Tiến Độ (%)": t.tien_do,
-                    "Trạng Thái": t.trang_thai,
-                    "Ghi Chú": t.ghi_chu || ""
-                }));
-                const ws = XLSX.utils.json_to_sheet(data);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "DanhSachCongViec");
-                XLSX.writeFile(wb, "Danh_Sach_Cong_Viec_VSV.xlsx");
+                console.log("Exporting to Excel client-side using ExcelJS...");
+                try {
+                    const workbook = new ExcelJS.Workbook();
+                    const sheet = workbook.addWorksheet("Ke_hoach_cong_viec");
+                    
+                    // Set gridlines visible
+                    sheet.views = [{ showGridLines: true }];
+                    
+                    // Freeze header row
+                    sheet.views[0].state = 'frozen';
+                    sheet.views[0].ySplit = 1;
+                    
+                    // Column Headers
+                    const headers = [
+                        "STT",
+                        "Cấp",
+                        "Mã Ngân Sách (WBS)",
+                        "Nội dung công việc",
+                        "Phòng ban thực hiện",
+                        "Hồ sơ đầu ra",
+                        "Thời hạn hoàn thành",
+                        "Điều kiện ghi nhận kết quả",
+                        "Ngân sách tổng (Trđ)",
+                        "Tiến độ (%)",
+                        "Kế hoạch tuần",
+                        "Kết quả tuần",
+                        "Vướng mắc tuần",
+                        "Giải quyết của CBQL/Phòng ban",
+                        "Duyệt tuần",
+                        "Trạng thái"
+                    ];
+                    
+                    const headerRow = sheet.addRow(headers);
+                    headerRow.height = 28;
+                    
+                    // Header styling
+                    const headerFill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FF1E293B' } // 1E293B (Dark Slate)
+                    };
+                    const headerFont = {
+                        name: 'Segoe UI',
+                        size: 11,
+                        bold: true,
+                        color: { argb: 'FFFFFFFF' }
+                    };
+                    
+                    const thinBorder = {
+                        top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+                        left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+                        bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+                        right: { style: 'thin', color: { argb: 'FFDDDDDD' } }
+                    };
+                    
+                    headerRow.eachCell((cell) => {
+                        cell.fill = headerFill;
+                        cell.font = headerFont;
+                        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                        cell.border = thinBorder;
+                    });
+                    
+                    // Fills & Fonts for Level 1, 2, 3
+                    const level1Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } }; // Dark Blue
+                    const level1Font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                    
+                    const level2Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } }; // Sky Blue 100
+                    const level2Font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF0369A1' } };
+                    
+                    const level3Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }; // Slate 50
+                    const level3Font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: 'FF1E293B' } };
+                    
+                    const standardFont = { name: 'Segoe UI', size: 10, bold: false, color: { argb: 'FF334155' } };
+                    
+                    // Sort tasks hierarchically
+                    const tasks = LocalDBManager.getTasks();
+                    tasks.sort((a, b) => {
+                        const aParts = a.stt.split('.').map(x => isNaN(x) ? 999 : parseInt(x));
+                        const bParts = b.stt.split('.').map(x => isNaN(x) ? 999 : parseInt(x));
+                        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                            if (aParts[i] === undefined) return -1;
+                            if (bParts[i] === undefined) return 1;
+                            if (aParts[i] !== bParts[i]) return aParts[i] - bParts[i];
+                        }
+                        return 0;
+                    });
+                    
+                    tasks.forEach(t => {
+                        const dotCount = (t.stt.match(/\./g) || []).length;
+                        const tLevel = dotCount + 1;
+                        const indentedName = "    ".repeat(tLevel - 1) + t.ten_cong_viec;
+                        
+                        // Get Vietnamese status
+                        const vnStatus = t.trang_thai === "Todo" ? "Chưa thực hiện" :
+                                         t.trang_thai === "In-Progress" ? "Đang thực hiện" :
+                                         t.trang_thai === "Done" ? "Hoàn thành" :
+                                         t.trang_thai === "Delayed" ? "Trễ hẹn" : t.trang_thai;
+                        
+                        const rowData = [
+                            t.stt,
+                            tLevel,
+                            t.ma_ngan_sach || "-",
+                            indentedName,
+                            t.phong_ban_thuc_hien || "-",
+                            t.ho_so_dau_ra || "-",
+                            t.thoi_han_hoan_thanh || "-",
+                            t.dieu_kien_ghi_nhan || "-",
+                            t.ngan_sach || 0,
+                            t.tien_do ? (t.tien_do / 100) : 0,
+                            t.ke_hoach_tuan || "-",
+                            t.ket_qua_tuan || "-",
+                            t.vuong_mac_tuan || "-",
+                            t.cach_giai_quyet || "-",
+                            t.duyet_tuan || "Chưa duyệt",
+                            vnStatus
+                        ];
+                        
+                        const row = sheet.addRow(rowData);
+                        row.height = 22;
+                        
+                        // Style level row
+                        let rowFill = null;
+                        let rowFont = standardFont;
+                        
+                        if (tLevel === 1) {
+                            rowFill = level1Fill;
+                            rowFont = level1Font;
+                        } else if (tLevel === 2) {
+                            rowFill = level2Fill;
+                            rowFont = level2Font;
+                        } else if (tLevel === 3) {
+                            rowFill = level3Fill;
+                            rowFont = level3Font;
+                        }
+                        
+                        row.eachCell((cell, colIndex) => {
+                            if (rowFill) cell.fill = rowFill;
+                            cell.font = rowFont;
+                            cell.border = thinBorder;
+                            
+                            // Alignments
+                            const col1Idx = colIndex - 1; // ExcelJS columns are 1-indexed
+                            if ([0, 1, 2, 6, 14, 15].includes(col1Idx)) {
+                                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                            } else if (col1Idx === 8) {
+                                cell.alignment = { horizontal: 'right', vertical: 'middle' };
+                                cell.numFmt = '#,##0.00" Trđ"';
+                            } else if (col1Idx === 9) {
+                                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                                cell.numFmt = '0.0%';
+                            } else {
+                                cell.alignment = { horizontal: 'left', vertical: 'middle' };
+                            }
+                        });
+                    });
+                    
+                    // Adjust column widths
+                    sheet.columns.forEach(column => {
+                        let maxLen = 0;
+                        column.eachCell({ includeEmpty: true }, cell => {
+                            const valStr = cell.value ? String(cell.value) : '';
+                            if (valStr.length > maxLen) {
+                                maxLen = valStr.length;
+                            }
+                        });
+                        
+                        const colLetter = column.letter;
+                        if (colLetter === 'D') {
+                            column.width = Math.max(maxLen + 8, 30);
+                        } else {
+                            column.width = Math.max(maxLen + 4, 12);
+                        }
+                    });
+                    
+                    // Write and download
+                    const buffer = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = "Danh_Sach_Cong_Viec_VSV.xlsx";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                } catch (error) {
+                    console.error("ExcelJS Export Error:", error);
+                    alert("Lỗi xuất file Excel: " + error.message);
+                }
             } else {
                 window.open((backendUrl || '') + '/api/tasks/export', '_blank');
             }
@@ -1653,13 +1825,16 @@
                 .then(tasks => {
                     window.allProjectTasks = tasks;
                     
-                    const today = new Date("2026-07-07"); // Simulation today date matching current local time metadata
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
                     
                     // Filter 1: Cận hạn 7 ngày (Công việc chưa hoàn thành, có thời hạn và cách hạn <= 7 ngày)
                     const nearDeadlineTasks = tasks.filter(t => {
                         if (t.trang_thai === "Done") return false;
-                        if (!t.thoi_han_hoan_thanh) return false;
-                        const deadline = new Date(t.thoi_han_hoan_thanh);
+                        if (!t.thoi_han_hoan_thanh || t.thoi_han_hoan_thanh === "null" || t.thoi_han_hoan_thanh === "-") return false;
+                        const parts = t.thoi_han_hoan_thanh.split('-');
+                        if (parts.length !== 3) return false;
+                        const deadline = new Date(parts[0], parts[1] - 1, parts[2]);
                         const diffTime = deadline - today;
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         return diffDays >= 0 && diffDays <= 7;
@@ -1668,8 +1843,10 @@
                     // Filter 2: Đã quá thời hạn (Công việc chưa hoàn thành, có thời hạn và hôm nay đã vượt quá hạn)
                     const overdueTasks = tasks.filter(t => {
                         if (t.trang_thai === "Done") return false;
-                        if (!t.thoi_han_hoan_thanh) return false;
-                        const deadline = new Date(t.thoi_han_hoan_thanh);
+                        if (!t.thoi_han_hoan_thanh || t.thoi_han_hoan_thanh === "null" || t.thoi_han_hoan_thanh === "-") return false;
+                        const parts = t.thoi_han_hoan_thanh.split('-');
+                        if (parts.length !== 3) return false;
+                        const deadline = new Date(parts[0], parts[1] - 1, parts[2]);
                         const diffTime = deadline - today;
                         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                         return diffDays < 0;

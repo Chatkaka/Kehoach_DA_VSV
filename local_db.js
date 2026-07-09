@@ -6084,12 +6084,16 @@ const OFFLINE_INITIAL_DATA = {
 // LocalDBManager - Full client-side LocalStorage DB fallback
 class LocalDBManager {
     static init() {
-        if (!localStorage.getItem('vsv_db_initialized')) {
+        const CURRENT_VERSION = '2'; // Bumped version to force sync new database updates
+        const storedVersion = localStorage.getItem('vsv_db_version');
+        if (!localStorage.getItem('vsv_db_initialized') || storedVersion !== CURRENT_VERSION) {
             localStorage.setItem('vsv_users', JSON.stringify(OFFLINE_INITIAL_DATA.users));
             localStorage.setItem('vsv_tasks', JSON.stringify(OFFLINE_INITIAL_DATA.tasks));
             localStorage.setItem('vsv_spendings', JSON.stringify(OFFLINE_INITIAL_DATA.spendings));
             localStorage.setItem('vsv_logs', JSON.stringify(OFFLINE_INITIAL_DATA.logs));
             localStorage.setItem('vsv_db_initialized', 'true');
+            localStorage.setItem('vsv_db_version', CURRENT_VERSION);
+            console.log("Database initialized/migrated to version", CURRENT_VERSION);
         }
     }
 
