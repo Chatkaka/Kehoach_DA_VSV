@@ -756,7 +756,7 @@
                 const timeoutId = setTimeout(() => controller.abort(), 1000);
                 
                 try {
-                    const res = await fetch(cleanUrl + '/api/users', { signal: controller.signal });
+                    const res = await originalFetch(cleanUrl + '/api/users', { signal: controller.signal });
                     clearTimeout(timeoutId);
                     if (res.ok) {
                         return cleanUrl;
