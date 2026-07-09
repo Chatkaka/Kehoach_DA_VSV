@@ -1396,7 +1396,6 @@
         }
 
         async function exportWeeklyToExcel() {
-            showToast("Xuất Excel", "Đang chuẩn bị danh sách kế hoạch tuần...", "info");
             try {
                 const workbook = new ExcelJS.Workbook();
                 const sheet = workbook.addWorksheet("Ke_hoach_tuan");
@@ -1550,7 +1549,6 @@
                 link.click();
                 document.body.removeChild(link);
                 
-                showToast("Thành công", "Đã xuất báo cáo kế hoạch tuần!", "success");
             } catch (error) {
                 console.error("ExcelJS Export Weekly Error:", error);
                 alert("Lỗi xuất file Excel: " + error.message);
@@ -3089,6 +3087,7 @@
             filtered.forEach(task => {
                 const tr = document.createElement('tr');
                 tr.id = `weekly-row-${task.id}`;
+                tr.className = `level-${task.level}`;
 
                 let actionBtn = '';
                 if (userRole === 'NhanVien') {
