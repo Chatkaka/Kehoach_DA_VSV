@@ -616,6 +616,27 @@
                 </button>
             </div>
 
+            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 20px 0;">
+
+            <!-- 4. Database Backup & Restore -->
+            <div class="form-group" style="margin-bottom: 15px;">
+                <span style="font-weight: 700; font-size: 0.95rem; color: #10b981; display: flex; align-items: center; gap: 6px; margin-bottom: 10px;">
+                    <i class="fa-solid fa-database"></i> Sao Lưu & Đồng Bộ Dữ Liệu
+                </span>
+                <p style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.3;">
+                    Tải về hoặc tải lên file dữ liệu (.json) để đồng bộ giữa các máy tính/điện thoại khác nhau khi dùng chế độ Ngoại tuyến.
+                </p>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn" onclick="exportOfflineDatabase()" style="background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.4); padding: 8px 12px; font-size: 0.8rem; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="fa-solid fa-download"></i> Tải Về File Sao Lưu
+                    </button>
+                    <button type="button" class="btn" onclick="triggerImportDatabase()" style="background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.4); padding: 8px 12px; font-size: 0.8rem; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="fa-solid fa-upload"></i> Nhập File Sao Lưu
+                    </button>
+                    <input type="file" id="import-db-file" accept=".json" onchange="importOfflineDatabase(event)" style="display:none;">
+                </div>
+            </div>
+
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
                 <button class="btn secondary-btn" onclick="closeSettingsModal()" style="padding: 10px 18px; border-radius: 6px;">Hủy</button>
                 <button class="btn" onclick="saveSettings()" style="padding: 10px 18px; border-radius: 6px; background: var(--primary);">Lưu Cấu Hình</button>
@@ -2877,6 +2898,64 @@
             } else {
                 alert("Gửi tin nhắn test thất bại. Vui lòng kiểm tra lại Bot Token và Chat ID.");
             }
+        }
+
+        function exportOfflineDatabase() {
+            try {
+                const dbData = {
+                    tasks: localStorage.getItem('vsv_tasks') || '[]',
+                    users: localStorage.getItem('vsv_users') || '[]',
+                    spendings: localStorage.getItem('vsv_spendings') || '[]',
+                    logs: localStorage.getItem('vsv_logs') || '[]',
+                    version: localStorage.getItem('vsv_db_version') || '2',
+                    timestamp: new Date().toISOString()
+                };
+                
+                const blob = new Blob([JSON.stringify(dbData, null, 2)], { type: "application/json" });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = `VSV_Database_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                alert("Đã xuất file sao lưu dữ liệu thành công!");
+            } catch (error) {
+                alert("Lỗi xuất file sao lưu: " + error.message);
+            }
+        }
+        
+        function triggerImportDatabase() {
+            document.getElementById('import-db-file').click();
+        }
+        
+        function importOfflineDatabase(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!data.tasks || !data.users) {
+                        alert("File sao lưu không đúng cấu trúc hợp lệ.");
+                        return;
+                    }
+                    
+                    if (confirm("CẢNH BÁO: Nhập file sao lưu sẽ ghi đè toàn bộ dữ liệu hiện tại trên trình duyệt của máy này. Bạn có chắc chắn muốn tiếp tục?")) {
+                        localStorage.setItem('vsv_tasks', data.tasks);
+                        localStorage.setItem('vsv_users', data.users);
+                        if (data.spendings) localStorage.setItem('vsv_spendings', data.spendings);
+                        if (data.logs) localStorage.setItem('vsv_logs', data.logs);
+                        if (data.version) localStorage.setItem('vsv_db_version', data.version);
+                        
+                        alert("Nhập dữ liệu thành công! Ứng dụng sẽ tự động tải lại.");
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    alert("Lỗi đọc file sao lưu: " + error.message);
+                }
+            };
+            reader.readAsText(file);
         }
 
         function saveSettings() {
