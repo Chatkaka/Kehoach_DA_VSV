@@ -1138,8 +1138,116 @@
                     
                     const standardFont = { name: 'Segoe UI', size: 10, bold: false, color: { argb: 'FF334155' } };
                     
-                    // Sort tasks hierarchically
                     const tasks = LocalDBManager.getTasks();
+                    
+                    // Helper to parse date YYYY-MM-DD
+                    function parseDate(dStr) {
+                        if (!dStr || dStr === "null" || dStr === "-") return null;
+                        const parts = dStr.split('-');
+                        if (parts.length !== 3) return null;
+                        return new Date(parts[0], parts[1] - 1, parts[2]);
+                    }
+                    
+                    // Helper to format date as YYYY-MM-DD
+                    function formatDate(date) {
+                        if (!date) return "";
+                        const y = date.getFullYear();
+                        const m = String(date.getMonth() + 1).padStart(2, '0');
+                        const d = String(date.getDate()).padStart(2, '0');
+                        return `${y}-${m}-${d}`;
+                    }
+
+                    // 1. Compute rolled up deadlines client-side
+                    const rolledUpDeadlines = {};
+                    tasks.forEach(t => {
+                        rolledUpDeadlines[t.stt] = parseDate(t.thoi_han_hoan_thanh);
+                    });
+                    
+                    tasks.forEach(t => {
+                        const descendantDates = [];
+                        tasks.forEach(other => {
+                            if (other.stt.startsWith(t.stt + ".")) {
+                                const dDate = parseDate(other.thoi_han_hoan_thanh);
+                                if (dDate) descendantDates.push(dDate);
+                            }
+                        });
+                        if (descendantDates.length > 0) {
+                            const ownDate = parseDate(t.thoi_han_hoan_thanh);
+                            if (ownDate) descendantDates.push(ownDate);
+                            const maxDate = new Date(Math.max(...descendantDates));
+                            rolledUpDeadlines[t.stt] = maxDate;
+                        }
+                    });
+
+                    // 2. Status calculations (Phase 2 and Phase 1,3,4)
+                    function getCorrespondingTkbvtcDeadlineStt(taskName) {
+                        const nameUpper = String(taskName || "").toUpperCase();
+                        if (nameUpper.includes("KV 2") || nameUpper.includes("KV2")) return "14.3.1";
+                        if (nameUpper.includes("3.1")) return "14.3.2";
+                        if (nameUpper.includes("3.2")) return "14.3.3";
+                        if (nameUpper.includes("3.3")) return "14.3.4";
+                        if (nameUpper.includes("3.4")) return "14.3.5";
+                        if (nameUpper.includes("KV 4") || nameUpper.includes("KV4")) return "14.3.6";
+                        if (nameUpper.includes("CAO TẦNG") || nameUpper.includes("NCT")) return "14.3.7";
+                        if (nameUpper.includes("TDTT") || nameUpper.includes("THỂ DỤC THỂ THAO")) return "14.4.1";
+                        if (nameUpper.includes("VUI CHƠI") || nameUpper.includes("TRẺ EM")) return "14.4.2";
+                        return null;
+                    }
+
+                    const simulationToday = new Date("2026-07-07");
+                    simulationToday.setHours(0,0,0,0);
+
+                    function getComputedStatus(t) {
+                        if (t.tien_do >= 100 || t.trang_thai === "Done") return "Hoàn thành";
+                        
+                        const dotCount = (t.stt.match(/\./g) || []).length;
+                        const tLevel = dotCount + 1;
+                        
+                        if (t.phase_id === 1 || t.phase_id === 3 || t.phase_id === 4) {
+                            const rolledDate = rolledUpDeadlines[t.stt] || parseDate(t.thoi_han_hoan_thanh);
+                            if (!rolledDate) {
+                                return t.trang_thai === "Todo" ? "Chưa thực hiện" :
+                                       t.trang_thai === "In-Progress" ? "Đang thực hiện" :
+                                       t.trang_thai === "Delayed" ? "Quá hạn" : t.trang_thai;
+                            }
+                            if (simulationToday < rolledDate) {
+                                return "Đang thực hiện";
+                            } else {
+                                return "Quá hạn";
+                            }
+                        } else if (t.phase_id === 2 && tLevel === 3) {
+                            const compDate = parseDate(t.thoi_han_hoan_thanh);
+                            const tkbvtcStt = getCorrespondingTkbvtcDeadlineStt(t.ten_cong_viec);
+                            let tkbvtcDate = tkbvtcStt ? rolledUpDeadlines[tkbvtcStt] : null;
+                            if (!tkbvtcDate) {
+                                tkbvtcDate = new Date("2026-06-30");
+                            }
+                            
+                            if (!compDate) {
+                                return t.trang_thai === "Todo" ? "Chưa thực hiện" :
+                                       t.trang_thai === "In-Progress" ? "Đang thực hiện" :
+                                       t.trang_thai === "Delayed" ? "Quá hạn" : t.trang_thai;
+                            }
+                            
+                            if (simulationToday < tkbvtcDate) {
+                                return "Chưa thực hiện";
+                            }
+                            const bufferDate = new Date(compDate);
+                            bufferDate.setDate(bufferDate.getDate() - 20);
+                            if (simulationToday > bufferDate) {
+                                return "Quá hạn";
+                            }
+                            if (tkbvtcDate <= simulationToday && simulationToday <= compDate) {
+                                return "Đang thực hiện";
+                            }
+                        }
+                        
+                        return t.trang_thai === "Todo" ? "Chưa thực hiện" :
+                               t.trang_thai === "In-Progress" ? "Đang thực hiện" :
+                               t.trang_thai === "Delayed" ? "Quá hạn" : t.trang_thai;
+                    }
+
+                    // Sort tasks hierarchically
                     tasks.sort((a, b) => {
                         const aParts = a.stt.split('.').map(x => isNaN(x) ? 999 : parseInt(x));
                         const bParts = b.stt.split('.').map(x => isNaN(x) ? 999 : parseInt(x));
@@ -1156,11 +1264,15 @@
                         const tLevel = dotCount + 1;
                         const indentedName = "    ".repeat(tLevel - 1) + t.ten_cong_viec;
                         
-                        // Get Vietnamese status
-                        const vnStatus = t.trang_thai === "Todo" ? "Chưa thực hiện" :
-                                         t.trang_thai === "In-Progress" ? "Đang thực hiện" :
-                                         t.trang_thai === "Done" ? "Hoàn thành" :
-                                         t.trang_thai === "Delayed" ? "Trễ hẹn" : t.trang_thai;
+                        // Get rolled up deadline formatting
+                        const rolledDateObj = rolledUpDeadlines[t.stt];
+                        const finalDeadline = rolledDateObj ? formatDate(rolledDateObj) : (t.thoi_han_hoan_thanh || "-");
+                        
+                        // Get computed status
+                        const vnStatus = getComputedStatus(t);
+                        
+                        // Extract budget value correctly
+                        const budgetVal = (t.budget && t.budget.ngan_sach_tong) ? t.budget.ngan_sach_tong : 0;
                         
                         const rowData = [
                             t.stt,
@@ -1169,9 +1281,9 @@
                             indentedName,
                             t.phong_ban_thuc_hien || "-",
                             t.ho_so_dau_ra || "-",
-                            t.thoi_han_hoan_thanh || "-",
+                            finalDeadline,
                             t.dieu_kien_ghi_nhan || "-",
-                            t.ngan_sach || 0,
+                            budgetVal,
                             t.tien_do ? (t.tien_do / 100) : 0,
                             t.ke_hoach_tuan || "-",
                             t.ket_qua_tuan || "-",
