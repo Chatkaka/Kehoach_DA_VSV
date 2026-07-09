@@ -412,7 +412,7 @@
             
             <!-- Dashboard Row -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 15px;">
-                <!-- Card 1: Acceptance & Production Progress -->
+                <!-- Card 1: Project Budget & Cumulative Acceptance -->
                 <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 16px; border-radius: 10px; display: flex; align-items: center; gap: 15px;">
                     <!-- Circular Widget -->
                     <div style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2); border-radius:50%; flex-shrink: 0;">
@@ -422,21 +422,21 @@
                         </svg>
                         <div style="position:absolute; text-align:center;">
                             <span id="label-nghiem-thu-pct" style="font-size:0.95rem; font-weight:700; color: #10b981;">0%</span>
-                            <span style="font-size:0.5rem; display:block; color:var(--text-muted); text-transform:uppercase; margin-top:-2px; font-weight: 600;">Nghiệm Thu</span>
+                            <span style="font-size:0.45rem; display:block; color:var(--text-muted); text-transform:uppercase; margin-top:-2px; font-weight: 700;">Lũy Kế</span>
                         </div>
                     </div>
                     <!-- Details -->
                     <div style="flex: 1;">
-                        <span style="display: block; font-size: 0.65rem; color: #10b981; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px; width: fit-content; margin-bottom: 6px;">Tiến độ nghiệm thu / sản lượng</span>
+                        <span style="display: block; font-size: 0.65rem; color: #10b981; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px; width: fit-content; margin-bottom: 6px;">Tổng ngân sách & lũy kế</span>
                         <div style="font-size: 0.8rem; line-height: 1.5;">
-                            <div>Giá trị HĐ: <strong id="detail-val-hd" style="color: #fff;">0đ</strong></div>
-                            <div>Đã nghiệm thu: <strong id="detail-val-nghiem-thu" style="color: #10b981;">0đ</strong></div>
+                            <div>Tổng ngân sách: <strong id="detail-val-hd" style="color: #fff;">0đ</strong></div>
+                            <div>Lũy kế thực hiện: <strong id="detail-val-nghiem-thu" style="color: #10b981;">0đ</strong></div>
                             <div>Còn lại: <strong id="detail-val-con-lai" style="color: #fff;">0đ</strong></div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Card 2: Recovery & Payment Progress -->
+                <!-- Card 2: Monthly Budget Dashboard -->
                 <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 16px; border-radius: 10px; display: flex; align-items: center; gap: 15px;">
                     <!-- Circular Widget -->
                     <div style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2); border-radius:50%; flex-shrink: 0;">
@@ -446,16 +446,16 @@
                         </svg>
                         <div style="position:absolute; text-align:center;">
                             <span id="label-thanh-toan-pct" style="font-size:0.95rem; font-weight:700; color: #f59e0b;">0%</span>
-                            <span style="font-size:0.5rem; display:block; color:var(--text-muted); text-transform:uppercase; margin-top:-2px; font-weight: 600;">Thanh Toán</span>
+                            <span style="font-size:0.45rem; display:block; color:var(--text-muted); text-transform:uppercase; margin-top:-2px; font-weight: 700;">Tháng</span>
                         </div>
                     </div>
                     <!-- Details -->
                     <div style="flex: 1;">
-                        <span style="display: block; font-size: 0.65rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(245,158,11,0.1); padding: 2px 6px; border-radius: 4px; width: fit-content; margin-bottom: 6px;">Tiến độ thu hồi & thanh toán</span>
+                        <span style="display: block; font-size: 0.65rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(245,158,11,0.1); padding: 2px 6px; border-radius: 4px; width: fit-content; margin-bottom: 6px;">Ngân sách tháng hiện tại</span>
                         <div style="font-size: 0.8rem; line-height: 1.5;">
-                            <div>Tạm ứng: <strong id="detail-val-tam-ung" style="color: #fff;">0đ</strong></div>
-                            <div>Đã thanh toán: <strong id="detail-val-thanh-toan" style="color: #f59e0b;">0đ</strong></div>
-                            <div>Đã thu hồi T.Ứ: <strong id="detail-val-thu-hoi-tu" style="color: #c084fc;">0đ</strong></div>
+                            <div>Ngân sách tháng: <strong id="detail-val-tam-ung" style="color: #fff;">0đ</strong></div>
+                            <div>Đã thực hiện: <strong id="detail-val-thanh-toan" style="color: #f59e0b;">0đ</strong></div>
+                            <div>Còn lại: <strong id="detail-val-thu-hoi-tu" style="color: #fff;">0đ</strong></div>
                         </div>
                     </div>
                 </div>
@@ -2796,34 +2796,42 @@
             document.getElementById('detail-task-title').innerText = task.ten_cong_viec || 'Công Việc';
             document.getElementById('detail-task-subtitle').innerText = `Mã WBS: ${task.ma_ngan_sach || '-'} | STT: ${task.stt || '-'}`;
             
-            // Circular Progress 1: Nghiệm thu / sản lượng
+            // Circular Progress 1: Tổng ngân sách & Lũy kế thực hiện
             const nganSach = (task.budget ? task.budget.ngan_sach_tong : 0) || 0;
             const daNghiemThu = task.da_nghiem_thu || 0;
             const conLai = Math.max(0, nganSach - daNghiemThu);
+            const pctLuyKe = nganSach > 0 ? Math.round((daNghiemThu / nganSach) * 100) : 0;
             
-            const pctNghiemThu = nganSach > 0 ? Math.round((daNghiemThu / nganSach) * 100) : 0;
-            document.getElementById('label-nghiem-thu-pct').innerText = `${pctNghiemThu}%`;
-            
-            const offsetNghiemThu = 213.6 - (213.6 * Math.min(100, pctNghiemThu) / 100);
+            document.getElementById('label-nghiem-thu-pct').innerText = `${pctLuyKe}%`;
+            const offsetNghiemThu = 213.6 - (213.6 * Math.min(100, pctLuyKe) / 100);
             document.getElementById('circle-nghiem-thu-progress').style.strokeDashoffset = offsetNghiemThu;
             
             document.getElementById('detail-val-hd').innerText = formatCurrency(nganSach);
             document.getElementById('detail-val-nghiem-thu').innerText = formatCurrency(daNghiemThu);
             document.getElementById('detail-val-con-lai').innerText = formatCurrency(conLai);
             
-            // Circular Progress 2: Thu hồi & thanh toán
-            const tamUng = task.tam_ung || 0;
-            const daThanhToan = task.da_thanh_toan || 0;
-            const daThuHoi = task.da_thu_hoi_tam_ung || 0;
+            // Circular Progress 2: Ngân sách tháng & Thực hiện
+            let nsThang = 0;
+            const now = new Date();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const yyyy = now.getFullYear();
+            const fieldKey = `thang_${mm}_${yyyy}`;
+            if (task.budget && task.budget[fieldKey] !== undefined) {
+                nsThang = task.budget[fieldKey];
+            } else {
+                nsThang = task.budget ? (task.budget.thang_06_2026 || task.budget.thang_05_2026 || (nganSach * 0.05)) : (nganSach * 0.05);
+            }
+            const thucHienThang = nsThang * ((task.tien_do || 0) / 100);
+            const conLaiThang = Math.max(0, nsThang - thucHienThang);
+            const pctThang = task.tien_do || 0;
             
-            const pctThanhToan = nganSach > 0 ? Math.round((daThanhToan / nganSach) * 100) : 0;
-            document.getElementById('label-thanh-toan-pct').innerText = `${pctThanhToan}%`;
-            const offsetThanhToan = 213.6 - (213.6 * Math.min(100, pctThanhToan) / 100);
+            document.getElementById('label-thanh-toan-pct').innerText = `${pctThang}%`;
+            const offsetThanhToan = 213.6 - (213.6 * Math.min(100, pctThang) / 100);
             document.getElementById('circle-thanh-toan-progress').style.strokeDashoffset = offsetThanhToan;
             
-            document.getElementById('detail-val-tam-ung').innerText = formatCurrency(tamUng);
-            document.getElementById('detail-val-thanh-toan').innerText = formatCurrency(daThanhToan);
-            document.getElementById('detail-val-thu-hoi-tu').innerText = formatCurrency(daThuHoi);
+            document.getElementById('detail-val-tam-ung').innerText = formatCurrency(nsThang);
+            document.getElementById('detail-val-thanh-toan').innerText = formatCurrency(thucHienThang);
+            document.getElementById('detail-val-thu-hoi-tu').innerText = formatCurrency(conLaiThang);
             
             // Switch tab to overview by default
             switchDetailTab('overview');
@@ -3106,21 +3114,29 @@
             document.getElementById('edit-dieu-khoan').disabled = !isAdminOrPM;
             document.getElementById('edit-nguoi-duyet').disabled = !isAdminOrPM;
 
-            // Determine if the active user is the designated reporter of the task
-            const isReporter = activeUser && (
-                !task.nguoi_bao_cao || 
+            // Determine active user permissions
+            const activeUsername = localStorage.getItem('active_username') || 'admin';
+            const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
+            const isAdmin = activeUsername === 'admin' || (activeUser && activeUser.role === 'Admin');
+            const isPM = activeUser && activeUser.role === 'PM';
+            
+            const userDept = activeUser ? String(activeUser.phong_ban).toUpperCase().trim() : '';
+            const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
+            const isDeptMember = userDept === taskDept || userDept === 'ALL';
+            
+            // Determine if the active user is the designated reporter of the task or a member of the department
+            const isReporter = !task.nguoi_bao_cao || 
                 task.nguoi_bao_cao === '-' ||
-                activeUser.ho_ten.toLowerCase().trim() === task.nguoi_bao_cao.toLowerCase().trim() ||
-                activeUser.username.toLowerCase().trim() === task.nguoi_bao_cao.toLowerCase().trim()
-            );
-            const isReporterOrAdmin = isReporter || (activeUser && (activeUser.role === 'Admin' || activeUser.role === 'PM'));
+                task.nguoi_bao_cao.trim() === '' ||
+                (activeUser && activeUser.ho_ten.toLowerCase().trim() === task.nguoi_bao_cao.toLowerCase().trim()) ||
+                activeUsername.toLowerCase().trim() === (task.nguoi_bao_cao || '').toLowerCase().trim() ||
+                isDeptMember;
+                
+            const isReporterOrAdmin = isReporter || isAdmin || isPM;
 
             // Determine if the active user is the Department Head (Trưởng phòng/CBQL) of that task's department
-            const isDeptManager = activeUser && (
-                (activeUser.role === 'TruongPhong' || activeUser.role === 'CBQL') &&
-                String(activeUser.phong_ban).toUpperCase().trim() === String(task.phong_ban_thuc_hien).toUpperCase().trim()
-            );
-            const isManagerOrAdmin = isDeptManager || (activeUser && (activeUser.role === 'Admin' || activeUser.role === 'PM'));
+            const isDeptManager = (activeUser && (activeUser.role === 'TruongPhong' || activeUser.role === 'CBQL') && isDeptMember) || isAdmin || isPM;
+            const isManagerOrAdmin = isDeptManager || isAdmin || isPM;
 
             // Set weekly planning and reporting accessibility
             document.getElementById('edit-ke-hoach-tuan').disabled = !isReporterOrAdmin;
@@ -3130,6 +3146,7 @@
 
             // Set CBQL weekly approval and feedback solution accessibility
             document.getElementById('edit-duyet-tuan').disabled = !isManagerOrAdmin;
+            document.getElementById('edit-cach-giai-quyet').disabled = !isManagerOrAdmin;
             document.getElementById('edit-cach-giai-quyet').disabled = !isManagerOrAdmin;
 
             // Standard fields settings
