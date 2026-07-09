@@ -6488,6 +6488,10 @@ class LocalDBManager {
             oldApproval !== (data.duyet_tuan ? data.duyet_tuan.trim() : 'Chưa duyệt')
         );
         
+        if (isTypeAChanged || isTypeBChanged || isTypeCChanged) {
+            task.last_updated = new Date().toISOString();
+        }
+        
         this.recalculateBudgets(tasks);
         this.saveTasks(tasks);
         
@@ -6539,6 +6543,7 @@ class LocalDBManager {
             task.dieu_kien_ghi_nhan = doc.trim();
         }
         
+        task.last_updated = new Date().toISOString();
         this.saveTasks(tasks);
         this.logAction(username, "Cập nhật tiến độ", `Cập nhật tiến độ ${task.stt} thành ${progress}%.`);
         return task;
@@ -6596,7 +6601,8 @@ class LocalDBManager {
                 thang_05_2026: 0,
                 thang_06_2026: 0,
                 is_locked: false
-            }
+            },
+            last_updated: new Date().toISOString()
         };
         
         tasks.push(newTask);

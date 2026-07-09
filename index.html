@@ -2943,23 +2943,95 @@
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (!data.tasks || !data.users) {
-                        alert("File sao lưu không đúng cấu trúc hợp lệ.");
+                    if (!data.tasks) {
+                        alert("File sao lưu không đúng cấu trúc hợp lệ (thiếu danh sách công việc).");
                         return;
                     }
                     
-                    if (confirm("CẢNH BÁO: Nhập file sao lưu sẽ ghi đè toàn bộ dữ liệu hiện tại trên trình duyệt của máy này. Bạn có chắc chắn muốn tiếp tục?")) {
-                        localStorage.setItem('vsv_tasks', data.tasks);
-                        localStorage.setItem('vsv_users', data.users);
-                        if (data.spendings) localStorage.setItem('vsv_spendings', data.spendings);
-                        if (data.logs) localStorage.setItem('vsv_logs', data.logs);
-                        if (data.version) localStorage.setItem('vsv_db_version', data.version);
+                    // Parse imported data safely
+                    const importedTasks = typeof data.tasks === 'string' ? JSON.parse(data.tasks) : data.tasks;
+                    const importedUsers = typeof data.users === 'string' ? JSON.parse(data.users) : (data.users || []);
+                    const importedSpendings = typeof data.spendings === 'string' ? JSON.parse(data.spendings) : (data.spendings || []);
+                    const importedLogs = typeof data.logs === 'string' ? JSON.parse(data.logs) : (data.logs || []);
+                    
+                    // Get local data
+                    const localTasks = LocalDBManager.getTasks();
+                    const localUsers = LocalDBManager.getUsers();
+                    const localSpendings = LocalDBManager.getSpendings();
+                    const localLogs = LocalDBManager.getLogs();
+                    
+                    let mergedTasksCount = 0;
+                    let addedTasksCount = 0;
+                    let keptTasksCount = 0;
+                    
+                    // Merge Tasks using Last-Write-Wins (LWW) based on last_updated
+                    const mergedTasksMap = new Map();
+                    localTasks.forEach(t => mergedTasksMap.set(t.id, t));
+                    
+                    importedTasks.forEach(impTask => {
+                        const localTask = mergedTasksMap.get(impTask.id);
+                        if (!localTask) {
+                            mergedTasksMap.set(impTask.id, impTask);
+                            addedTasksCount++;
+                        } else {
+                            const impTime = impTask.last_updated ? new Date(impTask.last_updated).getTime() : 0;
+                            const localTime = localTask.last_updated ? new Date(localTask.last_updated).getTime() : 0;
+                            
+                            if (impTime > localTime) {
+                                mergedTasksMap.set(impTask.id, impTask);
+                                mergedTasksCount++;
+                            } else {
+                                keptTasksCount++;
+                            }
+                        }
+                    });
+                    
+                    const mergedTasks = Array.from(mergedTasksMap.values());
+                    
+                    // Merge Users (unique by username)
+                    const mergedUsersMap = new Map();
+                    localUsers.forEach(u => mergedUsersMap.set(u.username, u));
+                    importedUsers.forEach(u => {
+                        if (!mergedUsersMap.has(u.username)) {
+                            mergedUsersMap.set(u.username, u);
+                        }
+                    });
+                    const mergedUsers = Array.from(mergedUsersMap.values());
+                    
+                    // Merge Spendings (unique by id)
+                    const mergedSpendingsMap = new Map();
+                    localSpendings.forEach(s => mergedSpendingsMap.set(s.id, s));
+                    importedSpendings.forEach(s => {
+                        if (!mergedSpendingsMap.has(s.id)) {
+                            mergedSpendingsMap.set(s.id, s);
+                        }
+                    });
+                    const mergedSpendings = Array.from(mergedSpendingsMap.values());
+                    
+                    // Merge Logs (unique by timestamp + username + action)
+                    const logKey = (l) => `${l.timestamp || l.thoi_gian}_${l.username}_${l.action || l.hanh_dong}`;
+                    const mergedLogsMap = new Map();
+                    localLogs.forEach(l => mergedLogsMap.set(logKey(l), l));
+                    importedLogs.forEach(l => mergedLogsMap.set(logKey(l), l));
+                    const mergedLogs = Array.from(mergedLogsMap.values());
+                    
+                    const confirmMsg = `HỆ THỐNG GHÉP DỮ LIỆU THÔNG MINH (SMART MERGE):\n\n` +
+                                     `- Số hạng mục công việc được cập nhật mới: ${mergedTasksCount}\n` +
+                                     `- Số hạng mục công việc mới được thêm vào: ${addedTasksCount}\n` +
+                                     `- Số hạng mục công việc giữ nguyên (không đổi): ${keptTasksCount}\n\n` +
+                                     `Bạn có đồng ý ghép dữ liệu sao lưu này vào trình duyệt của máy này không? (Hệ thống sẽ bảo toàn tất cả các báo cáo của phòng ban khác).`;
+                    
+                    if (confirm(confirmMsg)) {
+                        localStorage.setItem('vsv_tasks', JSON.stringify(mergedTasks));
+                        localStorage.setItem('vsv_users', JSON.stringify(mergedUsers));
+                        localStorage.setItem('vsv_spendings', JSON.stringify(mergedSpendings));
+                        localStorage.setItem('vsv_logs', JSON.stringify(mergedLogs));
                         
-                        alert("Nhập dữ liệu thành công! Ứng dụng sẽ tự động tải lại.");
+                        alert("Đồng bộ dữ liệu thành công! Ứng dụng sẽ tự động tải lại.");
                         window.location.reload();
                     }
                 } catch (error) {
-                    alert("Lỗi đọc file sao lưu: " + error.message);
+                    alert("Lỗi đọc file sao lưu hoặc cấu trúc file bị lỗi: " + error.message);
                 }
             };
             reader.readAsText(file);
