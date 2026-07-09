@@ -143,7 +143,7 @@
                         <button class="filter-btn" onclick="changePhase(4)">Giai đoạn 4: Cấp bìa sổ hồng</button>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()" style="margin: 0;">
+                        <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()" style="margin: 0;" autocomplete="off">
                         <button class="btn" onclick="exportToExcel()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
                     </div>
                 </div>
@@ -195,7 +195,7 @@
                         <button class="filter-btn" id="weekly-filter-rejected" onclick="filterWeeklyApproval('Không duyệt')" style="color:var(--danger);">❌ Không duyệt</button>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <input type="text" class="search-input" id="weekly-search-input" placeholder="Tìm theo tên công việc, WBS..." onkeyup="searchWeeklyTasks()" style="margin:0;">
+                        <input type="text" class="search-input" id="weekly-search-input" placeholder="Tìm theo tên công việc, WBS..." onkeyup="searchWeeklyTasks()" style="margin:0;" autocomplete="off">
                         <button class="btn" onclick="exportWeeklyToExcel()" style="padding: 8px 14px; display: flex; align-items: center; gap: 8px; background: #10b981; font-weight: 600;">
                             <i class="fa-solid fa-file-excel"></i> Xuất Excel KH tuần
                         </button>
@@ -1344,18 +1344,10 @@
         };
 
         // On document load
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Auto-discover if any working backend is online, otherwise fall back to offline mode
-            const isOnline = await autoDiscoverBackend();
-            if (isOnline) {
-                isOfflineMode = false;
-            } else {
-                isOfflineMode = true;
-            }
-
-            if (isOfflineMode) {
-                console.log("Running in serverless client-side mode (localStorage)");
-            }
+        document.addEventListener('DOMContentLoaded', () => {
+            // Start in offline mode immediately to ensure instant UI render and prevent freezing
+            isOfflineMode = true;
+            console.log("Initializing in serverless client-side mode (localStorage)...");
             
             checkLoginState();
             fetchStats();
@@ -1363,15 +1355,35 @@
             loadUserProfiles();
             setupWebSocket();
             
+            // Check asynchronously in the background for a working online backend
+            autoDiscoverBackend().then(isOnline => {
+                if (isOnline) {
+                    console.log("Working backend discovered! Switching to Online mode...");
+                    isOfflineMode = false;
+                    
+                    // Re-initialize WebSocket connection online
+                    setupWebSocket();
+                    
+                    // Re-fetch live data from online DB
+                    checkLoginState();
+                    fetchStats();
+                    fetchTasks(currentPhase);
+                    loadUserProfiles();
+                } else {
+                    console.log("Backend offline. Remaining in client-side offline mode.");
+                    silentPullFromGitHub();
+                }
+            }).catch(err => {
+                console.warn("Background auto-discovery error:", err);
+                silentPullFromGitHub();
+            });
+
             // Load saved GitHub sync configurations
             if (document.getElementById('sync-github-repo')) {
                 document.getElementById('sync-github-repo').value = localStorage.getItem('sync_github_repo') || '';
                 document.getElementById('sync-github-file').value = localStorage.getItem('sync_github_file') || 'database.json';
                 document.getElementById('sync-github-token').value = localStorage.getItem('sync_github_token') || '';
                 document.getElementById('sync-github-auto').checked = localStorage.getItem('sync_github_auto') === 'true';
-            }
-            if (isOfflineMode) {
-                silentPullFromGitHub();
             }
             
             // Format budget inputs dynamically as user types
