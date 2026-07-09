@@ -27,10 +27,21 @@ app = FastAPI(title="Real-time Task & Budget Management System")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add No-Cache Middleware for frontend updates
+@app.middleware("http")
+async def add_no_cache_headers(request, call_next):
+    response = await call_next(request)
+    path = request.url.path.lower()
+    if path == "/" or path.endswith(".html") or path.endswith(".js") or path.endswith(".css") or "/static/" in path:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 # Pydantic schemas for request validation
 class TaskProgressUpdate(BaseModel):
@@ -807,7 +818,23 @@ async def update_task_progress(
 
     # Update database
     task.tien_do = update_data.tien_do
-    task.trang_thai = update_data.trang_thai
+    
+    # Auto-calculate status unless the user is Admin
+    if not user or user.role != "Admin":
+        if update_data.tien_do >= 100:
+            task.trang_thai = "Done"
+        else:
+            all_tasks = db.query(models.Task).all()
+            rolled_up_deadlines = compute_rolled_up_deadlines(all_tasks)
+            t_level = task.stt.count('.') + 1
+            if task.phase_id in (1, 3, 4):
+                task.trang_thai = calculate_phase134_status(task, rolled_up_deadlines)
+            elif task.phase_id == 2 and t_level == 3:
+                task.trang_thai = calculate_phase2_status(task, rolled_up_deadlines)
+            else:
+                task.trang_thai = "In-Progress"
+    else:
+        task.trang_thai = update_data.trang_thai
     if update_data.dieu_kien_ghi_nhan:
         task.dieu_kien_ghi_nhan = update_data.dieu_kien_ghi_nhan
 
@@ -1390,6 +1417,24 @@ async def update_task_details(
         user = db.query(models.User).filter(models.User.username == username).first()
         
     check_task_update_permissions(user, task, request, is_partial=False)
+    
+    # Capture old values
+    old_wbs = task.ma_ngan_sach or ""
+    old_name = task.ten_cong_viec or ""
+    old_dept = task.phong_ban_thuc_hien or ""
+    old_deliverables = task.ho_so_dau_ra or ""
+    old_cond = task.dieu_kien_ghi_nhan or ""
+    old_deadline = task.thoi_han_hoan_thanh or ""
+    old_progress = task.tien_do or 0.0
+    old_status = task.trang_thai or "Todo"
+    old_budget = task.budget.ngan_sach_tong if task.budget else 0.0
+    
+    old_plan = task.ke_hoach_tuan or ""
+    old_result = task.ket_qua_tuan or ""
+    old_issues = task.vuong_mac_tuan or ""
+    
+    old_solution = task.cach_giai_quyet or ""
+    old_approval = task.duyet_tuan or "Chưa duyệt"
         
     if request.ma_ngan_sach != task.ma_ngan_sach:
         existing = db.query(models.Task).filter(models.Task.ma_ngan_sach == request.ma_ngan_sach).first()
@@ -1404,7 +1449,23 @@ async def update_task_details(
     task.dieu_kien_ghi_nhan = request.dieu_kien_ghi_nhan.strip()
     task.thoi_han_hoan_thanh = request.thoi_han_hoan_thanh.strip()
     task.tien_do = request.tien_do
-    task.trang_thai = request.trang_thai
+    
+    # Auto-calculate status unless the user is Admin
+    if not user or user.role != "Admin":
+        if request.tien_do >= 100:
+            task.trang_thai = "Done"
+        else:
+            all_tasks = db.query(models.Task).all()
+            rolled_up_deadlines = compute_rolled_up_deadlines(all_tasks)
+            t_level = task.stt.count('.') + 1
+            if task.phase_id in (1, 3, 4):
+                task.trang_thai = calculate_phase134_status(task, rolled_up_deadlines)
+            elif task.phase_id == 2 and t_level == 3:
+                task.trang_thai = calculate_phase2_status(task, rolled_up_deadlines)
+            else:
+                task.trang_thai = "In-Progress"
+    else:
+        task.trang_thai = request.trang_thai
     task.ke_hoach_tuan = request.ke_hoach_tuan.strip() if request.ke_hoach_tuan else ""
     task.ket_qua_tuan = request.ket_qua_tuan.strip() if request.ket_qua_tuan else ""
     task.vuong_mac_tuan = request.vuong_mac_tuan.strip() if request.vuong_mac_tuan else ""
@@ -1425,9 +1486,47 @@ async def update_task_details(
     db.add(task)
     db.flush()
     
+    is_type_a_changed = (
+        old_wbs != task.ma_ngan_sach or
+        old_name != task.ten_cong_viec or
+        old_dept != task.phong_ban_thuc_hien or
+        old_deliverables != task.ho_so_dau_ra or
+        old_cond != task.dieu_kien_ghi_nhan or
+        old_deadline != task.thoi_han_hoan_thanh or
+        old_progress != task.tien_do or
+        old_status != task.trang_thai or
+        (task.budget and old_budget != task.budget.ngan_sach_tong)
+    )
+    
+    is_type_b_changed = (
+        old_plan != (task.ke_hoach_tuan or "") or
+        old_result != (task.ket_qua_tuan or "") or
+        old_issues != (task.vuong_mac_tuan or "")
+    )
+    
+    is_type_c_changed = (
+        old_solution != (task.cach_giai_quyet or "") or
+        old_approval != (task.duyet_tuan or "Chưa duyệt")
+    )
+    
     recalculate_budgets(db)
-    log_details = f"Cap nhat cong viec {task.stt} - {task.ten_cong_viec}. Tien do: {task.tien_do}%. Trang thai duyet: {task.duyet_tuan}."
-    log_action(db, username, "Cap nhat cong viec", log_details)
+    
+    if is_type_a_changed:
+        log_details = f"Cập nhật thông tin công việc {task.stt} - {task.ten_cong_viec}. Tiến độ: {task.tien_do}%, Trạng thái: {task.trang_thai}."
+        log_action(db, username, "Chỉnh sửa công việc", log_details)
+        
+    if is_type_b_changed:
+        plan_text = task.ke_hoach_tuan if task.ke_hoach_tuan else "-"
+        result_text = task.ket_qua_tuan if task.ket_qua_tuan else "-"
+        log_details = f"Báo cáo kế hoạch/kết quả tuần cho công việc {task.stt} - {task.ten_cong_viec}. Kế hoạch: \"{plan_text}\", Kết quả: \"{result_text}\"."
+        log_action(db, username, "Báo cáo tuần", log_details)
+        
+    if is_type_c_changed:
+        solution_text = task.cach_giai_quyet if task.cach_giai_quyet else "-"
+        approval_text = task.duyet_tuan if task.duyet_tuan else "Chưa duyệt"
+        log_details = f"CBQL phê duyệt báo cáo tuần cho công việc {task.stt} - {task.ten_cong_viec}. Trạng thái duyệt: \"{approval_text}\", Giải pháp: \"{solution_text}\"."
+        log_action(db, username, "Phê duyệt tuần", log_details)
+        
     db.commit()
     
     update_msg = {

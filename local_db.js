@@ -6411,6 +6411,24 @@ class LocalDBManager {
         const users = this.getUsers();
         const user = users.find(u => u.username === username);
         
+        // Capture old values
+        const oldWbs = task.ma_ngan_sach || '';
+        const oldName = task.ten_cong_viec || '';
+        const oldDept = task.phong_ban_thuc_hien || '';
+        const oldDeliverables = task.ho_so_dau_ra || '';
+        const oldCond = task.dieu_kien_ghi_nhan || '';
+        const oldDeadline = task.thoi_han_hoan_thanh || '';
+        const oldProgress = task.tien_do || 0;
+        const oldStatus = task.trang_thai || 'Todo';
+        const oldBudget = (task.budget ? task.budget.ngan_sach_tong : 0) || 0;
+        
+        const oldPlan = task.ke_hoach_tuan || '';
+        const oldResult = task.ket_qua_tuan || '';
+        const oldIssues = task.vuong_mac_tuan || '';
+        
+        const oldSolution = task.cach_giai_quyet || '';
+        const oldApproval = task.duyet_tuan || 'Chưa duyệt';
+        
         let targetStatus = data.trang_thai;
         if (!user || user.role !== 'Admin') {
             if (data.tien_do >= 100) {
@@ -6447,9 +6465,46 @@ class LocalDBManager {
             task.budget.ngan_sach_tong = parseFloat(data.ngan_sach) || 0;
         }
         
+        const isTypeAChanged = (
+            oldWbs !== data.ma_ngan_sach.trim() ||
+            oldName !== data.ten_cong_viec.trim() ||
+            oldDept !== data.phong_ban_thuc_hien.trim() ||
+            oldDeliverables !== data.ho_so_dau_ra.trim() ||
+            oldCond !== data.dieu_kien_ghi_nhan.trim() ||
+            oldDeadline !== data.thoi_han_hoan_thanh.trim() ||
+            oldProgress !== parseFloat(data.tien_do) ||
+            oldStatus !== targetStatus ||
+            (task.budget && oldBudget !== parseFloat(data.ngan_sach))
+        );
+        
+        const isTypeBChanged = (
+            oldPlan !== (data.ke_hoach_tuan ? data.ke_hoach_tuan.trim() : '') ||
+            oldResult !== (data.ket_qua_tuan ? data.ket_qua_tuan.trim() : '') ||
+            oldIssues !== (data.vuong_mac_tuan ? data.vuong_mac_tuan.trim() : '')
+        );
+        
+        const isTypeCChanged = (
+            oldSolution !== (data.cach_giai_quyet ? data.cach_giai_quyet.trim() : '') ||
+            oldApproval !== (data.duyet_tuan ? data.duyet_tuan.trim() : 'Chưa duyệt')
+        );
+        
         this.recalculateBudgets(tasks);
         this.saveTasks(tasks);
-        this.logAction(username, "Cập nhật công việc", `Cập nhật công việc ${task.stt} - ${task.ten_cong_viec}.`);
+        
+        if (isTypeAChanged) {
+            this.logAction(username, "Chỉnh sửa công việc", `Cập nhật thông tin công việc ${task.stt} - ${task.ten_cong_viec}. Tiến độ: ${parseFloat(data.tien_do) || 0}%, Trạng thái: ${targetStatus}.`);
+        }
+        if (isTypeBChanged) {
+            const planText = data.ke_hoach_tuan ? data.ke_hoach_tuan.trim() : '-';
+            const resultText = data.ket_qua_tuan ? data.ket_qua_tuan.trim() : '-';
+            this.logAction(username, "Báo cáo tuần", `Báo cáo kế hoạch/kết quả tuần cho công việc ${task.stt} - ${task.ten_cong_viec}. Kế hoạch: "${planText}", Kết quả: "${resultText}".`);
+        }
+        if (isTypeCChanged) {
+            const solutionText = data.cach_giai_quyet ? data.cach_giai_quyet.trim() : '-';
+            const approvalText = data.duyet_tuan ? data.duyet_tuan.trim() : 'Chưa duyệt';
+            this.logAction(username, "Phê duyệt tuần", `CBQL phê duyệt báo cáo tuần cho công việc ${task.stt} - ${task.ten_cong_viec}. Trạng thái duyệt: "${approvalText}", Giải pháp: "${solutionText}".`);
+        }
+        
         return task;
     }
 
