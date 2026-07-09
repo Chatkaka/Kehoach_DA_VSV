@@ -1687,6 +1687,7 @@
                 openLoginModal();
                 const settingsGear = document.getElementById('system-settings-gear');
                 if (settingsGear) settingsGear.style.display = 'none';
+                updateGitHubSyncFieldsPermission(false);
                 if (container) {
                     container.innerHTML = `
                         <button class="btn" style="padding:6px 12px; font-size:0.8rem; background:var(--primary); font-weight:600; display:flex; align-items:center; gap:6px;" onclick="openLoginModal()">
@@ -1744,6 +1745,7 @@
                                     navUsersBtn.style.display = 'none';
                                 }
                             }
+                            updateGitHubSyncFieldsPermission(user.role === 'Admin');
                         } else {
                             logoutUser();
                         }
@@ -3097,6 +3099,47 @@
             reader.readAsText(file);
         }
 
+        function getGitHubConfig() {
+            const defaultRepo = 'chatkaka/Kehoach_DA_VSV';
+            const defaultFile = 'database.json';
+            const defaultToken = 'YOUR_GITHUB_TOKEN_HERE'; // <--- THE USER CAN REPLACE THIS WITH THEIR ACTUAL PAT
+            const defaultAuto = 'true';
+            
+            return {
+                token: localStorage.getItem('sync_github_token') || defaultToken,
+                repo: localStorage.getItem('sync_github_repo') || defaultRepo,
+                filePath: localStorage.getItem('sync_github_file') || defaultFile,
+                autoEnabled: (localStorage.getItem('sync_github_auto') || defaultAuto) === 'true'
+            };
+        }
+
+        function updateGitHubSyncFieldsPermission(isAdmin) {
+            const repoInput = document.getElementById('sync-github-repo');
+            const fileInput = document.getElementById('sync-github-file');
+            const tokenInput = document.getElementById('sync-github-token');
+            const autoCheckbox = document.getElementById('sync-github-auto');
+            const saveBtn = document.getElementById('btn-save-github-config');
+            const syncBtn = document.getElementById('btn-github-sync-now');
+            
+            if (repoInput) repoInput.disabled = !isAdmin;
+            if (fileInput) fileInput.disabled = !isAdmin;
+            if (tokenInput) tokenInput.disabled = !isAdmin;
+            if (autoCheckbox) autoCheckbox.disabled = !isAdmin;
+            if (saveBtn) {
+                saveBtn.disabled = !isAdmin;
+                saveBtn.style.opacity = isAdmin ? '1' : '0.5';
+                saveBtn.style.cursor = isAdmin ? 'pointer' : 'not-allowed';
+            }
+            
+            // Allow any logged-in user to trigger manual sync
+            const isLoggedIn = !!localStorage.getItem('active_username');
+            if (syncBtn) {
+                syncBtn.disabled = !isLoggedIn;
+                syncBtn.style.opacity = isLoggedIn ? '1' : '0.5';
+                syncBtn.style.cursor = isLoggedIn ? 'pointer' : 'not-allowed';
+            }
+        }
+
         function saveGitHubSyncConfig() {
             const token = document.getElementById('sync-github-token').value.trim();
             const repo = document.getElementById('sync-github-repo').value.trim();
@@ -3112,12 +3155,13 @@
         }
 
         async function syncWithGitHub() {
-            const token = document.getElementById('sync-github-token').value.trim();
-            const repo = document.getElementById('sync-github-repo').value.trim();
-            const filePath = document.getElementById('sync-github-file').value.trim() || 'database.json';
+            const config = getGitHubConfig();
+            const token = config.token;
+            const repo = config.repo;
+            const filePath = config.filePath;
             
-            if (!token || !repo) {
-                alert("Vui lòng điền đầy đủ GitHub Token và Tên kho chứa để đồng bộ.");
+            if (!token || !repo || token.includes('YOUR_TOKEN_PLACEHOLDER') || token.includes('YOUR_GITHUB_TOKEN')) {
+                alert("Vui lòng cấu hình GitHub Personal Access Token (PAT) hợp lệ trong code hoặc trong cấu hình để đồng bộ.");
                 return;
             }
             
@@ -3272,12 +3316,13 @@
         }
 
         async function autoSyncGitHub() {
-            const token = localStorage.getItem('sync_github_token');
-            const repo = localStorage.getItem('sync_github_repo');
-            const filePath = localStorage.getItem('sync_github_file') || 'database.json';
-            const autoEnabled = localStorage.getItem('sync_github_auto') === 'true';
+            const config = getGitHubConfig();
+            const token = config.token;
+            const repo = config.repo;
+            const filePath = config.filePath;
+            const autoEnabled = config.autoEnabled;
             
-            if (!autoEnabled || !token || !repo) return;
+            if (!autoEnabled || !token || !repo || token.includes('YOUR_TOKEN_PLACEHOLDER') || token.includes('YOUR_GITHUB_TOKEN')) return;
             
             try {
                 const url = `https://api.github.com/repos/${repo}/contents/${filePath}`;
@@ -3381,12 +3426,13 @@
         }
 
         async function silentPullFromGitHub() {
-            const token = localStorage.getItem('sync_github_token');
-            const repo = localStorage.getItem('sync_github_repo');
-            const filePath = localStorage.getItem('sync_github_file') || 'database.json';
-            const autoEnabled = localStorage.getItem('sync_github_auto') === 'true';
+            const config = getGitHubConfig();
+            const token = config.token;
+            const repo = config.repo;
+            const filePath = config.filePath;
+            const autoEnabled = config.autoEnabled;
             
-            if (!autoEnabled || !token || !repo) return;
+            if (!autoEnabled || !token || !repo || token.includes('YOUR_TOKEN_PLACEHOLDER') || token.includes('YOUR_GITHUB_TOKEN')) return;
             
             try {
                 const url = `https://api.github.com/repos/${repo}/contents/${filePath}`;
