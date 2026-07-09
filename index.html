@@ -2443,6 +2443,9 @@
             if (window.currentTasks) {
                 task = window.currentTasks.find(t => t.id === id);
             }
+            if (!task && window.allProjectTasks) {
+                task = window.allProjectTasks.find(t => t.id === id);
+            }
             if (!task) {
                 // fallback to params
                 task = {
@@ -2594,6 +2597,20 @@
             document.getElementById('edit-vuong-mac-tuan').value = task.vuong_mac_tuan || '';
             document.getElementById('edit-cach-giai-quyet').value = task.cach_giai_quyet || '';
             document.getElementById('edit-duyet-tuan').value = task.duyet_tuan || 'Chưa duyệt';
+
+            // Disable non-weekly fields to prevent editing WBS structural data
+            document.getElementById('edit-wbs').disabled = true;
+            document.getElementById('edit-name').disabled = true;
+            document.getElementById('edit-dept').disabled = true;
+            document.getElementById('edit-deadline').disabled = true;
+            document.getElementById('edit-budget').disabled = true;
+            document.getElementById('edit-progress').disabled = true;
+            document.getElementById('edit-status').disabled = true;
+            document.getElementById('edit-deliverables-custom').disabled = true;
+            document.getElementById('edit-cond-custom').disabled = true;
+            
+            document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = true);
+            document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = true);
 
             // Apply role permissions to form fields
             const userRole = localStorage.getItem('user_role') || 'CBQL';
