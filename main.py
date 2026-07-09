@@ -1341,19 +1341,32 @@ async def create_task(
     new_stt = f"{request.parent_stt}.{next_idx}"
     new_wbs = f"{parent.ma_ngan_sach}.{next_idx}"
     
+    creator_name = user.ho_ten if user else (username or "Hệ thống Admin")
+    
+    # Lookup CBQL (Trưởng phòng) of the department
+    dept_val = request.phong_ban_thuc_hien.strip()
+    dept_cbql = db.query(models.User).filter(
+        models.User.phong_ban == dept_val,
+        models.User.role == "TruongPhong"
+    ).first()
+    cbql_name = dept_cbql.ho_ten if dept_cbql else "-"
+    
     new_task = models.Task(
         project_id=1,
         ma_ngan_sach=new_wbs,
         stt=new_stt,
         phase_id=parent.phase_id,
         ten_cong_viec=request.ten_cong_viec.strip(),
-        phong_ban_thuc_hien=request.phong_ban_thuc_hien.strip(),
+        phong_ban_thuc_hien=dept_val,
         co_quan_giai_quyet=request.co_quan_giai_quyet.strip(),
         ho_so_dau_ra=request.ho_so_dau_ra.strip(),
         dieu_kien_ghi_nhan=request.dieu_kien_ghi_nhan.strip(),
         thoi_han_hoan_thanh=request.thoi_han_hoan_thanh.strip(),
         tien_do=0.0,
-        trang_thai="Todo"
+        trang_thai="Todo",
+        nguoi_phu_trach=creator_name,
+        nguoi_bao_cao=creator_name,
+        nguoi_duyet=cbql_name
     )
     db.add(new_task)
     db.flush()

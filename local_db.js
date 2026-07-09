@@ -6594,6 +6594,14 @@ class LocalDBManager {
         const parent = tasks.find(t => t.stt === parentStt);
         if (!parent) return null;
         
+        const users = this.getUsers();
+        const user = users.find(u => u.username === username);
+        const creatorName = user ? user.ho_ten : (username || 'Hệ thống Admin');
+        
+        const deptVal = data.phong_ban_thuc_hien.trim();
+        const deptCBQL = users.find(u => u.phong_ban === deptVal && u.role === 'TruongPhong');
+        const cbqlName = deptCBQL ? deptCBQL.ho_ten : '-';
+        
         const parentLen = parentStt.split('.').length;
         const prefix = parentStt + '.';
         const siblingStts = tasks
@@ -6602,8 +6610,8 @@ class LocalDBManager {
             
         let nextIdx = 1;
         if (siblingStts.length > 0) {
-            const indices = siblingStts.map(stt => parseInt(stt.split('.').pop()) || 0);
-            nextIdx = Math.max(...indices) + 1;
+             const indices = siblingStts.map(stt => parseInt(stt.split('.').pop()) || 0);
+             nextIdx = Math.max(...indices) + 1;
         }
         
         const newStt = prefix + nextIdx;
@@ -6615,7 +6623,7 @@ class LocalDBManager {
             ma_ngan_sach: newStt,
             phase_id: parent.phase_id,
             ten_cong_viec: data.ten_cong_viec.trim(),
-            phong_ban_thuc_hien: data.phong_ban_thuc_hien.trim(),
+            phong_ban_thuc_hien: deptVal,
             co_quan_giai_quyet: '-',
             ho_so_dau_ra: data.ho_so_dau_ra.trim(),
             dieu_kien_ghi_nhan: data.dieu_kien_ghi_nhan.trim(),
@@ -6637,9 +6645,9 @@ class LocalDBManager {
             thoi_gian_bao_hanh: '',
             mo_ta: '',
             dieu_khoan: '',
-            nguoi_phu_trach: '',
-            nguoi_bao_cao: '',
-            nguoi_duyet: '',
+            nguoi_phu_trach: creatorName,
+            nguoi_bao_cao: creatorName,
+            nguoi_duyet: cbqlName,
             gia_tri_quyet_toan: 0,
             da_nghiem_thu: 0,
             da_thanh_toan: 0,
