@@ -249,6 +249,46 @@
                         <input type="file" id="tab-import-db-file" accept=".json" onchange="importOfflineDatabase(event)" style="display:none;">
                     </div>
                 </div>
+
+                <!-- GitHub Cloud Sync Section -->
+                <div style="max-width: 650px; margin: 20px 0; padding: 25px; background: rgba(0,0,0,0.3); border: 1px solid rgba(56,189,248,0.2); border-radius: 8px;">
+                    <span style="font-weight: 700; font-size: 1.05rem; color: #38bdf8; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <i class="fa-brands fa-github"></i> Đồng Bộ Đám Mây GitHub (Tự Động & Trực Tuyến)
+                    </span>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0; line-height: 1.5; margin-bottom: 20px;">
+                        Bạn có thể sử dụng chính kho chứa GitHub của mình làm cơ sở dữ liệu trực tuyến. Mọi người dùng ở xa chỉ cần điền cấu hình chung này là có thể đăng nhập, xem và gửi báo cáo đồng bộ lên đám mây mà không cần máy chủ riêng!
+                    </p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 250px;">
+                                <label for="sync-github-repo" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 6px;">Tên kho chứa (Owner/Repo)</label>
+                                <input type="text" id="sync-github-repo" class="form-control" placeholder="Ví dụ: chatkaka/khvensongvinh" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff;">
+                            </div>
+                            <div style="flex: 1; min-width: 250px;">
+                                <label for="sync-github-file" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 6px;">Đường dẫn file lưu trữ (.json)</label>
+                                <input type="text" id="sync-github-file" class="form-control" value="database.json" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff;">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="sync-github-token" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 6px;">GitHub Personal Access Token (PAT) hoặc Token quyền ghi</label>
+                            <input type="password" id="sync-github-token" class="form-control" placeholder="Nhập token GitHub..." style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                            <input type="checkbox" id="sync-github-auto" style="cursor: pointer; width: 16px; height: 16px;">
+                            <label for="sync-github-auto" style="font-size: 0.82rem; color: var(--text-primary); cursor: pointer; user-select: none;">Tự động gửi đồng bộ lên GitHub ngay sau khi tôi lưu chỉnh sửa hoặc báo cáo</label>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <button type="button" class="btn" onclick="saveGitHubSyncConfig()" style="background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); padding: 10px 18px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                            <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình GitHub
+                        </button>
+                        <button type="button" class="btn" id="btn-github-sync-now" onclick="syncWithGitHub()" style="background: #38bdf8; color: #000; padding: 10px 20px; border-radius: 6px; font-weight: 700; font-size: 0.85rem; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="fa-solid fa-arrows-rotate" id="icon-github-sync"></i> Đồng Bộ Ngay Với GitHub (Tải về & Gộp & Tải lên)
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -818,7 +858,7 @@
         const originalFetch = window.fetch;
         let isOfflineMode = true;
 
-        window.fetch = async function(url, options) {
+        const interceptedFetch = async function(url, options) {
             const urlStr = String(url);
             
             // Check if it is an API request and we are in offline mode
@@ -1055,6 +1095,15 @@
             return originalFetch(url, options);
         };
 
+        window.fetch = async function(url, options) {
+            const method = (options && options.method) ? options.method.toUpperCase() : 'GET';
+            const resp = await interceptedFetch(url, options);
+            if (isOfflineMode && resp && resp.ok && method !== 'GET') {
+                autoSyncGitHub();
+            }
+            return resp;
+        };
+
         // On document load
         document.addEventListener('DOMContentLoaded', async () => {
             // If the user has explicitly saved a backend URL in localStorage, try connecting to it.
@@ -1076,6 +1125,17 @@
             fetchTasks(currentPhase);
             loadUserProfiles();
             setupWebSocket();
+            
+            // Load saved GitHub sync configurations
+            if (document.getElementById('sync-github-repo')) {
+                document.getElementById('sync-github-repo').value = localStorage.getItem('sync_github_repo') || '';
+                document.getElementById('sync-github-file').value = localStorage.getItem('sync_github_file') || 'database.json';
+                document.getElementById('sync-github-token').value = localStorage.getItem('sync_github_token') || '';
+                document.getElementById('sync-github-auto').checked = localStorage.getItem('sync_github_auto') === 'true';
+            }
+            if (isOfflineMode) {
+                silentPullFromGitHub();
+            }
             
             // Format budget inputs dynamically as user types
             const formatInput = function(e) {
@@ -3035,6 +3095,374 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        function saveGitHubSyncConfig() {
+            const token = document.getElementById('sync-github-token').value.trim();
+            const repo = document.getElementById('sync-github-repo').value.trim();
+            const filePath = document.getElementById('sync-github-file').value.trim() || 'database.json';
+            const autoEnabled = document.getElementById('sync-github-auto').checked;
+            
+            localStorage.setItem('sync_github_token', token);
+            localStorage.setItem('sync_github_repo', repo);
+            localStorage.setItem('sync_github_file', filePath);
+            localStorage.setItem('sync_github_auto', autoEnabled ? 'true' : 'false');
+            
+            alert("Đã lưu cấu hình đồng bộ đám mây GitHub!");
+        }
+
+        async function syncWithGitHub() {
+            const token = document.getElementById('sync-github-token').value.trim();
+            const repo = document.getElementById('sync-github-repo').value.trim();
+            const filePath = document.getElementById('sync-github-file').value.trim() || 'database.json';
+            
+            if (!token || !repo) {
+                alert("Vui lòng điền đầy đủ GitHub Token và Tên kho chứa để đồng bộ.");
+                return;
+            }
+            
+            const btn = document.getElementById('btn-github-sync-now');
+            const icon = document.getElementById('icon-github-sync');
+            btn.disabled = true;
+            icon.classList.add('fa-spin');
+            
+            try {
+                const url = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                let remoteData = null;
+                let sha = null;
+                
+                if (response.status === 200) {
+                    const fileInfo = await response.json();
+                    sha = fileInfo.sha;
+                    const decodedStr = decodeURIComponent(escape(atob(fileInfo.content.replace(/\s/g, ''))));
+                    remoteData = JSON.parse(decodedStr);
+                }
+                
+                const localTasks = LocalDBManager.getTasks();
+                const localUsers = LocalDBManager.getUsers();
+                const localSpendings = LocalDBManager.getSpendings();
+                const localLogs = LocalDBManager.getLogs();
+                
+                let mergedTasks = localTasks;
+                let mergedUsers = localUsers;
+                let mergedSpendings = localSpendings;
+                let mergedLogs = localLogs;
+                
+                let mergedTasksCount = 0;
+                let addedTasksCount = 0;
+                let keptTasksCount = 0;
+                
+                if (remoteData && remoteData.tasks) {
+                    const remoteTasks = typeof remoteData.tasks === 'string' ? JSON.parse(remoteData.tasks) : remoteData.tasks;
+                    const remoteUsers = typeof remoteData.users === 'string' ? JSON.parse(remoteData.users) : (remoteData.users || []);
+                    const remoteSpendings = typeof remoteData.spendings === 'string' ? JSON.parse(remoteData.spendings) : (remoteData.spendings || []);
+                    const remoteLogs = typeof remoteData.logs === 'string' ? JSON.parse(remoteData.logs) : (remoteData.logs || []);
+                    
+                    const mergedTasksMap = new Map();
+                    localTasks.forEach(t => mergedTasksMap.set(t.id, t));
+                    
+                    remoteTasks.forEach(remTask => {
+                        const localTask = mergedTasksMap.get(remTask.id);
+                        if (!localTask) {
+                            mergedTasksMap.set(remTask.id, remTask);
+                            addedTasksCount++;
+                        } else {
+                            const remTime = remTask.last_updated ? new Date(remTask.last_updated).getTime() : 0;
+                            const localTime = localTask.last_updated ? new Date(localTask.last_updated).getTime() : 0;
+                            
+                            if (remTime > localTime) {
+                                mergedTasksMap.set(remTask.id, remTask);
+                                mergedTasksCount++;
+                            } else {
+                                keptTasksCount++;
+                            }
+                        }
+                    });
+                    
+                    mergedTasks = Array.from(mergedTasksMap.values());
+                    
+                    const mergedUsersMap = new Map();
+                    localUsers.forEach(u => mergedUsersMap.set(u.username, u));
+                    remoteUsers.forEach(u => {
+                        if (!mergedUsersMap.has(u.username)) {
+                            mergedUsersMap.set(u.username, u);
+                        }
+                    });
+                    mergedUsers = Array.from(mergedUsersMap.values());
+                    
+                    const mergedSpendingsMap = new Map();
+                    localSpendings.forEach(s => mergedSpendingsMap.set(s.id, s));
+                    remoteSpendings.forEach(s => {
+                        if (!mergedSpendingsMap.has(s.id)) {
+                            mergedSpendingsMap.set(s.id, s);
+                        }
+                    });
+                    mergedSpendings = Array.from(mergedSpendingsMap.values());
+                    
+                    const logKey = (l) => `${l.timestamp || l.thoi_gian}_${l.username}_${l.action || l.hanh_dong}`;
+                    const mergedLogsMap = new Map();
+                    localLogs.forEach(l => mergedLogsMap.set(logKey(l), l));
+                    remoteLogs.forEach(l => mergedLogsMap.set(logKey(l), l));
+                    mergedLogs = Array.from(mergedLogsMap.values());
+                }
+                
+                localStorage.setItem('vsv_tasks', JSON.stringify(mergedTasks));
+                localStorage.setItem('vsv_users', JSON.stringify(mergedUsers));
+                localStorage.setItem('vsv_spendings', JSON.stringify(mergedSpendings));
+                localStorage.setItem('vsv_logs', JSON.stringify(mergedLogs));
+                
+                const newDbData = {
+                    tasks: JSON.stringify(mergedTasks),
+                    users: JSON.stringify(mergedUsers),
+                    spendings: JSON.stringify(mergedSpendings),
+                    logs: JSON.stringify(mergedLogs),
+                    version: localStorage.getItem('vsv_db_version') || '2',
+                    timestamp: new Date().toISOString()
+                };
+                
+                const utf8Bytes = new TextEncoder().encode(JSON.stringify(newDbData, null, 2));
+                let binaryStr = "";
+                for (let i = 0; i < utf8Bytes.length; i++) {
+                    binaryStr += String.fromCharCode(utf8Bytes[i]);
+                }
+                const b64Content = btoa(binaryStr);
+                
+                const writeBody = {
+                    message: `Cloud sync update from App Ven Song Vinh - ${new Date().toISOString()}`,
+                    content: b64Content
+                };
+                if (sha) {
+                    writeBody.sha = sha;
+                }
+                
+                const writeResponse = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify(writeBody)
+                });
+                
+                if (writeResponse.status === 200 || writeResponse.status === 201) {
+                    alert(`Đồng bộ đám mây GitHub thành công!\n\n` +
+                          `- Đã tải xuống và cập nhật thêm từ Cloud: ${mergedTasksCount} công việc.\n` +
+                          `- Đã tải lên lưu trữ đám mây an toàn.`);
+                    window.location.reload();
+                } else {
+                    const errorDetail = await writeResponse.text();
+                    throw new Error(`Lỗi tải lên GitHub API: ${writeResponse.statusText} (${writeResponse.status}) - ${errorDetail}`);
+                }
+                
+            } catch (error) {
+                console.error(error);
+                alert("Lỗi đồng bộ GitHub Cloud: " + error.message);
+            } finally {
+                btn.disabled = false;
+                icon.classList.remove('fa-spin');
+            }
+        }
+
+        async function autoSyncGitHub() {
+            const token = localStorage.getItem('sync_github_token');
+            const repo = localStorage.getItem('sync_github_repo');
+            const filePath = localStorage.getItem('sync_github_file') || 'database.json';
+            const autoEnabled = localStorage.getItem('sync_github_auto') === 'true';
+            
+            if (!autoEnabled || !token || !repo) return;
+            
+            try {
+                const url = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                let sha = null;
+                let remoteData = null;
+                if (response.status === 200) {
+                    const fileInfo = await response.json();
+                    sha = fileInfo.sha;
+                    const decodedStr = decodeURIComponent(escape(atob(fileInfo.content.replace(/\s/g, ''))));
+                    remoteData = JSON.parse(decodedStr);
+                }
+                
+                const localTasks = LocalDBManager.getTasks();
+                const localUsers = LocalDBManager.getUsers();
+                const localSpendings = LocalDBManager.getSpendings();
+                const localLogs = LocalDBManager.getLogs();
+                
+                let mergedTasks = localTasks;
+                let mergedUsers = localUsers;
+                let mergedSpendings = localSpendings;
+                let mergedLogs = localLogs;
+                
+                if (remoteData && remoteData.tasks) {
+                    const remoteTasks = typeof remoteData.tasks === 'string' ? JSON.parse(remoteData.tasks) : remoteData.tasks;
+                    const remoteUsers = typeof remoteData.users === 'string' ? JSON.parse(remoteData.users) : (remoteData.users || []);
+                    const remoteSpendings = typeof remoteData.spendings === 'string' ? JSON.parse(remoteData.spendings) : (remoteData.spendings || []);
+                    const remoteLogs = typeof remoteData.logs === 'string' ? JSON.parse(remoteData.logs) : (remoteData.logs || []);
+                    
+                    const mergedTasksMap = new Map();
+                    localTasks.forEach(t => mergedTasksMap.set(t.id, t));
+                    remoteTasks.forEach(remTask => {
+                        const localTask = mergedTasksMap.get(remTask.id);
+                        if (!localTask) {
+                            mergedTasksMap.set(remTask.id, remTask);
+                        } else {
+                            const remTime = remTask.last_updated ? new Date(remTask.last_updated).getTime() : 0;
+                            const localTime = localTask.last_updated ? new Date(localTask.last_updated).getTime() : 0;
+                            if (remTime > localTime) {
+                                mergedTasksMap.set(remTask.id, remTask);
+                            }
+                        }
+                    });
+                    mergedTasks = Array.from(mergedTasksMap.values());
+                    
+                    const mergedUsersMap = new Map();
+                    localUsers.forEach(u => mergedUsersMap.set(u.username, u));
+                    remoteUsers.forEach(u => { if (!mergedUsersMap.has(u.username)) mergedUsersMap.set(u.username, u); });
+                    mergedUsers = Array.from(mergedUsersMap.values());
+                    
+                    const mergedSpendingsMap = new Map();
+                    localSpendings.forEach(s => mergedSpendingsMap.set(s.id, s));
+                    remoteSpendings.forEach(s => { if (!mergedSpendingsMap.has(s.id)) mergedSpendingsMap.set(s.id, s); });
+                    mergedSpendings = Array.from(mergedSpendingsMap.values());
+                    
+                    const logKey = (l) => `${l.timestamp || l.thoi_gian}_${l.username}_${l.action || l.hanh_dong}`;
+                    const mergedLogsMap = new Map();
+                    localLogs.forEach(l => mergedLogsMap.set(logKey(l), l));
+                    remoteLogs.forEach(l => mergedLogsMap.set(logKey(l), l));
+                    mergedLogs = Array.from(mergedLogsMap.values());
+                }
+                
+                const newDbData = {
+                    tasks: JSON.stringify(mergedTasks),
+                    users: JSON.stringify(mergedUsers),
+                    spendings: JSON.stringify(mergedSpendings),
+                    logs: JSON.stringify(mergedLogs),
+                    version: localStorage.getItem('vsv_db_version') || '2',
+                    timestamp: new Date().toISOString()
+                };
+                
+                const utf8Bytes = new TextEncoder().encode(JSON.stringify(newDbData, null, 2));
+                let binaryStr = "";
+                for (let i = 0; i < utf8Bytes.length; i++) binaryStr += String.fromCharCode(utf8Bytes[i]);
+                const b64Content = btoa(binaryStr);
+                
+                const writeBody = {
+                    message: `Cloud auto-sync from App - ${new Date().toISOString()}`,
+                    content: b64Content
+                };
+                if (sha) writeBody.sha = sha;
+                
+                await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify(writeBody)
+                });
+            } catch (err) {
+                console.error("Auto sync failed:", err);
+            }
+        }
+
+        async function silentPullFromGitHub() {
+            const token = localStorage.getItem('sync_github_token');
+            const repo = localStorage.getItem('sync_github_repo');
+            const filePath = localStorage.getItem('sync_github_file') || 'database.json';
+            const autoEnabled = localStorage.getItem('sync_github_auto') === 'true';
+            
+            if (!autoEnabled || !token || !repo) return;
+            
+            try {
+                const url = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (response.status === 200) {
+                    const fileInfo = await response.json();
+                    const decodedStr = decodeURIComponent(escape(atob(fileInfo.content.replace(/\s/g, ''))));
+                    const remoteData = JSON.parse(decodedStr);
+                    
+                    if (remoteData && remoteData.tasks) {
+                        const remoteTasks = typeof remoteData.tasks === 'string' ? JSON.parse(remoteData.tasks) : remoteData.tasks;
+                        const remoteUsers = typeof remoteData.users === 'string' ? JSON.parse(remoteData.users) : (remoteData.users || []);
+                        const remoteSpendings = typeof remoteData.spendings === 'string' ? JSON.parse(remoteData.spendings) : (remoteData.spendings || []);
+                        const remoteLogs = typeof remoteData.logs === 'string' ? JSON.parse(remoteData.logs) : (remoteData.logs || []);
+                        
+                        const localTasks = LocalDBManager.getTasks();
+                        const localUsers = LocalDBManager.getUsers();
+                        const localSpendings = LocalDBManager.getSpendings();
+                        const localLogs = LocalDBManager.getLogs();
+                        
+                        let hasChanges = false;
+                        
+                        const mergedTasksMap = new Map();
+                        localTasks.forEach(t => mergedTasksMap.set(t.id, t));
+                        
+                        remoteTasks.forEach(remTask => {
+                            const localTask = mergedTasksMap.get(remTask.id);
+                            if (!localTask) {
+                                mergedTasksMap.set(remTask.id, remTask);
+                                hasChanges = true;
+                            } else {
+                                const remTime = remTask.last_updated ? new Date(remTask.last_updated).getTime() : 0;
+                                const localTime = localTask.last_updated ? new Date(localTask.last_updated).getTime() : 0;
+                                if (remTime > localTime) {
+                                    mergedTasksMap.set(remTask.id, remTask);
+                                    hasChanges = true;
+                                }
+                            }
+                        });
+                        
+                        if (hasChanges) {
+                            localStorage.setItem('vsv_tasks', JSON.stringify(Array.from(mergedTasksMap.values())));
+                            
+                            const mergedUsersMap = new Map();
+                            localUsers.forEach(u => mergedUsersMap.set(u.username, u));
+                            remoteUsers.forEach(u => mergedUsersMap.set(u.username, u));
+                            localStorage.setItem('vsv_users', JSON.stringify(Array.from(mergedUsersMap.values())));
+                            
+                            const mergedSpendingsMap = new Map();
+                            localSpendings.forEach(s => mergedSpendingsMap.set(s.id, s));
+                            remoteSpendings.forEach(s => mergedSpendingsMap.set(s.id, s));
+                            localStorage.setItem('vsv_spendings', JSON.stringify(Array.from(mergedSpendingsMap.values())));
+                            
+                            const logKey = (l) => `${l.timestamp || l.thoi_gian}_${l.username}_${l.action || l.hanh_dong}`;
+                            const mergedLogsMap = new Map();
+                            localLogs.forEach(l => mergedLogsMap.set(logKey(l), l));
+                            remoteLogs.forEach(l => mergedLogsMap.set(logKey(l), l));
+                            localStorage.setItem('vsv_logs', JSON.stringify(Array.from(mergedLogsMap.values())));
+                            
+                            console.log("GitHub Cloud Sync: Merged remote database changes silently on load.");
+                            setTimeout(() => {
+                                fetchStats();
+                                fetchTasks(currentPhase);
+                            }, 500);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Silent GitHub pull failed:", err);
+            }
         }
 
         function saveSettings() {
