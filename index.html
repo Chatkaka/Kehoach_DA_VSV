@@ -3106,7 +3106,33 @@
             document.getElementById('edit-dieu-khoan').disabled = !isAdminOrPM;
             document.getElementById('edit-nguoi-duyet').disabled = !isAdminOrPM;
 
-            document.getElementById('edit-progress').disabled = false;
+            // Determine if the active user is the designated reporter of the task
+            const isReporter = activeUser && (
+                !task.nguoi_bao_cao || 
+                task.nguoi_bao_cao === '-' ||
+                activeUser.ho_ten.toLowerCase().trim() === task.nguoi_bao_cao.toLowerCase().trim() ||
+                activeUser.username.toLowerCase().trim() === task.nguoi_bao_cao.toLowerCase().trim()
+            );
+            const isReporterOrAdmin = isReporter || (activeUser && (activeUser.role === 'Admin' || activeUser.role === 'PM'));
+
+            // Determine if the active user is the Department Head (Trưởng phòng/CBQL) of that task's department
+            const isDeptManager = activeUser && (
+                (activeUser.role === 'TruongPhong' || activeUser.role === 'CBQL') &&
+                String(activeUser.phong_ban).toUpperCase().trim() === String(task.phong_ban_thuc_hien).toUpperCase().trim()
+            );
+            const isManagerOrAdmin = isDeptManager || (activeUser && (activeUser.role === 'Admin' || activeUser.role === 'PM'));
+
+            // Set weekly planning and reporting accessibility
+            document.getElementById('edit-ke-hoach-tuan').disabled = !isReporterOrAdmin;
+            document.getElementById('edit-ket-qua-tuan').disabled = !isReporterOrAdmin;
+            document.getElementById('edit-vuong-mac-tuan').disabled = !isReporterOrAdmin;
+            document.getElementById('edit-progress').disabled = !isReporterOrAdmin;
+
+            // Set CBQL weekly approval and feedback solution accessibility
+            document.getElementById('edit-duyet-tuan').disabled = !isManagerOrAdmin;
+            document.getElementById('edit-cach-giai-quyet').disabled = !isManagerOrAdmin;
+
+            // Standard fields settings
             document.getElementById('edit-deliverables-custom').disabled = false;
             document.getElementById('edit-cond-custom').disabled = false;
             document.getElementById('edit-gia-han-den-ngay').disabled = false;
@@ -3123,21 +3149,6 @@
             
             document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = false);
             document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = false);
-
-            const userRole = activeUser ? activeUser.role : 'NhanVien';
-            if (userRole === 'NhanVien') {
-                document.getElementById('edit-duyet-tuan').disabled = true;
-                document.getElementById('edit-cach-giai-quyet').disabled = true;
-                document.getElementById('edit-ke-hoach-tuan').disabled = false;
-                document.getElementById('edit-ket-qua-tuan').disabled = false;
-                document.getElementById('edit-vuong-mac-tuan').disabled = false;
-            } else {
-                document.getElementById('edit-duyet-tuan').disabled = false;
-                document.getElementById('edit-cach-giai-quyet').disabled = false;
-                document.getElementById('edit-ke-hoach-tuan').disabled = false;
-                document.getElementById('edit-ket-qua-tuan').disabled = false;
-                document.getElementById('edit-vuong-mac-tuan').disabled = false;
-            }
 
             document.getElementById('edit-task-modal').style.display = 'flex';
         }
