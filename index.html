@@ -1332,6 +1332,21 @@
                         });
                     });
                     
+                    // Add Progress Data Bar (Green color 10B981)
+                    sheet.addConditionalFormatting({
+                        ref: `J2:J${tasks.length + 1}`,
+                        rules: [
+                            {
+                                type: 'dataBar',
+                                cfvo: [
+                                    { type: 'num', value: 0 },
+                                    { type: 'num', value: 1 }
+                                ],
+                                color: { argb: 'FF10B981' } // Green 10B981
+                            }
+                        ]
+                    });
+                    
                     // Adjust column widths
                     sheet.columns.forEach(column => {
                         let maxLen = 0;
