@@ -195,6 +195,9 @@
                     </div>
                     <div style="display:flex; gap:8px; align-items:center;">
                         <input type="text" class="search-input" id="weekly-search-input" placeholder="Tìm theo tên công việc, WBS..." onkeyup="searchWeeklyTasks()" style="margin:0;">
+                        <button class="btn" onclick="exportWeeklyToExcel()" style="padding: 8px 14px; display: flex; align-items: center; gap: 8px; background: #10b981; font-weight: 600;">
+                            <i class="fa-solid fa-file-excel"></i> Xuất Excel KH tuần
+                        </button>
                     </div>
                 </div>
 
@@ -1389,6 +1392,168 @@
                 }
             } else {
                 window.open((backendUrl || '') + '/api/tasks/export', '_blank');
+            }
+        }
+
+        async function exportWeeklyToExcel() {
+            showToast("Xuất Excel", "Đang chuẩn bị danh sách kế hoạch tuần...", "info");
+            try {
+                const workbook = new ExcelJS.Workbook();
+                const sheet = workbook.addWorksheet("Ke_hoach_tuan");
+                
+                sheet.views = [{ showGridLines: true }];
+                sheet.views[0].state = 'frozen';
+                sheet.views[0].ySplit = 1;
+                
+                const headers = [
+                    "STT",
+                    "Mã Ngân Sách (WBS)",
+                    "Tên Hạng Mục Công Việc",
+                    "Phòng Ban Thực Hiện",
+                    "Kế Hoạch Tuần",
+                    "Kết Quả Tuần",
+                    "Vướng Mắc Tuần",
+                    "CBQL/Phòng Ban Giải Quyết",
+                    "Duyệt Tuần"
+                ];
+                
+                const headerRow = sheet.addRow(headers);
+                headerRow.height = 28;
+                
+                const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+                const headerFont = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                const thinBorder = {
+                    top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+                    left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+                    bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+                    right: { style: 'thin', color: { argb: 'FFDDDDDD' } }
+                };
+                
+                headerRow.eachCell((cell) => {
+                    cell.fill = headerFill;
+                    cell.font = headerFont;
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.border = thinBorder;
+                });
+                
+                let tasks = [];
+                if (isOfflineMode) {
+                    tasks = LocalDBManager.getTasks();
+                } else {
+                    tasks = window.allProjectTasks || [];
+                }
+                
+                // Filter only tasks with weekly plans (non-empty, non-hyphen)
+                const filteredTasks = tasks.filter(t => {
+                    return t.ke_hoach_tuan && t.ke_hoach_tuan.trim() !== "" && t.ke_hoach_tuan.trim() !== "-";
+                });
+                
+                if (filteredTasks.length === 0) {
+                    alert("Không có công việc nào có kế hoạch tuần để xuất!");
+                    return;
+                }
+                
+                // Sort hierarchically
+                filteredTasks.sort((a, b) => {
+                    const aParts = a.stt.split('.').map(x => isNaN(x) ? 999 : parseInt(x));
+                    const bParts = b.stt.split('.').map(x => isNaN(x) ? 999 : parseInt(x));
+                    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                        if (aParts[i] === undefined) return -1;
+                        if (bParts[i] === undefined) return 1;
+                        if (aParts[i] !== bParts[i]) return aParts[i] - bParts[i];
+                    }
+                    return 0;
+                });
+                
+                // Fills & Fonts for Level 1, 2, 3
+                const level1Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+                const level1Font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                const level2Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+                const level2Font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF0369A1' } };
+                const level3Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                const level3Font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: 'FF1E293B' } };
+                const standardFont = { name: 'Segoe UI', size: 10, bold: false, color: { argb: 'FF334155' } };
+                
+                filteredTasks.forEach(t => {
+                    const dotCount = (t.stt.match(/\./g) || []).length;
+                    const tLevel = dotCount + 1;
+                    const indentedName = "    ".repeat(tLevel - 1) + t.ten_cong_viec;
+                    
+                    const rowData = [
+                        t.stt,
+                        t.ma_ngan_sach || "-",
+                        indentedName,
+                        t.phong_ban_thuc_hien || "-",
+                        t.ke_hoach_tuan,
+                        t.ket_qua_tuan || "-",
+                        t.vuong_mac_tuan || "-",
+                        t.cach_giai_quyet || "-",
+                        t.duyet_tuan || "Chưa duyệt"
+                    ];
+                    
+                    const row = sheet.addRow(rowData);
+                    row.height = 22;
+                    
+                    let rowFill = null;
+                    let rowFont = standardFont;
+                    if (tLevel === 1) {
+                        rowFill = level1Fill;
+                        rowFont = level1Font;
+                    } else if (tLevel === 2) {
+                        rowFill = level2Fill;
+                        rowFont = level2Font;
+                    } else if (tLevel === 3) {
+                        rowFill = level3Fill;
+                        rowFont = level3Font;
+                    }
+                    
+                    row.eachCell((cell, colIndex) => {
+                        if (rowFill) cell.fill = rowFill;
+                        cell.font = rowFont;
+                        cell.border = thinBorder;
+                        
+                        const col1Idx = colIndex - 1;
+                        if ([0, 1, 3, 8].includes(col1Idx)) {
+                            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        } else {
+                            cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+                        }
+                    });
+                });
+                
+                // Adjust column widths
+                sheet.columns.forEach(column => {
+                    let maxLen = 0;
+                    column.eachCell({ includeEmpty: true }, cell => {
+                        const valStr = cell.value ? String(cell.value) : '';
+                        if (valStr.length > maxLen) {
+                            maxLen = valStr.length;
+                        }
+                    });
+                    
+                    const colLetter = column.letter;
+                    if (colLetter === 'C') {
+                        column.width = Math.max(maxLen + 8, 30);
+                    } else if (['E', 'F', 'G', 'H'].includes(colLetter)) {
+                        column.width = 35; // Fixed wider columns for text content
+                    } else {
+                        column.width = Math.max(maxLen + 4, 12);
+                    }
+                });
+                
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "Bao_Cao_Ke_Hoach_Tuan.xlsx";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showToast("Thành công", "Đã xuất báo cáo kế hoạch tuần!", "success");
+            } catch (error) {
+                console.error("ExcelJS Export Weekly Error:", error);
+                alert("Lỗi xuất file Excel: " + error.message);
             }
         }
 
