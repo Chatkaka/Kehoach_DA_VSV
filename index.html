@@ -614,7 +614,7 @@
             <!-- SUB-TAB NAVIGATION -->
             <div class="edit-modal-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-top: 10px; margin-bottom: 15px; padding-bottom: 8px;">
                 <button type="button" class="edit-tab-btn active" onclick="switchEditModalTab('info')" id="edit-tab-btn-info" style="background: none; border: none; color: var(--primary); font-weight: 700; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; border-bottom: 2px solid var(--primary); transition: all 0.2s;">Thông tin công việc</button>
-                <button type="button" class="edit-tab-btn" onclick="switchEditModalTab('weekly')" id="edit-tab-btn-weekly" style="background: none; border: none; color: var(--text-secondary); font-weight: 500; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; border-bottom: 2px solid transparent; transition: all 0.2s;">Báo cáo tuần & Ý kiến CBQL</button>
+                <button type="button" class="edit-tab-btn" onclick="switchEditModalTab('weekly')" id="edit-tab-btn-weekly" style="background: none; border: none; color: var(--text-secondary); font-weight: 500; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; border-bottom: 2px solid transparent; transition: all 0.2s;">Lịch sử báo cáo tuần & Ý kiến CBQL</button>
             </div>
             
             <!-- TAB 1: THÔNG TIN CÔNG VIỆC CONTAINER -->
@@ -3326,6 +3326,17 @@
             } catch(e) {
                 console.error("Error parsing weekly reports JSON:", e);
                 reports = [];
+            }
+            if (reports.length === 0 && (task.ke_hoach_tuan || task.ket_qua_tuan || task.vuong_mac_tuan)) {
+                reports.push({
+                    week_date: task.ngay_bat_dau || task.ngay_khoi_tao || new Date().toISOString().split('T')[0],
+                    ke_hoach_tuan: task.ke_hoach_tuan || '',
+                    ket_qua_tuan: task.ket_qua_tuan || '',
+                    vuong_mac_tuan: task.vuong_mac_tuan || '',
+                    tien_do_tang_them: task.tien_do || 0,
+                    cach_giai_quyet: task.cach_giai_quyet || '',
+                    duyet_tuan: task.duyet_tuan || 'Chưa duyệt'
+                });
             }
             renderWeeklyReportsTable(reports);
 

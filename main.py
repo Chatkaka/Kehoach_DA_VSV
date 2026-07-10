@@ -612,6 +612,7 @@ def get_tasks(
             "da_thanh_toan": t.da_thanh_toan,
             "tam_ung": t.tam_ung,
             "da_thu_hoi_tam_ung": t.da_thu_hoi_tam_ung,
+            "weekly_reports_json": t.weekly_reports_json,
             "budget": {
                 "ngan_sach_tong": t.budget.ngan_sach_tong if t.budget else 0.0,
                 "is_locked": t.budget.is_locked if t.budget else False
@@ -812,6 +813,7 @@ def get_task(task_id: int, db: Session = Depends(database.get_db)):
         "vuong_mac_tuan": task.vuong_mac_tuan,
         "cach_giai_quyet": task.cach_giai_quyet,
         "duyet_tuan": task.duyet_tuan,
+        "weekly_reports_json": task.weekly_reports_json,
         "budget": {
             "ngan_sach_tong": task.budget.ngan_sach_tong if task.budget else 0.0,
             "is_locked": task.budget.is_locked if task.budget else False
@@ -1660,6 +1662,7 @@ async def update_task_details(
         "da_thanh_toan": task.da_thanh_toan,
         "tam_ung": task.tam_ung,
         "da_thu_hoi_tam_ung": task.da_thu_hoi_tam_ung,
+        "weekly_reports_json": task.weekly_reports_json,
         "budget": {
             "ngan_sach_tong": task.budget.ngan_sach_tong if task.budget else 0.0,
             "is_locked": task.budget.is_locked if task.budget else False
