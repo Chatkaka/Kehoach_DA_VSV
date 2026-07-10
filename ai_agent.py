@@ -2,7 +2,7 @@ import os
 import re
 import json
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 
 # Check if google-genai is installed
 try:
@@ -300,3 +300,51 @@ def generate_generic_text(prompt: str, api_key: str = None) -> str:
         except Exception as e:
             return f"Lỗi gọi Gemini: {e}"
     return "Gemini API Client không khả dụng (thiếu API Key hoặc lỗi cài đặt thư viện)."
+
+# PDF Task Parsing Models
+class PDFTaskInfo(BaseModel):
+    ma_ngan_sach: Optional[str] = Field(None, description="WBS or Budget Code (e.g. 'TD.BS.1.2.1')")
+    stt: str = Field(..., description="STT hierarchy number (e.g. '1.1.2')")
+    ten_cong_viec: str = Field(..., description="Task name or description")
+    phong_ban_thuc_hien: Optional[str] = Field(None, description="Department responsible (e.g. 'PTDA', 'QHTK', 'BQLDA')")
+    co_quan_giai_quyet: Optional[str] = Field(None, description="Resolving agency")
+    ho_so_dau_ra: Optional[str] = Field(None, description="Output file or deliverables")
+    dieu_kien_ghi_nhan: Optional[str] = Field(None, description="Result recognition conditions")
+    thoi_han_hoan_thanh: Optional[str] = Field(None, description="Deadline (e.g. '2026-08-30' or 'Tháng 06/2026')")
+    tien_do: Optional[float] = Field(0.0, description="Progress percentage (0.0 to 100.0)")
+    trang_thai: Optional[str] = Field("Todo", description="Status (Todo, In-Progress, Done, Delayed)")
+    ngan_sach_tong: Optional[float] = Field(0.0, description="Total budget in Million VND (Trđ)")
+
+class PDFParsedTasks(BaseModel):
+    tasks: List[PDFTaskInfo]
+
+def parse_pdf_tasks_with_ai(pdf_text_or_tables: str, api_key: str = None) -> list:
+    """
+    Sử dụng Gemini Pro (gemini-2.5-flash) để đọc văn bản hoặc bảng biểu từ PDF
+    và bóc tách thành danh sách các công việc theo cấu trúc chuẩn.
+    """
+    client = get_gemini_client(api_key)
+    if not client:
+        return []
+        
+    prompt = (
+        f"Bạn là chuyên gia phân tích dữ liệu dự án.\n"
+        f"Dưới đây là văn bản hoặc dữ liệu bảng biểu trích xuất từ file PDF kế hoạch dự án:\n\n"
+        f"{pdf_text_or_tables}\n\n"
+        f"Hãy đọc kỹ nội dung và trích xuất danh sách tất cả các công việc có trong tài liệu này theo đúng cấu trúc dữ liệu yêu cầu."
+    )
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=PDFParsedTasks,
+                temperature=0.1
+            ),
+        )
+        data = json.loads(response.text)
+        return data.get("tasks", [])
+    except Exception as e:
+        print(f"Lỗi gọi Gemini bóc tách PDF: {e}")
+        return []

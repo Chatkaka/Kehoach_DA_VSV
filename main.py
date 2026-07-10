@@ -1555,6 +1555,355 @@ async def import_excel_ai(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Lỗi bóc tách file Excel: {str(e)}")
 
+@app.post("/api/tasks/import-pdf-ai")
+async def import_pdf_ai(
+    file: UploadFile = File(...),
+    username: Optional[str] = None,
+    db: Session = Depends(database.get_db)
+):
+    try:
+        import pdfplumber
+        import io
+        
+        pdf_content = await file.read()
+        pdf_file = io.BytesIO(pdf_content)
+        
+        pdf_text = ""
+        pdf_tables_rows = []
+        
+        with pdfplumber.open(pdf_file) as pdf:
+            for idx, page in enumerate(pdf.pages):
+                text = page.extract_text()
+                if text:
+                    pdf_text += f"\n--- TRANG {idx+1} ---\n" + text
+                    
+                tables = page.extract_tables()
+                if tables:
+                    for table in tables:
+                        for row in table:
+                            clean_row = [cell.replace('\n', ' ').strip() if cell else "" for cell in row]
+                            if any(c != "" for c in clean_row):
+                                pdf_tables_rows.append(clean_row)
+                                
+        # Attempt AI extraction
+        api_key = os.environ.get("GEMINI_API_KEY")
+        extracted_tasks = []
+        is_ai_parsed = False
+        
+        if api_key:
+            input_data = ""
+            if pdf_tables_rows:
+                input_data = "DỮ LIỆU BẢNG BIỂU:\n" + json.dumps(pdf_tables_rows[:150], ensure_ascii=False)
+            else:
+                input_data = "VĂN BẢN TRÍCH XUẤT:\n" + pdf_text[:30000]
+                
+            extracted_tasks = ai_agent.parse_pdf_tasks_with_ai(input_data, api_key)
+            if extracted_tasks:
+                is_ai_parsed = True
+                
+        added_count = 0
+        updated_count = 0
+        
+        # Load all tasks for project 1 to perform normalized WBS matching in-memory
+        all_tasks = db.query(models.Task).filter(models.Task.project_id == 1).all()
+        def normalize_key(w):
+            return str(w).strip().upper().replace("BĐS", "BS").replace("BDS", "BS").replace(" ", "")
+        task_lookup = {normalize_key(t.ma_ngan_sach): t for t in all_tasks if t.ma_ngan_sach}
+        
+        if is_ai_parsed:
+            for t_info in extracted_tasks:
+                # Convert PDFTaskInfo object to dictionary if it is not already
+                t_dict = t_info if isinstance(t_info, dict) else t_info.dict()
+                
+                wbs_val = t_dict.get("ma_ngan_sach", "")
+                stt_val = t_dict.get("stt", "")
+                name_val = t_dict.get("ten_cong_viec", "")
+                
+                if not name_val or name_val.upper() == "TỔNG DỰ ÁN":
+                    continue
+                    
+                if not wbs_val:
+                    wbs_val = f"TD.BĐS.GEN.{stt_val}"
+                    
+                phong_ban_val = t_dict.get("phong_ban_thuc_hien") or "PTDA"
+                if not phong_ban_val or phong_ban_val == "None" or phong_ban_val == "-":
+                    phong_ban_val = "PTDA"
+                    
+                co_quan_val = t_dict.get("co_quan_giai_quyet") or "-"
+                ho_so_val = t_dict.get("ho_so_dau_ra") or "-"
+                dieu_kien_val = t_dict.get("dieu_kien_ghi_nhan") or "-"
+                deadline_val = t_dict.get("thoi_han_hoan_thanh") or ""
+                tien_do_val = t_dict.get("tien_do") or 0.0
+                trang_thai_val = t_dict.get("trang_thai") or "Todo"
+                budget_val = t_dict.get("ngan_sach_tong") or 0.0
+                
+                if not trang_thai_val:
+                    if tien_do_val >= 100.0:
+                        trang_thai_val = "Done"
+                    elif tien_do_val > 0.0:
+                        trang_thai_val = "In-Progress"
+                    else:
+                        trang_thai_val = "Todo"
+                        
+                phase_id = parse_phase_from_stt(stt_val)
+                
+                norm_wbs = normalize_key(wbs_val)
+                existing_task = task_lookup.get(norm_wbs)
+                if existing_task:
+                    existing_task.stt = stt_val
+                    existing_task.ten_cong_viec = name_val
+                    existing_task.phong_ban_thuc_hien = phong_ban_val
+                    existing_task.co_quan_giai_quyet = co_quan_val
+                    existing_task.ho_so_dau_ra = ho_so_val
+                    existing_task.dieu_kien_ghi_nhan = dieu_kien_val
+                    existing_task.thoi_han_hoan_thanh = deadline_val
+                    existing_task.tien_do = tien_do_val
+                    existing_task.trang_thai = trang_thai_val
+                    existing_task.phase_id = phase_id
+                    
+                    if existing_task.budget:
+                        existing_task.budget.ngan_sach_tong = budget_val
+                    else:
+                        new_budget = models.Budget(
+                            task_id=existing_task.id,
+                            ngan_sach_tong=budget_val,
+                            kh_2026=budget_val * 0.40,
+                            quy_1_2026=budget_val * 0.15,
+                            quy_2_2026=budget_val * 0.15,
+                            thang_01_2025=budget_val * 0.05,
+                            thang_02_2025=budget_val * 0.05,
+                            thang_03_2025=budget_val * 0.05,
+                            thang_04_2025=budget_val * 0.05,
+                            thang_05_2026=budget_val * 0.05,
+                            thang_06_2026=budget_val * 0.05
+                        )
+                        db.add(new_budget)
+                    updated_count += 1
+                else:
+                    new_task = models.Task(
+                        project_id=1,
+                        ma_ngan_sach=wbs_val,
+                        stt=stt_val,
+                        phase_id=phase_id,
+                        ten_cong_viec=name_val,
+                        phong_ban_thuc_hien=phong_ban_val,
+                        co_quan_giai_quyet=co_quan_val,
+                        ho_so_dau_ra=ho_so_val,
+                        dieu_kien_ghi_nhan=dieu_kien_val,
+                        thoi_han_hoan_thanh=deadline_val,
+                        tien_do=tien_do_val,
+                        trang_thai=trang_thai_val,
+                        ngay_khoi_tao=datetime.date.today().isoformat(),
+                        weekly_reports_json="[]"
+                    )
+                    db.add(new_task)
+                    db.flush()
+                    
+                    new_budget = models.Budget(
+                        task_id=new_task.id,
+                        ngan_sach_tong=budget_val,
+                        kh_2026=budget_val * 0.40,
+                        quy_1_2026=budget_val * 0.15,
+                        quy_2_2026=budget_val * 0.15,
+                        thang_01_2025=budget_val * 0.05,
+                        thang_02_2025=budget_val * 0.05,
+                        thang_03_2025=budget_val * 0.05,
+                        thang_04_2025=budget_val * 0.05,
+                        thang_05_2026=budget_val * 0.05,
+                        thang_06_2026=budget_val * 0.05
+                    )
+                    db.add(new_budget)
+                    added_count += 1
+        else:
+            if not pdf_tables_rows:
+                raise HTTPException(
+                    status_code=400,
+                    detail="File PDF không chứa bảng biểu kế hoạch dạng lưới. Vui lòng cấu hình GEMINI_API_KEY để AI đọc trực tiếp văn bản tự do."
+                )
+                
+            mapping = ai_agent.extract_excel_mapping_with_ai(pdf_tables_rows, None)
+            
+            ma_ngan_sach_idx = mapping.get("ma_ngan_sach_idx")
+            stt_idx = mapping.get("stt_idx")
+            ten_cong_viec_idx = mapping.get("ten_cong_viec_idx")
+            phong_ban_idx = mapping.get("phong_ban_idx")
+            co_quan_idx = mapping.get("co_quan_idx")
+            ho_so_dau_ra_idx = mapping.get("ho_so_dau_ra_idx")
+            dieu_kien_ghi_nhan_idx = mapping.get("dieu_kien_ghi_nhan_idx")
+            thoi_han_hoan_thanh_idx = mapping.get("thoi_han_hoan_thanh_idx")
+            tien_do_idx = mapping.get("tien_do_idx")
+            trang_thai_idx = mapping.get("trang_thai_idx")
+            ngan_sach_idx = mapping.get("ngan_sach_idx")
+            
+            if ma_ngan_sach_idx is None or ten_cong_viec_idx is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Không thể tự động bóc tách cấu trúc bảng trong PDF. Vui lòng cấu hình GEMINI_API_KEY để AI đọc văn bản."
+                )
+                
+            start_row = 1
+            for idx, row in enumerate(pdf_tables_rows[:5]):
+                row_str = " ".join([str(x).lower() for x in row if x])
+                if "stt" in row_str or "wbs" in row_str or "mã ngân sách" in row_str or "tên công việc" in row_str:
+                    start_row = idx + 1
+                    break
+                    
+            for idx, row in enumerate(pdf_tables_rows):
+                if idx < start_row:
+                    continue
+                    
+                wbs_val = str(row[ma_ngan_sach_idx]).strip() if ma_ngan_sach_idx is not None and ma_ngan_sach_idx < len(row) and row[ma_ngan_sach_idx] is not None else ""
+                stt_val = str(row[stt_idx]).strip() if stt_idx is not None and stt_idx < len(row) and row[stt_idx] is not None else f"PDF{idx}"
+                name_val = str(row[ten_cong_viec_idx]).strip() if ten_cong_viec_idx is not None and ten_cong_viec_idx < len(row) and row[ten_cong_viec_idx] is not None else ""
+                
+                if not name_val or name_val.upper() == "TỔNG DỰ ÁN":
+                    continue
+                    
+                if not wbs_val:
+                    wbs_val = f"TD.BĐS.GEN.{stt_val}"
+                    
+                phong_ban_val = str(row[phong_ban_idx]).strip() if phong_ban_idx is not None and phong_ban_idx < len(row) and row[phong_ban_idx] is not None else "PTDA"
+                if not phong_ban_val or phong_ban_val == "None" or phong_ban_val == "-":
+                    phong_ban_val = "PTDA"
+                    
+                co_quan_val = str(row[co_quan_idx]).strip() if co_quan_idx is not None and co_quan_idx < len(row) and row[co_quan_idx] is not None else "-"
+                if not co_quan_val or co_quan_val == "None":
+                    co_quan_val = "-"
+                    
+                ho_so_val = str(row[ho_so_dau_ra_idx]).strip() if ho_so_dau_ra_idx is not None and ho_so_dau_ra_idx < len(row) and row[ho_so_dau_ra_idx] is not None else "-"
+                dieu_kien_val = str(row[dieu_kien_ghi_nhan_idx]).strip() if dieu_kien_ghi_nhan_idx is not None and dieu_kien_ghi_nhan_idx < len(row) and row[dieu_kien_ghi_nhan_idx] is not None else "-"
+                
+                if not ho_so_val or ho_so_val == "None" or ho_so_val == "-":
+                    ho_so_val = dieu_kien_val
+                else:
+                    try:
+                        float(ho_so_val)
+                        if dieu_kien_val and dieu_kien_val != "-" and dieu_kien_val != "None":
+                            ho_so_val = dieu_kien_val
+                    except ValueError:
+                        pass
+                        
+                deadline_val = str(row[thoi_han_hoan_thanh_idx]).strip() if thoi_han_hoan_thanh_idx is not None and thoi_han_hoan_thanh_idx < len(row) and row[thoi_han_hoan_thanh_idx] is not None else ""
+                
+                tien_do_val = 0.0
+                if tien_do_idx is not None and tien_do_idx < len(row) and row[tien_do_idx] is not None:
+                    try:
+                        val = str(row[tien_do_idx]).replace('%', '').strip()
+                        tien_do_val = float(val)
+                        if tien_do_val > 1.0 and tien_do_val <= 100.0:
+                            pass
+                        elif tien_do_val >= 0.0 and tien_do_val <= 1.0:
+                            tien_do_val = tien_do_val * 100.0
+                    except ValueError:
+                        pass
+                        
+                trang_thai_val = "Todo"
+                if trang_thai_idx is not None and trang_thai_idx < len(row) and row[trang_thai_idx] is not None:
+                    status_raw = str(row[trang_thai_idx]).lower().strip()
+                    if "done" in status_raw or "hoàn thành" in status_raw or "xong" in status_raw:
+                        trang_thai_val = "Done"
+                    elif "progress" in status_raw or "đang" in status_raw or "triển khai" in status_raw:
+                        trang_thai_val = "In-Progress"
+                    elif "delayed" in status_raw or "trễ" in status_raw or "chậm" in status_raw:
+                        trang_thai_val = "Delayed"
+                else:
+                    if tien_do_val >= 100.0:
+                        trang_thai_val = "Done"
+                    elif tien_do_val > 0.0:
+                        trang_thai_val = "In-Progress"
+                        
+                budget_val = 0.0
+                if ngan_sach_idx is not None and ngan_sach_idx < len(row) and row[ngan_sach_idx] is not None:
+                    try:
+                        val = str(row[ngan_sach_idx]).replace(',', '').strip()
+                        budget_val = float(val.replace('.', '')) if '.' in val and ',' in val else float(val)
+                    except ValueError:
+                        pass
+                        
+                phase_id = parse_phase_from_stt(stt_val)
+                
+                norm_wbs = normalize_key(wbs_val)
+                existing_task = task_lookup.get(norm_wbs)
+                if existing_task:
+                    existing_task.stt = stt_val
+                    existing_task.ten_cong_viec = name_val
+                    existing_task.phong_ban_thuc_hien = phong_ban_val
+                    existing_task.co_quan_giai_quyet = co_quan_val
+                    existing_task.ho_so_dau_ra = ho_so_val
+                    existing_task.dieu_kien_ghi_nhan = dieu_kien_val
+                    existing_task.thoi_han_hoan_thanh = deadline_val
+                    existing_task.tien_do = tien_do_val
+                    existing_task.trang_thai = trang_thai_val
+                    existing_task.phase_id = phase_id
+                    
+                    if existing_task.budget:
+                        existing_task.budget.ngan_sach_tong = budget_val
+                    else:
+                        new_budget = models.Budget(
+                            task_id=existing_task.id,
+                            ngan_sach_tong=budget_val,
+                            kh_2026=budget_val * 0.40,
+                            quy_1_2026=budget_val * 0.15,
+                            quy_2_2026=budget_val * 0.15,
+                            thang_01_2025=budget_val * 0.05,
+                            thang_02_2025=budget_val * 0.05,
+                            thang_03_2025=budget_val * 0.05,
+                            thang_04_2025=budget_val * 0.05,
+                            thang_05_2026=budget_val * 0.05,
+                            thang_06_2026=budget_val * 0.05
+                        )
+                        db.add(new_budget)
+                    updated_count += 1
+                else:
+                    new_task = models.Task(
+                        project_id=1,
+                        ma_ngan_sach=wbs_val,
+                        stt=stt_val,
+                        phase_id=phase_id,
+                        ten_cong_viec=name_val,
+                        phong_ban_thuc_hien=phong_ban_val,
+                        co_quan_giai_quyet=co_quan_val,
+                        ho_so_dau_ra=ho_so_val,
+                        dieu_kien_ghi_nhan=dieu_kien_val,
+                        thoi_han_hoan_thanh=deadline_val,
+                        tien_do=tien_do_val,
+                        trang_thai=trang_thai_val,
+                        ngay_khoi_tao=datetime.date.today().isoformat(),
+                        weekly_reports_json="[]"
+                    )
+                    db.add(new_task)
+                    db.flush()
+                    
+                    new_budget = models.Budget(
+                        task_id=new_task.id,
+                        ngan_sach_tong=budget_val,
+                        kh_2026=budget_val * 0.40,
+                        quy_1_2026=budget_val * 0.15,
+                        quy_2_2026=budget_val * 0.15,
+                        thang_01_2025=budget_val * 0.05,
+                        thang_02_2025=budget_val * 0.05,
+                        thang_03_2025=budget_val * 0.05,
+                        thang_04_2025=budget_val * 0.05,
+                        thang_05_2026=budget_val * 0.05,
+                        thang_06_2026=budget_val * 0.05
+                    )
+                    db.add(new_budget)
+                    added_count += 1
+                    
+        recalculate_budgets(db)
+        log_action(db, username or "Hệ thống AI", "Bóc tách PDF", f"Đã nhập PDF thành công: Thêm mới {added_count} dòng, Cập nhật {updated_count} dòng.")
+        db.commit()
+        
+        await manager.broadcast({"type": "sync_refresh"})
+        
+        return {
+            "status": "success",
+            "message": f"Bóc tách PDF thành công! Đã thêm mới {added_count} công việc, Cập nhật {updated_count} công việc."
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi bóc tách file PDF: {str(e)}")
+
 @app.post("/api/tasks")
 async def create_task(
     request: TaskCreate, 
