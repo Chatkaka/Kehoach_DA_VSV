@@ -3008,8 +3008,8 @@
             // Client-side permission checks
             const activeUsername = localStorage.getItem('active_username');
             const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
+            const taskLevel = task.stt ? task.stt.split('.').length : 1;
             if (task && task.stt) {
-                const taskLevel = task.stt.split('.').length;
                 if (activeUser) {
                     if (activeUser.role !== 'Admin' && activeUser.role !== 'PM') {
                         const userDept = String(activeUser.phong_ban).toUpperCase().trim();
