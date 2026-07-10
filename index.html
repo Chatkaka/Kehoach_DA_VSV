@@ -3132,12 +3132,12 @@
             document.getElementById('edit-nguoi-duyet').disabled = !isAdminOrPM;
 
             // Determine active user permissions
-            const activeUsername = localStorage.getItem('active_username') || 'admin';
-            const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
-            const isAdmin = activeUsername === 'admin' || (activeUser && activeUser.role === 'Admin');
-            const isPM = activeUser && activeUser.role === 'PM';
+            const currentActiveUsername = activeUsername || 'admin';
+            const currentActiveUser = activeUser;
+            const isAdmin = currentActiveUsername === 'admin' || (currentActiveUser && currentActiveUser.role === 'Admin');
+            const isPM = currentActiveUser && currentActiveUser.role === 'PM';
             
-            const userDept = activeUser ? String(activeUser.phong_ban).toUpperCase().trim() : '';
+            const userDept = currentActiveUser ? String(currentActiveUser.phong_ban).toUpperCase().trim() : '';
             const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
             const isDeptMember = userDept === taskDept || userDept === 'ALL';
             
@@ -3145,14 +3145,14 @@
             const isReporter = !task.nguoi_bao_cao || 
                 task.nguoi_bao_cao === '-' ||
                 task.nguoi_bao_cao.trim() === '' ||
-                (activeUser && activeUser.ho_ten.toLowerCase().trim() === task.nguoi_bao_cao.toLowerCase().trim()) ||
-                activeUsername.toLowerCase().trim() === (task.nguoi_bao_cao || '').toLowerCase().trim() ||
+                (currentActiveUser && currentActiveUser.ho_ten.toLowerCase().trim() === task.nguoi_bao_cao.toLowerCase().trim()) ||
+                currentActiveUsername.toLowerCase().trim() === (task.nguoi_bao_cao || '').toLowerCase().trim() ||
                 isDeptMember;
                 
             const isReporterOrAdmin = isReporter || isAdmin || isPM;
 
             // Determine if the active user is the Department Head (Trưởng phòng/CBQL) of that task's department
-            const isDeptManager = (activeUser && (activeUser.role === 'TruongPhong' || activeUser.role === 'CBQL') && isDeptMember) || isAdmin || isPM;
+            const isDeptManager = (currentActiveUser && (currentActiveUser.role === 'TruongPhong' || currentActiveUser.role === 'CBQL') && isDeptMember) || isAdmin || isPM;
             const isManagerOrAdmin = isDeptManager || isAdmin || isPM;
 
             // Set weekly planning and reporting accessibility
