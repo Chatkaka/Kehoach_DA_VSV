@@ -303,16 +303,48 @@ def get_action_logs(db: Session = Depends(database.get_db)):
     } for l in logs]
 
 def check_task_update_permissions(user, task, request_data, is_partial=False):
+    # Rule 0: Lock after weekly approval. Non-admins cannot edit if duyet_tuan is "Đã duyệt"
+    if task.duyet_tuan == "Đã duyệt":
+        if not user or user.role != "Admin":
+            raise HTTPException(
+                status_code=403,
+                detail="Công việc đã được phê duyệt tuần. Không thể chỉnh sửa thêm."
+            )
+
     # Check task level dynamically based on STT formatting
     task_level = task.stt.count('.') + 1
     
-    # Rule 2: Admin or PM only for Level 1 and 2 tasks
+    # Rule 2: Structure edits for Level 1 and 2 tasks are Admin or PM only.
+    # However, allow weekly status updates and progress reporting by department members.
     if task_level in (1, 2):
         if not user or user.role not in ("Admin", "PM"):
-            raise HTTPException(
-                status_code=403,
-                detail="Chỉ có Admin hoặc Giám đốc dự án mới được phép sửa công việc cấp 1, cấp 2."
-            )
+            # Check for structural changes
+            has_structural_changes = False
+            if request_data.ma_ngan_sach != task.ma_ngan_sach: has_structural_changes = True
+            if request_data.ten_cong_viec != task.ten_cong_viec: has_structural_changes = True
+            if request_data.phong_ban_thuc_hien != task.phong_ban_thuc_hien: has_structural_changes = True
+            if request_data.co_quan_giai_quyet != task.co_quan_giai_quyet: has_structural_changes = True
+            if request_data.ho_so_dau_ra != task.ho_so_dau_ra: has_structural_changes = True
+            if request_data.dieu_kien_ghi_nhan != task.dieu_kien_ghi_nhan: has_structural_changes = True
+            if request_data.thoi_han_hoan_thanh != task.thoi_han_hoan_thanh: has_structural_changes = True
+            if request_data.duyet_tuan != task.duyet_tuan: has_structural_changes = True
+            if request_data.cach_giai_quyet != task.cach_giai_quyet: has_structural_changes = True
+            
+            # Check department membership
+            user_dept = str(user.phong_ban).upper().strip() if user else ""
+            task_dept = str(task.phong_ban_thuc_hien).upper().strip()
+            if user_dept != task_dept and user_dept != "ALL":
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban if user else ''}) không trùng khớp với phòng thực hiện công việc ({task.phong_ban_thuc_hien})."
+                )
+            
+            if has_structural_changes:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Chỉ có Admin hoặc Giám đốc dự án mới được sửa đổi cấu trúc công việc cấp 1, cấp 2."
+                )
+            return
         return
 
     # If no user is specified, we default to Admin permissions (for backward compatibility and ease of testing)
@@ -336,17 +368,11 @@ def check_task_update_permissions(user, task, request_data, is_partial=False):
         
     # Role-based check for NhanVien:
     if user.role == "NhanVien":
-        # A NhanVien can ONLY update: ke_hoach_tuan, ket_qua_tuan, vuong_mac_tuan.
-        # They cannot update progress, status, or any metadata.
+        # A NhanVien can update: ke_hoach_tuan, ket_qua_tuan, vuong_mac_tuan, tien_do, trang_thai.
+        # They cannot update structure, deliverables, solutions, or approvals.
         if is_partial:
-            # PUT /api/tasks/{task_id}/progress is meant to update progress/status
-            raise HTTPException(
-                status_code=403,
-                detail="Quyền hạn bị từ chối: Nhân viên không có quyền cập nhật tiến độ hoặc trạng thái công việc."
-            )
+            pass
         else:
-            # PUT /api/tasks/{task_id}
-            # Compare requested fields with current database values to see if any forbidden field has changed
             has_forbidden_changes = False
             if request_data.ma_ngan_sach != task.ma_ngan_sach: has_forbidden_changes = True
             if request_data.ten_cong_viec != task.ten_cong_viec: has_forbidden_changes = True
@@ -355,15 +381,13 @@ def check_task_update_permissions(user, task, request_data, is_partial=False):
             if request_data.ho_so_dau_ra != task.ho_so_dau_ra: has_forbidden_changes = True
             if request_data.dieu_kien_ghi_nhan != task.dieu_kien_ghi_nhan: has_forbidden_changes = True
             if request_data.thoi_han_hoan_thanh != task.thoi_han_hoan_thanh: has_forbidden_changes = True
-            if request_data.tien_do != task.tien_do: has_forbidden_changes = True
-            if request_data.trang_thai != task.trang_thai: has_forbidden_changes = True
             if request_data.cach_giai_quyet != task.cach_giai_quyet: has_forbidden_changes = True
             if request_data.duyet_tuan != task.duyet_tuan: has_forbidden_changes = True
             
             if has_forbidden_changes:
                 raise HTTPException(
                     status_code=403,
-                    detail="Quyền hạn bị từ chối: Nhân viên chỉ có quyền cập nhật Kế hoạch tuần, Kết quả tuần và Vướng mắc tuần."
+                    detail="Quyền hạn bị từ chối: Nhân viên chỉ có quyền cập nhật Kế hoạch tuần, Kết quả tuần, Vướng mắc tuần và Tiến độ."
                 )
 
 class UserCreate(BaseModel):
