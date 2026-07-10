@@ -560,6 +560,57 @@
             </div>
             <input type="hidden" id="edit-id">
             
+            <!-- Edit Modal Dashboard Row -->
+            <div id="edit-dashboard-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 15px; margin-bottom: 15px;">
+                <!-- Card 1: Project Budget & Cumulative Acceptance -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 16px; border-radius: 10px; display: flex; align-items: center; gap: 15px;">
+                    <!-- Circular Widget -->
+                    <div style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2); border-radius:50%; flex-shrink: 0;">
+                        <svg width="80" height="80" viewBox="0 0 80 80">
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="#10b981" stroke-width="6" stroke-dasharray="213.6" stroke-dashoffset="213.6" id="edit-circle-nghiem-thu-progress" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+                        </svg>
+                        <div style="position:absolute; text-align:center;">
+                            <span id="edit-label-nghiem-thu-pct" style="font-size:0.95rem; font-weight:700; color: #10b981;">0%</span>
+                            <span style="font-size:0.45rem; display:block; color:var(--text-muted); text-transform:uppercase; margin-top:-2px; font-weight: 700;">Lũy Kế</span>
+                        </div>
+                    </div>
+                    <!-- Details -->
+                    <div style="flex: 1;">
+                        <span style="display: block; font-size: 0.65rem; color: #10b981; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px; width: fit-content; margin-bottom: 6px;">Tổng ngân sách & lũy kế</span>
+                        <div style="font-size: 0.8rem; line-height: 1.5;">
+                            <div>Tổng ngân sách: <strong id="edit-val-hd" style="color: #fff;">0đ</strong></div>
+                            <div>Lũy kế thực hiện: <strong id="edit-val-nghiem-thu" style="color: #10b981;">0đ</strong></div>
+                            <div>Còn lại: <strong id="edit-val-con-lai" style="color: #fff;">0đ</strong></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Card 2: Monthly Budget Dashboard -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 16px; border-radius: 10px; display: flex; align-items: center; gap: 15px;">
+                    <!-- Circular Widget -->
+                    <div style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2); border-radius:50%; flex-shrink: 0;">
+                        <svg width="80" height="80" viewBox="0 0 80 80">
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="#f59e0b" stroke-width="6" stroke-dasharray="213.6" stroke-dashoffset="213.6" id="edit-circle-thanh-toan-progress" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+                        </svg>
+                        <div style="position:absolute; text-align:center;">
+                            <span id="edit-label-thanh-toan-pct" style="font-size:0.95rem; font-weight:700; color: #f59e0b;">0%</span>
+                            <span style="font-size:0.45rem; display:block; color:var(--text-muted); text-transform:uppercase; margin-top:-2px; font-weight: 700;">Tháng</span>
+                        </div>
+                    </div>
+                    <!-- Details -->
+                    <div style="flex: 1;">
+                        <span style="display: block; font-size: 0.65rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(245,158,11,0.1); padding: 2px 6px; border-radius: 4px; width: fit-content; margin-bottom: 6px;">Ngân sách tháng hiện tại</span>
+                        <div style="font-size: 0.8rem; line-height: 1.5;">
+                            <div>Ngân sách tháng: <strong id="edit-val-tam-ung" style="color: #fff;">0đ</strong></div>
+                            <div>Đã thực hiện: <strong id="edit-val-thanh-toan" style="color: #f59e0b;">0đ</strong></div>
+                            <div>Còn lại: <strong id="edit-val-thu-hoi-tu" style="color: #fff;">0đ</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- SECTION 1: Cấu trúc WBS & Giao việc (Trường Cố định / Fixed) -->
             <div style="margin-top: 10px;">
                 <h4 style="font-size: 0.8rem; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--secondary); padding-left: 6px; margin-bottom: 8px;">Thông tin WBS & Giao Việc</h4>
@@ -2965,6 +3016,43 @@
             
             document.getElementById('edit-id').value = task.id;
             document.getElementById('edit-task-stt').innerText = task.ma_ngan_sach ? '(' + task.ma_ngan_sach + ')' : '';
+
+            // Update edit modal dashboard widgets
+            const editNganSach = (task.budget ? task.budget.ngan_sach_tong : 0) || 0;
+            const editDaNghiemThu = task.da_nghiem_thu || 0;
+            const editConLai = Math.max(0, editNganSach - editDaNghiemThu);
+            const editPctLuyKe = editNganSach > 0 ? Math.round((editDaNghiemThu / editNganSach) * 100) : 0;
+            
+            document.getElementById('edit-label-nghiem-thu-pct').innerText = `${editPctLuyKe}%`;
+            const editOffsetNghiemThu = 213.6 - (213.6 * Math.min(100, editPctLuyKe) / 100);
+            document.getElementById('edit-circle-nghiem-thu-progress').style.strokeDashoffset = editOffsetNghiemThu;
+            
+            document.getElementById('edit-val-hd').innerText = formatCurrency(editNganSach);
+            document.getElementById('edit-val-nghiem-thu').innerText = formatCurrency(editDaNghiemThu);
+            document.getElementById('edit-val-con-lai').innerText = formatCurrency(editConLai);
+            
+            let editNsThang = 0;
+            const editNow = new Date();
+            const editMM = String(editNow.getMonth() + 1).padStart(2, '0');
+            const editYYYY = editNow.getFullYear();
+            const editFieldKey = `thang_${editMM}_${editYYYY}`;
+            if (task.budget && task.budget[editFieldKey] !== undefined) {
+                editNsThang = task.budget[editFieldKey];
+            } else {
+                editNsThang = task.budget ? (task.budget.thang_06_2026 || task.budget.thang_05_2026 || (editNganSach * 0.05)) : (editNganSach * 0.05);
+            }
+            const editThucHienThang = editNsThang * ((task.tien_do || 0) / 100);
+            const editConLaiThang = Math.max(0, editNsThang - editThucHienThang);
+            const editPctThang = task.tien_do || 0;
+            
+            document.getElementById('edit-label-thanh-toan-pct').innerText = `${editPctThang}%`;
+            const editOffsetThanhToan = 213.6 - (213.6 * Math.min(100, editPctThang) / 100);
+            document.getElementById('edit-circle-thanh-toan-progress').style.strokeDashoffset = editOffsetThanhToan;
+            
+            document.getElementById('edit-val-tam-ung').innerText = formatCurrency(editNsThang);
+            document.getElementById('edit-val-thanh-toan').innerText = formatCurrency(editThucHienThang);
+            document.getElementById('edit-val-thu-hoi-tu').innerText = formatCurrency(editConLaiThang);
+
             document.getElementById('edit-wbs').value = task.ma_ngan_sach || '';
             document.getElementById('edit-name').value = task.ten_cong_viec || '';
             
@@ -3132,10 +3220,15 @@
                 document.getElementById('edit-cach-giai-quyet').disabled = !isManagerOrAdmin;
             }
 
-            // Standard and financial fields settings:
-            // Only Admin/PM can edit level 1 & 2 tasks structure.
-            // Department members can edit level 3 & 4 tasks structure.
-            const canEditStructure = isAdmin || isPM || (taskLevel > 2 && isDeptMember);
+            // Standard structure fields settings:
+            // Only Admin or the task creator can edit structural info (WBS Info, Roles, and Timeline).
+            const isCreator = currentActiveUser && (
+                (task.nguoi_phu_trach && task.nguoi_phu_trach.toLowerCase().trim() === currentActiveUser.ho_ten.toLowerCase().trim()) || 
+                (task.nguoi_bao_cao && task.nguoi_bao_cao.toLowerCase().trim() === currentActiveUser.ho_ten.toLowerCase().trim()) ||
+                currentActiveUsername.toLowerCase().trim() === (task.nguoi_phu_trach || '').toLowerCase().trim() ||
+                currentActiveUsername.toLowerCase().trim() === (task.nguoi_bao_cao || '').toLowerCase().trim()
+            );
+            const canEditStructure = isAdmin || isCreator;
             
             document.getElementById('edit-wbs').disabled = !canEditStructure;
             document.getElementById('edit-name').disabled = !canEditStructure;
@@ -4247,13 +4340,13 @@
 
                 let actionBtn = '';
                 if (userRole === 'NhanVien') {
-                    actionBtn = `<button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: var(--secondary);" onclick="openEditModal(${task.id})"><i class="fa-solid fa-file-pen"></i> Báo cáo</button>`;
+                    actionBtn = `<button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: #f59e0b; color: #fff; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" onclick="openEditModal(${task.id})" title="Báo cáo tuần"><i class="fa-solid fa-calendar-check"></i> BC Tuần</button>`;
                 } else {
                     actionBtn = `
-                        <div style="display:flex; gap:4px;">
+                        <div style="display:flex; gap:4px; align-items:center;">
                             <button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: var(--success);" onclick="quickApproveWeekly(${task.id}, 'Đã duyệt')" title="Duyệt nhanh"><i class="fa-solid fa-check"></i> Duyệt</button>
                             <button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: var(--danger);" onclick="quickApproveWeekly(${task.id}, 'Không duyệt')" title="Từ chối"><i class="fa-solid fa-xmark"></i> Bác</button>
-                            <button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: var(--primary);" onclick="openEditModal(${task.id})" title="Sửa & Cho giải pháp"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button class="btn" style="padding: 4px 8px; font-size: 0.85rem; background: #f59e0b; color: #fff; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" onclick="openEditModal(${task.id})" title="Báo cáo tuần"><i class="fa-solid fa-calendar-check"></i> BC Tuần</button>
                         </div>
                     `;
                 }

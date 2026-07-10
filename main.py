@@ -349,31 +349,27 @@ def check_task_update_permissions(user, task, request_data, is_partial=False):
             detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban}) không trùng khớp với phòng thực hiện công việc ({task.phong_ban_thuc_hien})."
         )
 
-    # Manager / Trưởng phòng permissions:
-    if user_role in ("TruongPhong", "CBQL", "PM"):
-        # Trưởng phòng can edit structure of Level 3, 4, 5.
-        # But they CANNOT edit structure of Level 1 and 2 tasks!
-        if task_level in (1, 2) and has_structural_changes:
-            raise HTTPException(
-                status_code=403,
-                detail="Chỉ có Admin mới được phép sửa đổi cấu trúc công việc cấp 1, cấp 2."
-            )
-        return
+    # Check if the user is the original creator/assignee of the task
+    user_fullname = str(user.ho_ten).lower().strip()
+    user_username = str(user.username).lower().strip()
+    task_pt = str(task.nguoi_phu_trach).lower().strip()
+    task_bc = str(task.nguoi_bao_cao).lower().strip()
+    is_creator = user_fullname in (task_pt, task_bc) or user_username in (task_pt, task_bc)
 
-    # Employee / Nhân viên permissions:
-    if user_role == "NhanVien":
-        # Nhân viên can edit structure of Level 4 & 5.
-        # But they CANNOT edit structure of Level 1, 2, 3 tasks!
-        if task_level in (1, 2, 3) and has_structural_changes:
+    # 1. Structural fields changes restriction: Only Admin (already checked) or Task Creator can modify WBS structure, roles, timeline
+    if has_structural_changes:
+        if not is_creator:
             raise HTTPException(
                 status_code=403,
-                detail=f"Nhân viên không có quyền chỉnh sửa cấu trúc của công việc cấp {task_level}."
+                detail="Quyền hạn bị từ chối: Chỉ có Admin hoặc người lập ra công việc này mới được chỉnh sửa cấu trúc (Thông tin WBS, Nhân sự, Mốc thời gian)."
             )
-        # Nhân viên cannot update manager weekly approval/feedback fields at any level
-        if has_manager_changes:
+
+    # 2. CBQL weekly approval changes restriction: Only Admin (already checked) or Trưởng phòng/CBQL can approve
+    if has_manager_changes:
+        if user_role not in ("TruongPhong", "CBQL", "PM"):
             raise HTTPException(
                 status_code=403,
-                detail="Nhân viên không có quyền phê duyệt tuần hoặc cập nhật ý kiến giải quyết của quản lý."
+                detail="Quyền hạn bị từ chối: Nhân viên không có quyền phê duyệt tuần hoặc cập nhật ý kiến của quản lý."
             )
         return
 
