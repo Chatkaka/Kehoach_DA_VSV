@@ -210,7 +210,7 @@ def extract_excel_mapping_with_ai(rows_data: list, api_key: str = None) -> dict:
     # Duyệt qua tối đa 5 dòng đầu để tìm dòng tiêu đề
     header_row = None
     for r in rows_data[:5]:
-        if any(isinstance(val, str) and any(kw in val.lower() for kw in ["stt", "wbs", "tên công việc", "nội dung", "ngân sách", "phòng ban"]) for val in r if val):
+        if any(isinstance(val, str) and any(kw in val.lower() for kw in ["stt", "wbs", "tên công việc", "nội dung", "ngân sách", "phòng ban", "pb", "cty", "kpi"]) for val in r if val):
             header_row = [str(x).lower().strip() if x is not None else "" for x in r]
             break
             
@@ -226,11 +226,11 @@ def extract_excel_mapping_with_ai(rows_data: list, api_key: str = None) -> dict:
             elif "tên" in col or "nội dung" in col or "công việc" in col:
                 if mapping["ten_cong_viec_idx"] is None:
                     mapping["ten_cong_viec_idx"] = idx
-            elif "phòng" in col or "phụ trách" in col or "ban" in col:
+            elif "phòng" in col or "phụ trách" in col or "ban" in col or "pb" in col or "cty" in col or "thực hiện" in col:
                 mapping["phong_ban_idx"] = idx
             elif "cơ quan" in col or "giải quyết" in col:
                 mapping["co_quan_idx"] = idx
-            elif "hồ sơ" in col or "kết quả" in col or "đầu ra" in col:
+            elif "hồ sơ" in col or "kết quả" in col or "đầu ra" in col or "kpi" in col or "chỉ tiêu" in col:
                 mapping["ho_so_dau_ra_idx"] = idx
             elif "điều kiện" in col or "ghi nhận" in col:
                 mapping["dieu_kien_ghi_nhan_idx"] = idx

@@ -209,6 +209,17 @@
                     </div>
                 </div>
 
+                <!-- Weekly Task Level View Filter Controls -->
+                <div class="weekly-level-filters-bar" style="display: flex; align-items: center; gap: 8px; margin-top: 10px; margin-bottom: 10px; padding: 8px 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; margin-right: 6px;"><i class="fa-solid fa-layer-group"></i> Lọc cấp công việc báo cáo:</span>
+                    <button type="button" class="btn" id="btn-operational-level-filter-1" onclick="applyOperationalLevelFilter(1)" style="font-size: 0.8rem; padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-primary); cursor: pointer; transition: all 0.2s;">Xem Cấp 1</button>
+                    <button type="button" class="btn" id="btn-operational-level-filter-2" onclick="applyOperationalLevelFilter(2)" style="font-size: 0.8rem; padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-primary); cursor: pointer; transition: all 0.2s;">Xem Cấp 2</button>
+                    <button type="button" class="btn" id="btn-operational-level-filter-3" onclick="applyOperationalLevelFilter(3)" style="font-size: 0.8rem; padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-primary); cursor: pointer; transition: all 0.2s;">Xem Cấp 3</button>
+                    <button type="button" class="btn" id="btn-operational-level-filter-4" onclick="applyOperationalLevelFilter(4)" style="font-size: 0.8rem; padding: 6px 12px; background: var(--success); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: #fff; font-weight: 700; cursor: pointer; transition: all 0.2s;">Xem Cấp 4 (Tất cả)</button>
+                    
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: auto; font-style: italic;">* Mẹo: Bấm mũi tên (▾/▸) trước tên việc để đóng/mở nhánh báo cáo.</span>
+                </div>
+
                 <div class="table-wrapper">
                     <table>
                         <thead>
@@ -2579,17 +2590,92 @@
                 .catch(err => console.error("Error fetching stats:", err));
         }
 
+        // Global state for operational task collapse and level filters
+        window.collapsedOperationalTasks = window.collapsedOperationalTasks || new Set();
+        window.activeOperationalLevelFilter = window.activeOperationalLevelFilter || 4;
+
+        function toggleOperationalTaskCollapse(stt, event) {
+            if (event) event.stopPropagation();
+            window.collapsedOperationalTasks = window.collapsedOperationalTasks || new Set();
+            if (window.collapsedOperationalTasks.has(stt)) {
+                window.collapsedOperationalTasks.delete(stt);
+            } else {
+                window.collapsedOperationalTasks.add(stt);
+            }
+            fetchStats(); 
+        }
+        window.toggleOperationalTaskCollapse = toggleOperationalTaskCollapse;
+
+        function applyOperationalLevelFilter(level) {
+            window.activeOperationalLevelFilter = level;
+            for (let i = 1; i <= 4; i++) {
+                const btn = document.getElementById(`btn-operational-level-filter-${i}`);
+                if (btn) {
+                    if (i === level) {
+                        btn.style.background = 'var(--success)';
+                        btn.style.color = '#fff';
+                        btn.style.fontWeight = '700';
+                    } else {
+                        btn.style.background = 'rgba(255,255,255,0.05)';
+                        btn.style.color = 'var(--text-primary)';
+                        btn.style.fontWeight = '500';
+                    }
+                }
+            }
+            fetchStats();
+        }
+        window.applyOperationalLevelFilter = applyOperationalLevelFilter;
+
         // Render the operational dashboard table rows
         function renderOperationalTable(tasks) {
             const tableBody = document.getElementById('operation-tasks-body');
-            if (tasks.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--text-secondary);">Không có công việc nào cần xử lý trong mục này.</td></tr>`;
+            tableBody.innerHTML = '';
+            
+            window.collapsedOperationalTasks = window.collapsedOperationalTasks || new Set();
+            window.activeOperationalLevelFilter = window.activeOperationalLevelFilter || 4;
+
+            // Sort tasks by STT hierarchically
+            tasks.sort((a, b) => {
+                return a.stt.localeCompare(b.stt, undefined, {numeric: true, sensitivity: 'base'});
+            });
+
+            // Filter out tasks based on level and collapse state
+            const visibleTasks = [];
+            tasks.forEach(task => {
+                const dotCount = (task.stt.match(/\./g) || []).length;
+                const taskLevel = dotCount + 1;
+                task.level = taskLevel;
+
+                // Level Filter
+                if (task.level > window.activeOperationalLevelFilter) {
+                    return;
+                }
+
+                // Ancestor collapse filter
+                const parts = task.stt.split('.');
+                let isAncestorCollapsed = false;
+                for (let i = 1; i < parts.length; i++) {
+                    const ancestorStt = parts.slice(0, i).join('.');
+                    if (window.collapsedOperationalTasks.has(ancestorStt)) {
+                        isAncestorCollapsed = true;
+                        break;
+                    }
+                }
+                if (isAncestorCollapsed) {
+                    return;
+                }
+                visibleTasks.push(task);
+            });
+
+            if (visibleTasks.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--text-secondary);">Không có công việc nào hiển thị cho mức lọc này.</td></tr>`;
                 return;
             }
 
-            tableBody.innerHTML = '';
-            tasks.forEach(task => {
+            visibleTasks.forEach(task => {
                 const tr = document.createElement('tr');
+                tr.id = `op-task-row-${task.id}`;
+                tr.className = `level-${task.level}`;
                 
                 const deadlineText = task.thoi_han_hoan_thanh || '<span style="color:var(--text-secondary);">-</span>';
                 const statusBadge = `<span class="badge ${task.trang_thai.toLowerCase()}">${getStatusTextVietnamese(task.trang_thai)}</span>`;
@@ -2597,10 +2683,30 @@
                 
                 const editBtn = `<button class="action-btn" onclick="openEditModal(${task.id})" title="Báo cáo tuần" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-calendar-check"></i> BC Tuần</button>`;
 
+                // Check if this task has children in the tasks list
+                const hasChildren = tasks.some(t => t.stt.startsWith(task.stt + '.'));
+
+                // Collapse/Expand caret
+                let caretHtml = '';
+                if (hasChildren) {
+                    const isCollapsed = window.collapsedOperationalTasks.has(task.stt);
+                    const iconClass = isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down';
+                    const colorClass = isCollapsed ? 'color: var(--secondary);' : 'color: var(--success);';
+                    caretHtml = `<i class="fa-solid ${iconClass}" style="margin-right: 8px; cursor: pointer; ${colorClass}" onclick="toggleOperationalTaskCollapse('${task.stt}', event)"></i>`;
+                } else {
+                    caretHtml = `<span style="display: inline-block; width: 14px; margin-right: 8px;"></span>`;
+                }
+
+                // Indentation padding
+                const indent = (task.level - 1) * 15;
+                const indentStyle = indent > 0 ? `padding-left: ${indent}px;` : '';
+
                 tr.innerHTML = `
                     <td style="text-align:center; font-weight:bold;">${task.stt}</td>
                     <td style="text-align:center;"><code>${task.ma_ngan_sach || '-'}</code></td>
-                    <td style="font-weight:500; cursor: pointer; color: var(--primary);" onclick="openDetailModal(${task.id})" title="Xem chi tiết công việc">${task.ten_cong_viec}</td>
+                    <td style="font-weight:500; cursor: pointer; color: var(--primary); ${indentStyle}" onclick="openDetailModal(${task.id})" title="Xem chi tiết công việc">
+                        ${caretHtml}${task.ten_cong_viec}
+                    </td>
                     <td style="text-align:center;"><span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-primary); font-size:0.75rem;">${task.phong_ban_thuc_hien || '-'}</span></td>
                     <td style="text-align:center; font-weight:600; color:var(--danger);">${deadlineText}</td>
                     <td>${task.ke_hoach_tuan || '<em style="color:var(--text-secondary);">Trống</em>'}</td>
