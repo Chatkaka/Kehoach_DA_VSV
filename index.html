@@ -2973,11 +2973,16 @@
         }
 
         function updateExpectedProgress() {
-            const currentText = document.getElementById('current-progress-label').innerText || '0%';
-            const current = parseFloat(currentText.replace('%', '')) || 0;
-            const increment = parseFloat(document.getElementById('edit-progress').value) || 0;
-            const expected = Math.min(100, Math.max(0, current + increment));
-            document.getElementById('expected-progress-label').innerText = expected + '%';
+            const currentLabel = document.getElementById('current-progress-label');
+            const expectedLabel = document.getElementById('expected-progress-label');
+            const progressInput = document.getElementById('edit-progress');
+            if (currentLabel && expectedLabel && progressInput) {
+                const currentText = currentLabel.innerText || '0%';
+                const current = parseFloat(currentText.replace('%', '')) || 0;
+                const increment = parseFloat(progressInput.value) || 0;
+                const expected = Math.min(100, Math.max(0, current + increment));
+                expectedLabel.innerText = expected + '%';
+            }
         }
         window.updateExpectedProgress = updateExpectedProgress;
 
@@ -3267,8 +3272,10 @@
             document.getElementById('edit-budget').value = budgetRaw ? Number(budgetRaw).toLocaleString('vi-VN') : '0';
             
             // Set current and expected progress preview labels
-            document.getElementById('current-progress-label').innerText = (task.tien_do || 0) + '%';
-            document.getElementById('expected-progress-label').innerText = (task.tien_do || 0) + '%';
+            const currentLabel = document.getElementById('current-progress-label');
+            const expectedLabel = document.getElementById('expected-progress-label');
+            if (currentLabel) currentLabel.innerText = (task.tien_do || 0) + '%';
+            if (expectedLabel) expectedLabel.innerText = (task.tien_do || 0) + '%';
             document.getElementById('edit-progress').value = 0;
             document.getElementById('edit-status').value = task.trang_thai || 'Todo';
 
