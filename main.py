@@ -1389,6 +1389,12 @@ async def import_excel_ai(
         added_count = 0
         updated_count = 0
         
+        # Load all tasks for project 1 to perform normalized WBS matching in-memory
+        all_tasks = db.query(models.Task).filter(models.Task.project_id == 1).all()
+        def normalize_key(w):
+            return str(w).strip().upper().replace("BĐS", "BS").replace("BDS", "BS").replace(" ", "")
+        task_lookup = {normalize_key(t.ma_ngan_sach): t for t in all_tasks if t.ma_ngan_sach}
+        
         for idx, row in enumerate(excel_rows):
             r = idx + 1
             if r < start_row:
@@ -1405,9 +1411,27 @@ async def import_excel_ai(
                 wbs_val = f"TD.BĐS.GEN.{stt_val}"
                 
             phong_ban_val = str(row[phong_ban_idx]).strip() if phong_ban_idx is not None and row[phong_ban_idx] is not None else "PTDA"
+            if not phong_ban_val or phong_ban_val == "None" or phong_ban_val == "-":
+                phong_ban_val = "PTDA"
+                
             co_quan_val = str(row[co_quan_idx]).strip() if co_quan_idx is not None and row[co_quan_idx] is not None else "-"
+            if not co_quan_val or co_quan_val == "None":
+                co_quan_val = "-"
+                
             ho_so_val = str(row[ho_so_dau_ra_idx]).strip() if ho_so_dau_ra_idx is not None and row[ho_so_dau_ra_idx] is not None else "-"
             dieu_kien_val = str(row[dieu_kien_ghi_nhan_idx]).strip() if dieu_kien_ghi_nhan_idx is not None and row[dieu_kien_ghi_nhan_idx] is not None else "-"
+            
+            # Fallback ho_so_val to dieu_kien_val if empty, None, or a numeric placeholder (e.g. weight "1")
+            if not ho_so_val or ho_so_val == "None" or ho_so_val == "-":
+                ho_so_val = dieu_kien_val
+            else:
+                try:
+                    float(ho_so_val)
+                    if dieu_kien_val and dieu_kien_val != "-" and dieu_kien_val != "None":
+                        ho_so_val = dieu_kien_val
+                except ValueError:
+                    pass
+                    
             deadline_val = str(row[thoi_han_hoan_thanh_idx]).strip() if thoi_han_hoan_thanh_idx is not None and row[thoi_han_hoan_thanh_idx] is not None else ""
             
             tien_do_val = 0.0
@@ -1448,7 +1472,8 @@ async def import_excel_ai(
             phase_id = parse_phase_from_stt(stt_val)
             
             # Upsert logic
-            existing_task = db.query(models.Task).filter(models.Task.ma_ngan_sach == wbs_val).first()
+            norm_wbs = normalize_key(wbs_val)
+            existing_task = task_lookup.get(norm_wbs)
             if existing_task:
                 existing_task.stt = stt_val
                 existing_task.ten_cong_viec = name_val

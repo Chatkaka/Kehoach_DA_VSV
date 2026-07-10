@@ -219,28 +219,61 @@ def extract_excel_mapping_with_ai(rows_data: list, api_key: str = None) -> dict:
         
     if header_row:
         for idx, col in enumerate(header_row):
-            if "wbs" in col or "mã ngân sách" in col or "mã công việc" in col:
-                mapping["ma_ngan_sach_idx"] = idx
-            elif "stt" in col or "số thứ tự" in col:
-                mapping["stt_idx"] = idx
-            elif "tên" in col or "nội dung" in col or "công việc" in col:
+            c_norm = col.lower().strip()
+            
+            # 1. WBS code
+            if "wbs" in c_norm or "mã ngân sách" in c_norm or "ma ngan sach" in c_norm or "m ngn sch" in c_norm or "mã công việc" in c_norm:
+                if mapping["ma_ngan_sach_idx"] is None:
+                    mapping["ma_ngan_sach_idx"] = idx
+            
+            # 2. STT
+            elif "stt" in c_norm or "số thứ tự" in c_norm:
+                if mapping["stt_idx"] is None:
+                    mapping["stt_idx"] = idx
+            
+            # 3. Task Name / Description
+            elif "tên" in c_norm or "nội dung" in c_norm or "công việc" in c_norm or "noi dung" in c_norm or "cong viec" in c_norm or "cng vic" in c_norm:
                 if mapping["ten_cong_viec_idx"] is None:
                     mapping["ten_cong_viec_idx"] = idx
-            elif "phòng" in col or "phụ trách" in col or "ban" in col or "pb" in col or "cty" in col or "thực hiện" in col:
-                mapping["phong_ban_idx"] = idx
-            elif "cơ quan" in col or "giải quyết" in col:
-                mapping["co_quan_idx"] = idx
-            elif "hồ sơ" in col or "kết quả" in col or "đầu ra" in col or "kpi" in col or "chỉ tiêu" in col:
-                mapping["ho_so_dau_ra_idx"] = idx
-            elif "điều kiện" in col or "ghi nhận" in col:
-                mapping["dieu_kien_ghi_nhan_idx"] = idx
-            elif "thời hạn" in col or "ngày hoàn thành" in col or "deadline" in col:
-                mapping["thoi_han_hoan_thanh_idx"] = idx
-            elif "tiến độ" in col or "tiến trình" in col or "phần trăm" in col:
-                mapping["tien_do_idx"] = idx
-            elif "trạng thái" in col or "status" in col:
-                mapping["trang_thai_idx"] = idx
-            elif "ngân sách" in col or "dự toán" in col or "budget" in col or "tổng" in col:
+            
+            # 4. Department
+            elif "phòng" in c_norm or "phụ trách" in c_norm or "ban" in c_norm or "pb" in c_norm or "cty" in c_norm or "thực hiện" in c_norm or "thc hin" in c_norm:
+                if "cttv" not in c_norm:  # Skip PB/CTTV columns
+                    if mapping["phong_ban_idx"] is None:
+                        mapping["phong_ban_idx"] = idx
+            
+            # 5. Agency
+            elif "cơ quan" in c_norm or "giải quyết" in c_norm or "co quan" in c_norm or "giai quyet" in c_norm or "c quan" in c_norm or "gii quyt" in c_norm:
+                if mapping["co_quan_idx"] is None:
+                    mapping["co_quan_idx"] = idx
+            
+            # 6. Deliverables
+            elif "hồ sơ" in c_norm or "đầu ra" in c_norm or "kpi" in c_norm or "chỉ tiêu" in c_norm or "ho so" in c_norm or "dau ra" in c_norm or "chi tiu" in c_norm:
+                if mapping["ho_so_dau_ra_idx"] is None:
+                    mapping["ho_so_dau_ra_idx"] = idx
+            
+            # 7. Conditions
+            elif "điều kiện" in c_norm or "ghi nhận" in c_norm or "dieu kien" in c_norm or "ghi nhan" in c_norm or "iu kin" in c_norm or "ghi nhn" in c_norm:
+                if mapping["dieu_kien_ghi_nhan_idx"] is None:
+                    mapping["dieu_kien_ghi_nhan_idx"] = idx
+            
+            # 8. Deadline
+            elif "thời hạn" in c_norm or "ngày hoàn thành" in c_norm or "deadline" in c_norm or "thoi han" in c_norm:
+                if mapping["thoi_han_hoan_thanh_idx"] is None:
+                    mapping["thoi_han_hoan_thanh_idx"] = idx
+            
+            # 9. Progress
+            elif "tiến độ" in c_norm or "tiến trình" in c_norm or "phần trăm" in c_norm or "tien do" in c_norm:
+                if mapping["tien_do_idx"] is None:
+                    mapping["tien_do_idx"] = idx
+            
+            # 10. Status
+            elif "trạng thái" in c_norm or "status" in c_norm or "trang thai" in c_norm:
+                if mapping["trang_thai_idx"] is None:
+                    mapping["trang_thai_idx"] = idx
+            
+            # 11. Budget
+            elif "ngân sách" in c_norm or "dự toán" in c_norm or "budget" in c_norm or "tổng" in c_norm or "ngan sach" in c_norm or "du toan" in c_norm or "ngn sch" in c_norm:
                 if mapping["ngan_sach_idx"] is None:
                     mapping["ngan_sach_idx"] = idx
 
