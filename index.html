@@ -148,6 +148,17 @@
                     </div>
                 </div>
 
+                <!-- Task Level View Filter Controls -->
+                <div class="level-filters-bar" style="display: flex; align-items: center; gap: 8px; margin-top: 10px; margin-bottom: 10px; padding: 8px 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; margin-right: 6px;"><i class="fa-solid fa-layer-group"></i> Xem theo cấp công việc:</span>
+                    <button type="button" class="btn" id="btn-level-filter-1" onclick="applyMaxLevelFilter(1)" style="font-size: 0.8rem; padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-primary); cursor: pointer; transition: all 0.2s;">Xem Cấp 1</button>
+                    <button type="button" class="btn" id="btn-level-filter-2" onclick="applyMaxLevelFilter(2)" style="font-size: 0.8rem; padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-primary); cursor: pointer; transition: all 0.2s;">Xem Cấp 2</button>
+                    <button type="button" class="btn" id="btn-level-filter-3" onclick="applyMaxLevelFilter(3)" style="font-size: 0.8rem; padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: var(--text-primary); cursor: pointer; transition: all 0.2s;">Xem Cấp 3</button>
+                    <button type="button" class="btn" id="btn-level-filter-4" onclick="applyMaxLevelFilter(4)" style="font-size: 0.8rem; padding: 6px 12px; background: var(--primary); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: #fff; font-weight: 700; cursor: pointer; transition: all 0.2s;">Xem Cấp 4 (Tất cả)</button>
+                    
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: auto; font-style: italic;">* Mẹo: Bấm biểu tượng chevron (▾/▸) ở nội dung công việc để thu gọn/bung ra thủ công.</span>
+                </div>
+
                 <div class="table-wrapper">
                     <table>
                         <thead>
@@ -2667,13 +2678,44 @@
             }
         }
 
+        // Global state for WBS task collapse and level filters
+        window.collapsedTasks = window.collapsedTasks || new Set();
+        window.activeMaxLevelFilter = window.activeMaxLevelFilter || 4;
+
+        function toggleTaskCollapse(stt, event) {
+            if (event) event.stopPropagation();
+            window.collapsedTasks = window.collapsedTasks || new Set();
+            if (window.collapsedTasks.has(stt)) {
+                window.collapsedTasks.delete(stt);
+            } else {
+                window.collapsedTasks.add(stt);
+            }
+            renderTasksTable(window.currentTasks);
+        }
+        window.toggleTaskCollapse = toggleTaskCollapse;
+
+        function applyMaxLevelFilter(level) {
+            window.activeMaxLevelFilter = level;
+            for (let i = 1; i <= 4; i++) {
+                const btn = document.getElementById(`btn-level-filter-${i}`);
+                if (btn) {
+                    if (i === level) {
+                        btn.style.background = 'var(--primary)';
+                        btn.style.color = '#fff';
+                        btn.style.fontWeight = '700';
+                    } else {
+                        btn.style.background = 'rgba(255,255,255,0.05)';
+                        btn.style.color = 'var(--text-primary)';
+                        btn.style.fontWeight = '500';
+                    }
+                }
+            }
+            renderTasksTable(window.currentTasks);
+        }
+        window.applyMaxLevelFilter = applyMaxLevelFilter;
+
         // Fetch Tasks list
         function fetchTasks(phaseId) {
-            // Record scroll position of table-wrapper
-            const wrapper = document.querySelector('#wbs-tab .table-wrapper');
-            const scrollTop = wrapper ? wrapper.scrollTop : 0;
-            const scrollLeft = wrapper ? wrapper.scrollLeft : 0;
-
             const tableBody = document.getElementById('tasks-table-body');
             tableBody.innerHTML = `
                 <tr>
@@ -2687,125 +2729,176 @@
                 .then(res => res.json())
                 .then(tasks => {
                     window.currentTasks = tasks; // Save to global cache
-                    if (tasks.length === 0) {
-                        tableBody.innerHTML = `<tr><td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">Không tìm thấy công việc nào.</td></tr>`;
-                        return;
-                    }
-
-                    // Sort tasks by STT hierarchically
-                    tasks.sort((a, b) => {
-                        return a.stt.localeCompare(b.stt, undefined, {numeric: true, sensitivity: 'base'});
-                    });
-
-                    tableBody.innerHTML = '';
-                    tasks.forEach(task => {
-                        const tr = document.createElement('tr');
-                        tr.id = `task-row-${task.id}`;
-                        tr.className = `level-${task.level}`;
-
-                        // Tree padding indentation
-                        const indent = (task.level - 1) * 20;
-                        const indentStyle = indent > 0 ? `padding-left: ${indent}px;` : '';
-                        
-                        const budgetText = task.budget ? task.budget.ngan_sach_tong.toLocaleString() + ' Trđ' : '0.00 Trđ';
-                        const lockedIcon = (task.budget && task.budget.is_locked) ? '<i class="fa-solid fa-lock" style="color:var(--danger); margin-left:6px;" title="Mã ngân sách đã bị khóa do vượt chi"></i>' : '';
-
-                        const activeUsername = localStorage.getItem('active_username');
-                        const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
-                        
-                        let hasEditPermission = false;
-                        let hasDeletePermission = false;
-                        let hasAddPermission = false;
-                        
-                        if (activeUser) {
-                            const userDept = String(activeUser.phong_ban).toUpperCase().trim();
-                            const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
-                            const isSameDept = userDept === taskDept || userDept === 'ALL';
-                            const isAdmin = activeUser.role === 'Admin';
-                            const isManager = activeUser.role === 'TruongPhong' || activeUser.role === 'CBQL' || activeUser.role === 'PM';
-                            const isEmployee = activeUser.role === 'NhanVien';
-                            
-                            // Edit permission (open modal to report weekly / edit structurally)
-                            if (isAdmin || isSameDept) {
-                                hasEditPermission = true;
-                            }
-                            
-                            // Add permission (creating child task of level task.level + 1)
-                            const childLevel = task.level + 1;
-                            if (isAdmin) {
-                                hasAddPermission = true;
-                            } else if (isSameDept) {
-                                if (childLevel === 3 && isManager) {
-                                    hasAddPermission = true;
-                                } else if ((childLevel === 4 || childLevel === 5) && (isManager || isEmployee)) {
-                                    hasAddPermission = true;
-                                }
-                            }
-                            
-                            // Delete permission
-                            if (isAdmin) {
-                                hasDeletePermission = true;
-                            } else if (isSameDept) {
-                                if (task.level === 3 && isManager) {
-                                    hasDeletePermission = true;
-                                } else if ((task.level === 4 || task.level === 5) && (isManager || isEmployee)) {
-                                    hasDeletePermission = true;
-                                }
-                            }
-                        } else {
-                            hasEditPermission = true;
-                            hasDeletePermission = true;
-                            hasAddPermission = true;
-                        }
-                        
-                        const addBtn = hasAddPermission ? `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-plus"></i></button>` : '';
-                        const editBtn = hasEditPermission ? `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa công việc" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; margin-right:4px; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>` : '';
-                        const deleteBtn = hasDeletePermission ? `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem;"><i class="fa-solid fa-trash"></i></button>` : '';
-
-                        tr.innerHTML = `
-                            <td>${task.stt} <span style="font-size:0.7rem; color:var(--text-secondary);">(Lv${task.level})</span></td>
-                            <td><code>${task.ma_ngan_sach}</code></td>
-                            <td style="${indentStyle}; cursor: pointer; color: var(--primary);" onclick="openDetailModal(${task.id})" title="Xem chi tiết công việc">${task.ten_cong_viec}</td>
-                            <td>${task.phong_ban_thuc_hien || '-'}</td>
-                            <td>${task.ho_so_dau_ra || '-'}</td>
-                            <td>${task.thoi_han_hoan_thanh || 'Tháng 06/2026'}</td>
-                            <td style="font-weight:600; text-align:right;">${budgetText} ${lockedIcon}</td>
-                            <td class="progress-cell">
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <span style="font-weight:600;">${task.tien_do}%</span>
-                                    <div class="progress-bar-container">
-                                        <div class="progress-bar-fill" style="width: ${task.tien_do}%"></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="status-cell">
-                                <span class="badge ${task.trang_thai.toLowerCase()}">${getStatusTextVietnamese(task.trang_thai)}</span>
-                            </td>
-                            <td>
-                                <span class="badge ${task.duyet_tuan === 'Đã duyệt' ? 'done' : (task.duyet_tuan === 'Không duyệt' ? 'delayed' : 'todo')}">${task.duyet_tuan || 'Chưa duyệt'}</span>
-                            </td>
-                            <td style="display:flex; align-items:center;">
-                                ${addBtn}
-                                ${editBtn}
-                                ${deleteBtn}
-                            </td>
-                        `;
-                        tableBody.appendChild(tr);
-                    });
-
-                    // Re-apply search filter state
-                    filterTasks();
-
-                    // Restore scroll position
-                    if (wrapper) {
-                        wrapper.scrollTop = scrollTop;
-                        wrapper.scrollLeft = scrollLeft;
-                    }
+                    renderTasksTable(tasks);
                 })
                 .catch(err => {
                     console.error("Error loading tasks:", err);
                     tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 40px; color: var(--danger);">Không thể kết nối tới cơ sở dữ liệu.</td></tr>`;
                 });
+        }
+
+        // Render tasks WBS tree table
+        function renderTasksTable(tasks) {
+            const tableBody = document.getElementById('tasks-table-body');
+            const wrapper = document.querySelector('#wbs-tab .table-wrapper');
+            const scrollTop = wrapper ? wrapper.scrollTop : 0;
+            const scrollLeft = wrapper ? wrapper.scrollLeft : 0;
+
+            if (!tasks || tasks.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">Không tìm thấy công việc nào.</td></tr>`;
+                return;
+            }
+
+            // Sort tasks by STT hierarchically
+            tasks.sort((a, b) => {
+                return a.stt.localeCompare(b.stt, undefined, {numeric: true, sensitivity: 'base'});
+            });
+
+            tableBody.innerHTML = '';
+            
+            window.collapsedTasks = window.collapsedTasks || new Set();
+            window.activeMaxLevelFilter = window.activeMaxLevelFilter || 4;
+
+            tasks.forEach(task => {
+                // Determine task level
+                const dotCount = (task.stt.match(/\./g) || []).length;
+                const taskLevel = dotCount + 1;
+                task.level = taskLevel;
+
+                // Max level filter
+                if (task.level > window.activeMaxLevelFilter) {
+                    return;
+                }
+
+                // Ancestor collapsed filter
+                const parts = task.stt.split('.');
+                let isAncestorCollapsed = false;
+                for (let i = 1; i < parts.length; i++) {
+                    const ancestorStt = parts.slice(0, i).join('.');
+                    if (window.collapsedTasks.has(ancestorStt)) {
+                        isAncestorCollapsed = true;
+                        break;
+                    }
+                }
+                if (isAncestorCollapsed) {
+                    return;
+                }
+
+                // Check if has child nodes
+                const hasChildren = tasks.some(t => t.stt.startsWith(task.stt + '.'));
+
+                const tr = document.createElement('tr');
+                tr.id = `task-row-${task.id}`;
+                tr.className = `level-${task.level}`;
+
+                // Tree padding indentation
+                const indent = (task.level - 1) * 20;
+                const indentStyle = indent > 0 ? `padding-left: ${indent}px;` : '';
+                
+                const budgetText = task.budget ? task.budget.ngan_sach_tong.toLocaleString() + ' Trđ' : '0.00 Trđ';
+                const lockedIcon = (task.budget && task.budget.is_locked) ? '<i class="fa-solid fa-lock" style="color:var(--danger); margin-left:6px;" title="Mã ngân sách đã bị khóa do vượt chi"></i>' : '';
+
+                const activeUsername = localStorage.getItem('active_username');
+                const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
+                
+                let hasEditPermission = false;
+                let hasDeletePermission = false;
+                let hasAddPermission = false;
+                
+                if (activeUser) {
+                    const userDept = String(activeUser.phong_ban).toUpperCase().trim();
+                    const taskDept = String(task.phong_ban_thuc_hien || '').toUpperCase().trim();
+                    const isSameDept = userDept === taskDept || userDept === 'ALL';
+                    const isAdmin = activeUser.role === 'Admin';
+                    const isManager = activeUser.role === 'TruongPhong' || activeUser.role === 'CBQL' || activeUser.role === 'PM';
+                    const isEmployee = activeUser.role === 'NhanVien';
+                    
+                    if (isAdmin || isSameDept) {
+                        hasEditPermission = true;
+                    }
+                    
+                    const childLevel = task.level + 1;
+                    if (isAdmin) {
+                        hasAddPermission = true;
+                    } else if (isSameDept) {
+                        if (childLevel === 3 && isManager) {
+                            hasAddPermission = true;
+                        } else if ((childLevel === 4 || childLevel === 5) && (isManager || isEmployee)) {
+                            hasAddPermission = true;
+                        }
+                    }
+                    
+                    if (isAdmin) {
+                        hasDeletePermission = true;
+                    } else if (isSameDept) {
+                        if (task.level === 3 && isManager) {
+                            hasDeletePermission = true;
+                        } else if ((task.level === 4 || task.level === 5) && (isManager || isEmployee)) {
+                            hasDeletePermission = true;
+                        }
+                    }
+                } else {
+                    hasEditPermission = true;
+                    hasDeletePermission = true;
+                    hasAddPermission = true;
+                }
+                
+                const addBtn = hasAddPermission ? `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-plus"></i></button>` : '';
+                const editBtn = hasEditPermission ? `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa công việc" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; margin-right:4px; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>` : '';
+                const deleteBtn = hasDeletePermission ? `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem;"><i class="fa-solid fa-trash"></i></button>` : '';
+
+                // Expand/Collapse toggle icon
+                let caretHtml = '';
+                if (hasChildren) {
+                    const isCollapsed = window.collapsedTasks.has(task.stt);
+                    const iconClass = isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down';
+                    const colorClass = isCollapsed ? 'color: var(--secondary);' : 'color: var(--primary);';
+                    caretHtml = `<i class="fa-solid ${iconClass}" style="margin-right: 8px; cursor: pointer; ${colorClass}" onclick="toggleTaskCollapse('${task.stt}', event)"></i>`;
+                } else {
+                    caretHtml = `<span style="display: inline-block; width: 14px; margin-right: 8px;"></span>`;
+                }
+
+                tr.innerHTML = `
+                    <td>${task.stt} <span style="font-size:0.7rem; color:var(--text-secondary);">(Lv${task.level})</span></td>
+                    <td><code>${task.ma_ngan_sach}</code></td>
+                    <td style="${indentStyle} cursor: pointer; color: var(--primary);" onclick="openDetailModal(${task.id})" title="Xem chi tiết công việc">
+                        ${caretHtml}${task.ten_cong_viec}
+                    </td>
+                    <td>${task.phong_ban_thuc_hien || '-'}</td>
+                    <td>${task.ho_so_dau_ra || '-'}</td>
+                    <td>${task.thoi_han_hoan_thanh || 'Tháng 06/2026'}</td>
+                    <td style="font-weight:600; text-align:right;">${budgetText} ${lockedIcon}</td>
+                    <td class="progress-cell">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-weight:600;">${task.tien_do}%</span>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" style="width: ${task.tien_do}%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="status-cell">
+                        <span class="badge ${task.trang_thai.toLowerCase()}">${getStatusTextVietnamese(task.trang_thai)}</span>
+                    </td>
+                    <td>
+                        <span class="badge ${task.duyet_tuan === 'Đã duyệt' ? 'done' : (task.duyet_tuan === 'Không duyệt' ? 'delayed' : 'todo')}">${task.duyet_tuan || 'Chưa duyệt'}</span>
+                    </td>
+                    <td style="display:flex; align-items:center;">
+                        ${addBtn}
+                        ${editBtn}
+                        ${deleteBtn}
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Re-apply search filter state
+            filterTasks();
+
+            // Restore scroll position
+            if (wrapper) {
+                wrapper.scrollTop = scrollTop;
+                wrapper.scrollLeft = scrollLeft;
+            }
         }
 
         // Filter tasks dynamically using search bar
