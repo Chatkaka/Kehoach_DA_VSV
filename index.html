@@ -2970,13 +2970,9 @@
                 const taskLevel = task.stt.split('.').length;
                 if (activeUser) {
                     if (activeUser.role !== 'Admin' && activeUser.role !== 'PM') {
-                        if (taskLevel <= 2) {
-                            alert("Chỉ có Admin hoặc Giám đốc dự án mới được phép sửa công việc cấp 1, cấp 2.");
-                            return;
-                        }
                         const userDept = String(activeUser.phong_ban).toUpperCase().trim();
                         const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
-                        if (userDept !== taskDept) {
+                        if (userDept !== taskDept && userDept !== 'ALL') {
                             alert(`Quyền hạn bị từ chối: Bạn thuộc phòng ban ${activeUser.phong_ban}, không thể chỉnh sửa công việc của phòng ${task.phong_ban_thuc_hien}.`);
                             return;
                         }
