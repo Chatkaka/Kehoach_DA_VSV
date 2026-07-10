@@ -4,7 +4,7 @@ import datetime
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
@@ -1299,6 +1299,236 @@ def recalculate_budgets(db: Session):
         project_obj.tong_ngan_sach = project_total
         db.add(project_obj)
     db.flush()
+
+def parse_phase_from_stt(stt_val):
+    if not stt_val:
+        return 1
+    stt_str = str(stt_val).strip()
+    parts = stt_str.split('.')
+    if not parts or not parts[0].isdigit():
+        return 1
+    try:
+        prefix = int(parts[0])
+        if 1 <= prefix <= 15:
+            return 1
+        elif 16 <= prefix <= 18:
+            return 2
+        elif 19 <= prefix <= 26:
+            return 3
+        elif 27 <= prefix <= 28:
+            return 4
+        else:
+            return 1
+    except ValueError:
+        return 1
+
+@app.post("/api/tasks/import-excel-ai")
+async def import_excel_ai(
+    file: UploadFile = File(...),
+    username: Optional[str] = None,
+    db: Session = Depends(database.get_db)
+):
+    try:
+        # Read the file contents
+        file_bytes = await file.read()
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        sheet = wb.active
+        
+        # Get first 15 rows for AI analysis
+        rows_data = []
+        for r_idx, row in enumerate(sheet.iter_rows(values_only=True)):
+            serialized_row = []
+            for cell in row:
+                if cell is None:
+                    serialized_row.append("")
+                elif isinstance(cell, datetime.datetime) or isinstance(cell, datetime.date):
+                    serialized_row.append(cell.isoformat())
+                else:
+                    serialized_row.append(str(cell))
+            rows_data.append(serialized_row)
+            if len(rows_data) >= 15:
+                break
+                
+        # Get Gemini API key if configured
+        api_key = os.environ.get("GEMINI_API_KEY")
+        
+        # Call AI bóc tách mapping
+        mapping = ai_agent.extract_excel_mapping_with_ai(rows_data, api_key)
+        print(f"AI Column Mapping determined: {mapping}")
+        
+        # Column mappings (0-based indices)
+        ma_ngan_sach_idx = mapping.get("ma_ngan_sach_idx")
+        stt_idx = mapping.get("stt_idx")
+        ten_cong_viec_idx = mapping.get("ten_cong_viec_idx")
+        phong_ban_idx = mapping.get("phong_ban_idx")
+        co_quan_idx = mapping.get("co_quan_idx")
+        ho_so_dau_ra_idx = mapping.get("ho_so_dau_ra_idx")
+        dieu_kien_ghi_nhan_idx = mapping.get("dieu_kien_ghi_nhan_idx")
+        thoi_han_hoan_thanh_idx = mapping.get("thoi_han_hoan_thanh_idx")
+        tien_do_idx = mapping.get("tien_do_idx")
+        trang_thai_idx = mapping.get("trang_thai_idx")
+        ngan_sach_idx = mapping.get("ngan_sach_idx")
+        
+        # If crucial columns (WBS/STT or Name) are missing, we cannot parse
+        if ma_ngan_sach_idx is None or ten_cong_viec_idx is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Không thể tự động bóc tách cấu trúc cột. Vui lòng kiểm tra lại file Excel có chứa cột Mã ngân sách/WBS và Tên công việc."
+            )
+            
+        # Determine the start row (usually we skip headers)
+        start_row = 1
+        for idx, row in enumerate(rows_data[:5]):
+            row_str = " ".join([str(x).lower() for x in row if x])
+            if "stt" in row_str or "wbs" in row_str or "mã ngân sách" in row_str or "tên công việc" in row_str:
+                start_row = idx + 2
+                break
+                
+        # Parse rows
+        excel_rows = list(sheet.iter_rows(values_only=True))
+        added_count = 0
+        updated_count = 0
+        
+        for idx, row in enumerate(excel_rows):
+            r = idx + 1
+            if r < start_row:
+                continue
+                
+            wbs_val = str(row[ma_ngan_sach_idx]).strip() if ma_ngan_sach_idx is not None and row[ma_ngan_sach_idx] is not None else ""
+            stt_val = str(row[stt_idx]).strip() if stt_idx is not None and row[stt_idx] is not None else f"ROW{r}"
+            name_val = str(row[ten_cong_viec_idx]).strip() if ten_cong_viec_idx is not None and row[ten_cong_viec_idx] is not None else ""
+            
+            if not name_val or name_val.upper() == "TỔNG DỰ ÁN":
+                continue
+                
+            if not wbs_val:
+                wbs_val = f"TD.BĐS.GEN.{stt_val}"
+                
+            phong_ban_val = str(row[phong_ban_idx]).strip() if phong_ban_idx is not None and row[phong_ban_idx] is not None else "PTDA"
+            co_quan_val = str(row[co_quan_idx]).strip() if co_quan_idx is not None and row[co_quan_idx] is not None else "-"
+            ho_so_val = str(row[ho_so_dau_ra_idx]).strip() if ho_so_dau_ra_idx is not None and row[ho_so_dau_ra_idx] is not None else "-"
+            dieu_kien_val = str(row[dieu_kien_ghi_nhan_idx]).strip() if dieu_kien_ghi_nhan_idx is not None and row[dieu_kien_ghi_nhan_idx] is not None else "-"
+            deadline_val = str(row[thoi_han_hoan_thanh_idx]).strip() if thoi_han_hoan_thanh_idx is not None and row[thoi_han_hoan_thanh_idx] is not None else ""
+            
+            tien_do_val = 0.0
+            if tien_do_idx is not None and row[tien_do_idx] is not None:
+                try:
+                    val = str(row[tien_do_idx]).replace('%', '').strip()
+                    tien_do_val = float(val)
+                    if tien_do_val > 1.0 and tien_do_val <= 100.0:
+                        pass
+                    elif tien_do_val >= 0.0 and tien_do_val <= 1.0:
+                        tien_do_val = tien_do_val * 100.0
+                except ValueError:
+                    pass
+                    
+            trang_thai_val = "Todo"
+            if trang_thai_idx is not None and row[trang_thai_idx] is not None:
+                status_raw = str(row[trang_thai_idx]).lower().strip()
+                if "done" in status_raw or "hoàn thành" in status_raw or "xong" in status_raw:
+                    trang_thai_val = "Done"
+                elif "progress" in status_raw or "đang" in status_raw or "triển khai" in status_raw:
+                    trang_thai_val = "In-Progress"
+                elif "delayed" in status_raw or "trễ" in status_raw or "chậm" in status_raw:
+                    trang_thai_val = "Delayed"
+            else:
+                if tien_do_val >= 100.0:
+                    trang_thai_val = "Done"
+                elif tien_do_val > 0.0:
+                    trang_thai_val = "In-Progress"
+                    
+            budget_val = 0.0
+            if ngan_sach_idx is not None and row[ngan_sach_idx] is not None:
+                try:
+                    val = str(row[ngan_sach_idx]).replace(',', '').strip()
+                    budget_val = float(val.replace('.', '')) if '.' in val and ',' in val else float(val)
+                except ValueError:
+                    pass
+            
+            phase_id = parse_phase_from_stt(stt_val)
+            
+            # Upsert logic
+            existing_task = db.query(models.Task).filter(models.Task.ma_ngan_sach == wbs_val).first()
+            if existing_task:
+                existing_task.stt = stt_val
+                existing_task.ten_cong_viec = name_val
+                existing_task.phong_ban_thuc_hien = phong_ban_val
+                existing_task.co_quan_giai_quyet = co_quan_val
+                existing_task.ho_so_dau_ra = ho_so_val
+                existing_task.dieu_kien_ghi_nhan = dieu_kien_val
+                existing_task.thoi_han_hoan_thanh = deadline_val
+                existing_task.tien_do = tien_do_val
+                existing_task.trang_thai = trang_thai_val
+                existing_task.phase_id = phase_id
+                
+                if existing_task.budget:
+                    existing_task.budget.ngan_sach_tong = budget_val
+                else:
+                    new_budget = models.Budget(
+                        task_id=existing_task.id,
+                        ngan_sach_tong=budget_val,
+                        kh_2026=budget_val * 0.40,
+                        quy_1_2026=budget_val * 0.15,
+                        quy_2_2026=budget_val * 0.15,
+                        thang_01_2025=budget_val * 0.05,
+                        thang_02_2025=budget_val * 0.05,
+                        thang_03_2025=budget_val * 0.05,
+                        thang_04_2025=budget_val * 0.05,
+                        thang_05_2026=budget_val * 0.05,
+                        thang_06_2026=budget_val * 0.05
+                    )
+                    db.add(new_budget)
+                updated_count += 1
+            else:
+                new_task = models.Task(
+                    project_id=1,
+                    ma_ngan_sach=wbs_val,
+                    stt=stt_val,
+                    phase_id=phase_id,
+                    ten_cong_viec=name_val,
+                    phong_ban_thuc_hien=phong_ban_val,
+                    co_quan_giai_quyet=co_quan_val,
+                    ho_so_dau_ra=ho_so_val,
+                    dieu_kien_ghi_nhan=dieu_kien_val,
+                    thoi_han_hoan_thanh=deadline_val,
+                    tien_do=tien_do_val,
+                    trang_thai=trang_thai_val,
+                    ngay_khoi_tao=datetime.date.today().isoformat(),
+                    weekly_reports_json="[]"
+                )
+                db.add(new_task)
+                db.flush()
+                
+                new_budget = models.Budget(
+                    task_id=new_task.id,
+                    ngan_sach_tong=budget_val,
+                    kh_2026=budget_val * 0.40,
+                    quy_1_2026=budget_val * 0.15,
+                    quy_2_2026=budget_val * 0.15,
+                    thang_01_2025=budget_val * 0.05,
+                    thang_02_2025=budget_val * 0.05,
+                    thang_03_2025=budget_val * 0.05,
+                    thang_04_2025=budget_val * 0.05,
+                    thang_05_2026=budget_val * 0.05,
+                    thang_06_2026=budget_val * 0.05
+                )
+                db.add(new_budget)
+                added_count += 1
+                
+        recalculate_budgets(db)
+        log_action(db, username or "Hệ thống AI", "Bóc tách Excel", f"Đã nhập Excel thành công: Thêm mới {added_count} dòng, Cập nhật {updated_count} dòng.")
+        db.commit()
+        
+        await manager.broadcast({"type": "sync_refresh"})
+        
+        return {
+            "status": "success",
+            "message": f"Bóc tách Excel thành công! Đã thêm mới {added_count} công việc, Cập nhật {updated_count} công việc.",
+            "mapping": mapping
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi bóc tách file Excel: {str(e)}")
 
 @app.post("/api/tasks")
 async def create_task(

@@ -150,3 +150,120 @@ def evaluate_financial_risk(project_total_budget: float, total_spent: float, spe
         f"**Khuyến nghị hành động:**\n{recs}"
     )
     return report
+
+class ExcelMappingInfo(BaseModel):
+    ma_ngan_sach_idx: Optional[int] = Field(None, description="Index of column containing WBS code or budget code (e.g. 'TD.BĐS.1.2')")
+    stt_idx: Optional[int] = Field(None, description="Index of column containing STT hierarchy number (e.g. '1.1.2')")
+    ten_cong_viec_idx: Optional[int] = Field(None, description="Index of column containing task name or description")
+    phong_ban_idx: Optional[int] = Field(None, description="Index of column containing department responsible")
+    co_quan_idx: Optional[int] = Field(None, description="Index of column containing resolving agency")
+    ho_so_dau_ra_idx: Optional[int] = Field(None, description="Index of column containing output files or deliverables")
+    dieu_kien_ghi_nhan_idx: Optional[int] = Field(None, description="Index of column containing result recognition conditions")
+    thoi_han_hoan_thanh_idx: Optional[int] = Field(None, description="Index of column containing deadline date or month")
+    tien_do_idx: Optional[int] = Field(None, description="Index of column containing task progress percentage")
+    trang_thai_idx: Optional[int] = Field(None, description="Index of column containing status (Todo, Done, In-Progress)")
+    ngan_sach_idx: Optional[int] = Field(None, description="Index of column containing budget total in Trđ")
+
+def extract_excel_mapping_with_ai(rows_data: list, api_key: str = None) -> dict:
+    """
+    Sử dụng Gemini Pro để bóc tách cột Excel mẫu thành các chỉ số trường dữ liệu phù hợp.
+    Có fallback offline bằng heuristic nếu không có API key.
+    """
+    client = get_gemini_client(api_key)
+    if client:
+        try:
+            prompt = (
+                f"Bạn là chuyên gia phân tích dữ liệu dự án.\n"
+                f"Dưới đây là một số dòng dữ liệu mẫu trích xuất từ file Excel (dòng đầu tiên có thể là tiêu đề hoặc chứa tiêu đề):\n"
+                f"{json.dumps(rows_data, ensure_ascii=False)}\n\n"
+                f"Hãy phân tích cấu trúc cột của bảng này và xác định chỉ số cột (0-based index) tương ứng với các trường dữ liệu sau. "
+                f"Nếu trường nào không có trong bảng hoặc bạn không chắc chắn, hãy trả về null cho trường đó."
+            )
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=ExcelMappingInfo,
+                    temperature=0.1
+                ),
+            )
+            return json.loads(response.text)
+        except Exception as e:
+            print(f"Lỗi gọi Gemini bóc tách cột Excel: {e}. Chuyển sang Heuristic fallback...")
+            
+    # Heuristic fallback offline
+    mapping = {
+        "ma_ngan_sach_idx": None,
+        "stt_idx": None,
+        "ten_cong_viec_idx": None,
+        "phong_ban_idx": None,
+        "co_quan_idx": None,
+        "ho_so_dau_ra_idx": None,
+        "dieu_kien_ghi_nhan_idx": None,
+        "thoi_han_hoan_thanh_idx": None,
+        "tien_do_idx": None,
+        "trang_thai_idx": None,
+        "ngan_sach_idx": None
+    }
+    
+    # Duyệt qua tối đa 5 dòng đầu để tìm dòng tiêu đề
+    header_row = None
+    for r in rows_data[:5]:
+        if any(isinstance(val, str) and any(kw in val.lower() for kw in ["stt", "wbs", "tên công việc", "nội dung", "ngân sách", "phòng ban"]) for val in r if val):
+            header_row = [str(x).lower().strip() if x is not None else "" for x in r]
+            break
+            
+    if not header_row and len(rows_data) > 0:
+        header_row = [str(x).lower().strip() if x is not None else "" for x in rows_data[0]]
+        
+    if header_row:
+        for idx, col in enumerate(header_row):
+            if "wbs" in col or "mã ngân sách" in col or "mã công việc" in col:
+                mapping["ma_ngan_sach_idx"] = idx
+            elif "stt" in col or "số thứ tự" in col:
+                mapping["stt_idx"] = idx
+            elif "tên" in col or "nội dung" in col or "công việc" in col:
+                if mapping["ten_cong_viec_idx"] is None:
+                    mapping["ten_cong_viec_idx"] = idx
+            elif "phòng" in col or "phụ trách" in col or "ban" in col:
+                mapping["phong_ban_idx"] = idx
+            elif "cơ quan" in col or "giải quyết" in col:
+                mapping["co_quan_idx"] = idx
+            elif "hồ sơ" in col or "kết quả" in col or "đầu ra" in col:
+                mapping["ho_so_dau_ra_idx"] = idx
+            elif "điều kiện" in col or "ghi nhận" in col:
+                mapping["dieu_kien_ghi_nhan_idx"] = idx
+            elif "thời hạn" in col or "ngày hoàn thành" in col or "deadline" in col:
+                mapping["thoi_han_hoan_thanh_idx"] = idx
+            elif "tiến độ" in col or "tiến trình" in col or "phần trăm" in col:
+                mapping["tien_do_idx"] = idx
+            elif "trạng thái" in col or "status" in col:
+                mapping["trang_thai_idx"] = idx
+            elif "ngân sách" in col or "dự toán" in col or "budget" in col or "tổng" in col:
+                if mapping["ngan_sach_idx"] is None:
+                    mapping["ngan_sach_idx"] = idx
+
+    # Đảm bảo các cột tối thiểu có giá trị mặc định nếu heuristic không tìm thấy
+    if mapping["stt_idx"] is None: mapping["stt_idx"] = 2
+    if mapping["ma_ngan_sach_idx"] is None: mapping["ma_ngan_sach_idx"] = 1
+    if mapping["ten_cong_viec_idx"] is None: mapping["ten_cong_viec_idx"] = 3
+    if mapping["phong_ban_idx"] is None: mapping["phong_ban_idx"] = 4
+    if mapping["co_quan_idx"] is None: mapping["co_quan_idx"] = 6
+    if mapping["ho_so_dau_ra_idx"] is None: mapping["ho_so_dau_ra_idx"] = 7
+    if mapping["dieu_kien_ghi_nhan_idx"] is None: mapping["dieu_kien_ghi_nhan_idx"] = 11
+    
+    return mapping
+
+def generate_generic_text(prompt: str, api_key: str = None) -> str:
+    client = get_gemini_client(api_key)
+    if client:
+        try:
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt
+            )
+            return response.text
+        except Exception as e:
+            return f"Lỗi gọi Gemini: {e}"
+    return "Gemini API Client không khả dụng (thiếu API Key hoặc lỗi cài đặt thư viện)."
