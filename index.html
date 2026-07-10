@@ -630,9 +630,9 @@
 
 
 
-            <!-- SECTION 4: Thời gian & Bảo hành (Timeline & Warranty) -->
+            <!-- SECTION 4: Thời gian (Timeline) -->
             <div style="border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
-                <h4 style="font-size: 0.8rem; color: #a855f7; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #a855f7; padding-left: 6px; margin-bottom: 8px;">Mốc Thời Gian & Bảo Hành</h4>
+                <h4 style="font-size: 0.8rem; color: #a855f7; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #a855f7; padding-left: 6px; margin-bottom: 8px;">Mốc Thời Gian</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                     <div class="form-group">
                         <label for="edit-ngay-bat-dau">Ngày bắt đầu</label>
@@ -684,7 +684,7 @@
             </div>
 
             <!-- SECTION 6: Báo cáo & Phê duyệt tuần (Trường Biến đổi / Variable) -->
-            <div style="border-top: 1px solid var(--panel-border); margin-top: 12px; padding-top: 10px;">
+            <div id="edit-section-weekly-report" style="border-top: 1px solid var(--panel-border); margin-top: 12px; padding-top: 10px;">
                 <h4 style="font-size: 0.8rem; color: var(--success); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--success); padding-left: 6px; margin-bottom: 8px;"><i class="fa-solid fa-calendar-week"></i> Báo Cáo Tuần & Ý Kiến CBQL</h4>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -3157,6 +3157,13 @@
             document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = !canEditStructure);
             document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = !canEditStructure);
 
+            // Show or hide weekly report section based on which tab is active
+            const isWbsTabActive = window.currentActiveTab === 'wbs-tab';
+            const weeklySec = document.getElementById('edit-section-weekly-report');
+            if (weeklySec) {
+                weeklySec.style.display = isWbsTabActive ? 'none' : 'block';
+            }
+
             document.getElementById('edit-task-modal').style.display = 'flex';
         }
 
@@ -4127,7 +4134,9 @@
         }
 
         // Tab Switching logic
+        window.currentActiveTab = 'wbs-tab';
         function switchTab(tabId, btnEl) {
+            window.currentActiveTab = tabId;
             document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
             document.getElementById(tabId).style.display = 'block';
             
