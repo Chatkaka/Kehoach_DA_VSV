@@ -2711,19 +2711,38 @@
                         let hasAddPermission = false;
                         
                         if (activeUser) {
-                            if (activeUser.role === 'Admin' || activeUser.role === 'PM') {
+                            const userDept = String(activeUser.phong_ban).toUpperCase().trim();
+                            const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
+                            const isSameDept = userDept === taskDept || userDept === 'ALL';
+                            const isAdmin = activeUser.role === 'Admin';
+                            const isManager = activeUser.role === 'TruongPhong' || activeUser.role === 'CBQL' || activeUser.role === 'PM';
+                            const isEmployee = activeUser.role === 'NhanVien';
+                            
+                            // Edit permission (open modal to report weekly / edit structurally)
+                            if (isAdmin || isSameDept) {
                                 hasEditPermission = true;
-                                hasDeletePermission = true;
+                            }
+                            
+                            // Add permission (creating child task of level task.level + 1)
+                            const childLevel = task.level + 1;
+                            if (isAdmin) {
                                 hasAddPermission = true;
-                            } else {
-                                const userDept = String(activeUser.phong_ban).toUpperCase().trim();
-                                const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
-                                if (userDept === taskDept || userDept === 'ALL') {
-                                    hasEditPermission = true;
-                                    if (task.level > 2) {
-                                        hasDeletePermission = true;
-                                        hasAddPermission = true;
-                                    }
+                            } else if (isSameDept) {
+                                if (childLevel === 3 && isManager) {
+                                    hasAddPermission = true;
+                                } else if ((childLevel === 4 || childLevel === 5) && (isManager || isEmployee)) {
+                                    hasAddPermission = true;
+                                }
+                            }
+                            
+                            // Delete permission
+                            if (isAdmin) {
+                                hasDeletePermission = true;
+                            } else if (isSameDept) {
+                                if (task.level === 3 && isManager) {
+                                    hasDeletePermission = true;
+                                } else if ((task.level === 4 || task.level === 5) && (isManager || isEmployee)) {
+                                    hasDeletePermission = true;
                                 }
                             }
                         } else {
