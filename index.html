@@ -2582,7 +2582,7 @@
                 tr.innerHTML = `
                     <td style="text-align:center; font-weight:bold;">${task.stt}</td>
                     <td style="text-align:center;"><code>${task.ma_ngan_sach || '-'}</code></td>
-                    <td style="font-weight:500;">${task.ten_cong_viec}</td>
+                    <td style="font-weight:500; cursor: pointer; color: var(--primary);" onclick="openDetailModal(${task.id})" title="Xem chi tiết công việc">${task.ten_cong_viec}</td>
                     <td style="text-align:center;"><span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-primary); font-size:0.75rem;">${task.phong_ban_thuc_hien || '-'}</span></td>
                     <td style="text-align:center; font-weight:600; color:var(--danger);">${deadlineText}</td>
                     <td>${task.ke_hoach_tuan || '<em style="color:var(--text-secondary);">Trống</em>'}</td>
@@ -2758,7 +2758,7 @@
                         tr.innerHTML = `
                             <td>${task.stt} <span style="font-size:0.7rem; color:var(--text-secondary);">(Lv${task.level})</span></td>
                             <td><code>${task.ma_ngan_sach}</code></td>
-                            <td style="${indentStyle}">${task.ten_cong_viec}</td>
+                            <td style="${indentStyle}; cursor: pointer; color: var(--primary);" onclick="openDetailModal(${task.id})" title="Xem chi tiết công việc">${task.ten_cong_viec}</td>
                             <td>${task.phong_ban_thuc_hien || '-'}</td>
                             <td>${task.ho_so_dau_ra || '-'}</td>
                             <td>${task.thoi_han_hoan_thanh || 'Tháng 06/2026'}</td>
@@ -2827,7 +2827,7 @@
         let currentDetailTaskId = null;
 
         function openEditModal(id) {
-            openDetailModal(id);
+            showActualEditForm(id);
         }
 
         async function openDetailModal(id) {
@@ -4334,7 +4334,7 @@
 
                 tr.innerHTML = `
                     <td>${task.stt}<br><code style="font-size:0.75rem;">${task.ma_ngan_sach}</code></td>
-                    <td style="font-weight:600;">${task.ten_cong_viec}</td>
+                    <td style="font-weight:600; cursor: pointer; color: var(--primary);" onclick="openDetailModal(${task.id})" title="Xem chi tiết công việc">${task.ten_cong_viec}</td>
                     <td><span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-primary);">${task.phong_ban_thuc_hien || '-'}</span></td>
                     <td>${task.ke_hoach_tuan || '<em style="color:var(--text-secondary);">Trống</em>'}</td>
                     <td>${task.ket_qua_tuan || '<em style="color:var(--text-secondary);">Trống</em>'}</td>
