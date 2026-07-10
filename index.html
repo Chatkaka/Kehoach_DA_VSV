@@ -555,7 +555,7 @@
     <div id="edit-task-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:100; justify-content:center; align-items:center;">
         <div class="panel" style="width: 880px; max-width: 95%; max-height: 90vh; overflow-y: auto;">
             <div class="panel-header">
-                <span class="panel-title" id="edit-modal-title"><i class="fa-solid fa-pen-to-square"></i> Chỉnh Sửa Công Việc <span id="edit-task-stt" style="color:var(--secondary);"></span></span>
+                <span class="panel-title" id="edit-modal-title"><i class="fa-solid fa-pen-to-square"></i> Cập Nhật Công Việc <span id="edit-task-stt" style="color:var(--secondary);"></span></span>
                 <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeEditModal()"></i>
             </div>
             <input type="hidden" id="edit-id">
@@ -611,8 +611,15 @@
                 </div>
             </div>
             
-            <!-- SECTION 1: Cấu trúc WBS & Giao việc (Trường Cố định / Fixed) -->
-            <div style="margin-top: 10px;">
+            <!-- SUB-TAB NAVIGATION -->
+            <div class="edit-modal-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-top: 10px; margin-bottom: 15px; padding-bottom: 8px;">
+                <button type="button" class="edit-tab-btn active" onclick="switchEditModalTab('info')" id="edit-tab-btn-info" style="background: none; border: none; color: var(--primary); font-weight: 700; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; border-bottom: 2px solid var(--primary); transition: all 0.2s;">Thông tin công việc</button>
+                <button type="button" class="edit-tab-btn" onclick="switchEditModalTab('weekly')" id="edit-tab-btn-weekly" style="background: none; border: none; color: var(--text-secondary); font-weight: 500; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; border-bottom: 2px solid transparent; transition: all 0.2s;">Báo cáo tuần & Ý kiến CBQL</button>
+            </div>
+            
+            <!-- TAB 1: THÔNG TIN CÔNG VIỆC CONTAINER -->
+            <div id="edit-tab-content-info">
+                <div style="margin-top: 10px;">
                 <h4 style="font-size: 0.8rem; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--secondary); padding-left: 6px; margin-bottom: 8px;">Thông tin WBS & Giao Việc</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 12px;">
                     <div class="form-group">
@@ -734,52 +741,40 @@
                 </div>
             </div>
 
-            <!-- SECTION 6: Báo cáo & Phê duyệt tuần (Trường Biến đổi / Variable) -->
-            <div id="edit-section-weekly-report" style="border-top: 1px solid var(--panel-border); margin-top: 12px; padding-top: 10px;">
-                <h4 style="font-size: 0.8rem; color: var(--success); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--success); padding-left: 6px; margin-bottom: 8px;"><i class="fa-solid fa-calendar-week"></i> Báo Cáo Tuần & Ý Kiến CBQL</h4>
+            </div>
+
+            <!-- TAB 2: BÁO CÁO TUẦN CONTAINER -->
+            <div id="edit-tab-content-weekly" style="display: none; border-top: 1px solid var(--panel-border); margin-top: 12px; padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h4 style="font-size: 0.8rem; color: var(--success); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--success); padding-left: 6px; margin: 0;"><i class="fa-solid fa-calendar-week"></i> Bảng báo cáo & phê duyệt tuần</h4>
+                    <button type="button" class="btn" onclick="addNewWeeklyReportRow()" id="add-weekly-row-btn" style="background: var(--success); font-size: 0.8rem; padding: 6px 12px;"><i class="fa-solid fa-plus"></i> Thêm báo cáo tuần</button>
+                </div>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                        <label for="edit-ke-hoach-tuan">Kế hoạch tuần</label>
-                        <input type="text" id="edit-ke-hoach-tuan" class="form-control" placeholder="-">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-ket-qua-tuan">Kết quả tuần</label>
-                        <input type="text" id="edit-ket-qua-tuan" class="form-control" placeholder="-">
-                    </div>
+                <div style="overflow-x: auto; max-width: 100%; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(0,0,0,0.15); margin-bottom: 10px;">
+                    <table class="table" style="width: 100%; min-width: 900px; margin: 0; font-size: 0.8rem;">
+                        <thead>
+                            <tr>
+                                <th style="width: 130px;">Tuần (Ngày)</th>
+                                <th>Kế hoạch tuần</th>
+                                <th>Kết quả tuần</th>
+                                <th>Vướng mắc tuần</th>
+                                <th style="width: 80px; text-align: center;">Tăng thêm (%)</th>
+                                <th>Ý kiến CBQL / Giải pháp</th>
+                                <th style="width: 130px;">Duyệt tuần</th>
+                                <th style="width: 60px; text-align: center;">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="edit-weekly-reports-table-body">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
                 </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                        <label for="edit-vuong-mac-tuan">Vướng mắc tuần</label>
-                        <input type="text" id="edit-vuong-mac-tuan" class="form-control" placeholder="-">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-cach-giai-quyet">Cách thức giải quyết của CBQL/Phòng ban (Ý kiến CBQL)</label>
-                        <input type="text" id="edit-cach-giai-quyet" class="form-control" placeholder="-">
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
-                    <div class="form-group">
-                        <label for="edit-progress" style="font-weight: 600;">Báo cáo tiến độ tăng thêm tuần này (%)</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="number" id="edit-progress" class="form-control" placeholder="0" min="0" max="100" style="flex: 1;" oninput="updateExpectedProgress()">
-                            <span style="font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; background: rgba(255,255,255,0.03); padding: 6px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05);">
-                                Hiện tại: <strong id="current-progress-label" style="color: var(--secondary);">0%</strong> 
-                                &rarr; Dự kiến: <strong id="expected-progress-label" style="color: var(--primary);">0%</strong>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-duyet-tuan" style="font-weight: 600;">Cấp quản lý duyệt tuần</label>
-                        <select id="edit-duyet-tuan" class="form-control">
-                            <option value="Chưa duyệt">⏳ Chưa duyệt</option>
-                            <option value="Đã duyệt">✅ Đã duyệt</option>
-                            <option value="Không duyệt">❌ Không duyệt</option>
-                        </select>
-                    </div>
-                </div>
+                <input type="hidden" id="edit-ke-hoach-tuan">
+                <input type="hidden" id="edit-ket-qua-tuan">
+                <input type="hidden" id="edit-vuong-mac-tuan">
+                <input type="hidden" id="edit-cach-giai-quyet">
+                <input type="hidden" id="edit-duyet-tuan">
+                <input type="hidden" id="edit-progress" value="0">
             </div>
 
 
@@ -2986,6 +2981,161 @@
         }
         window.updateExpectedProgress = updateExpectedProgress;
 
+        function switchEditModalTab(tabId) {
+            if (tabId === 'info') {
+                document.getElementById('edit-tab-content-info').style.display = 'block';
+                document.getElementById('edit-tab-content-weekly').style.display = 'none';
+                
+                document.getElementById('edit-tab-btn-info').style.color = 'var(--primary)';
+                document.getElementById('edit-tab-btn-info').style.borderBottomColor = 'var(--primary)';
+                document.getElementById('edit-tab-btn-info').style.fontWeight = '700';
+                
+                document.getElementById('edit-tab-btn-weekly').style.color = 'var(--text-secondary)';
+                document.getElementById('edit-tab-btn-weekly').style.borderBottomColor = 'transparent';
+                document.getElementById('edit-tab-btn-weekly').style.fontWeight = '500';
+            } else {
+                document.getElementById('edit-tab-content-info').style.display = 'none';
+                document.getElementById('edit-tab-content-weekly').style.display = 'block';
+                
+                document.getElementById('edit-tab-btn-weekly').style.color = 'var(--success)';
+                document.getElementById('edit-tab-btn-weekly').style.borderBottomColor = 'var(--success)';
+                document.getElementById('edit-tab-btn-weekly').style.fontWeight = '700';
+                
+                document.getElementById('edit-tab-btn-info').style.color = 'var(--text-secondary)';
+                document.getElementById('edit-tab-btn-info').style.borderBottomColor = 'transparent';
+                document.getElementById('edit-tab-btn-info').style.fontWeight = '500';
+            }
+        }
+        window.switchEditModalTab = switchEditModalTab;
+
+        function addNewWeeklyReportRow() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const reports = getWeeklyReportsFromTable();
+            reports.push({
+                week_date: todayStr,
+                ke_hoach_tuan: '',
+                ket_qua_tuan: '',
+                vuong_mac_tuan: '',
+                tien_do_tang_them: 0,
+                cach_giai_quyet: '',
+                duyet_tuan: 'Chưa duyệt'
+            });
+            renderWeeklyReportsTable(reports);
+        }
+        window.addNewWeeklyReportRow = addNewWeeklyReportRow;
+
+        function deleteWeeklyRow(idx) {
+            const reports = getWeeklyReportsFromTable();
+            if (reports[idx] && reports[idx].duyet_tuan === 'Đã duyệt') {
+                const activeUsername = localStorage.getItem('active_username') || 'admin';
+                if (activeUsername !== 'admin') {
+                    alert("Không thể xóa dòng báo cáo tuần đã được phê duyệt!");
+                    return;
+                }
+            }
+            reports.splice(idx, 1);
+            renderWeeklyReportsTable(reports);
+        }
+        window.deleteWeeklyRow = deleteWeeklyRow;
+
+        function getWeeklyReportsFromTable() {
+            const reports = [];
+            const tableBody = document.getElementById('edit-weekly-reports-table-body');
+            if (!tableBody) return reports;
+            
+            const rows = tableBody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const dateEl = row.querySelector('.weekly-row-date');
+                if (!dateEl) return;
+                
+                const dateVal = dateEl.value;
+                const planVal = row.querySelector('.weekly-row-plan').value;
+                const resVal = row.querySelector('.weekly-row-result').value;
+                const issueVal = row.querySelector('.weekly-row-issue').value;
+                const progressVal = parseFloat(row.querySelector('.weekly-row-progress').value) || 0;
+                const solutionVal = row.querySelector('.weekly-row-solution').value;
+                const approvalVal = row.querySelector('.weekly-row-approval').value;
+                
+                reports.push({
+                    week_date: dateVal,
+                    ke_hoach_tuan: planVal,
+                    ket_qua_tuan: resVal,
+                    vuong_mac_tuan: issueVal,
+                    tien_do_tang_them: progressVal,
+                    cach_giai_quyet: solutionVal,
+                    duyet_tuan: approvalVal
+                });
+            });
+            return reports;
+        }
+        window.getWeeklyReportsFromTable = getWeeklyReportsFromTable;
+
+        function renderWeeklyReportsTable(reports) {
+            const tableBody = document.getElementById('edit-weekly-reports-table-body');
+            tableBody.innerHTML = '';
+            
+            const activeUsername = localStorage.getItem('active_username') || 'admin';
+            const activeUser = window.allUsers ? window.allUsers.find(u => u.username === activeUsername) : null;
+            const isAdmin = activeUsername === 'admin' || (activeUser && activeUser.role === 'Admin');
+            const isPM = activeUser && activeUser.role === 'PM';
+            
+            const userDept = activeUser ? String(activeUser.phong_ban).toUpperCase().trim() : '';
+            const taskDept = String(window.editingTask.phong_ban_thuc_hien || '').toUpperCase().trim();
+            const isDeptMember = userDept === taskDept || userDept === 'ALL';
+            
+            const isReporter = !window.editingTask.nguoi_bao_cao || 
+                window.editingTask.nguoi_bao_cao === '-' ||
+                window.editingTask.nguoi_bao_cao.trim() === '' ||
+                (activeUser && activeUser.ho_ten.toLowerCase().trim() === window.editingTask.nguoi_bao_cao.toLowerCase().trim()) ||
+                activeUsername.toLowerCase().trim() === (window.editingTask.nguoi_bao_cao || '').toLowerCase().trim() ||
+                isDeptMember;
+                
+            const isReporterOrAdmin = isReporter || isAdmin || isPM;
+            const isDeptManager = (activeUser && (activeUser.role === 'TruongPhong' || activeUser.role === 'CBQL') && isDeptMember) || isAdmin || isPM;
+            const isManagerOrAdmin = isDeptManager || isAdmin || isPM;
+            
+            if (reports.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--text-secondary);">Chưa có báo cáo tuần nào. Hãy bấm nút "+ Thêm báo cáo tuần" để báo cáo.</td></tr>`;
+                return;
+            }
+            
+            reports.forEach((rep, idx) => {
+                const isLocked = rep.duyet_tuan === 'Đã duyệt' && !isAdmin;
+                
+                const tr = document.createElement('tr');
+                
+                const dateInput = `<input type="date" class="form-control weekly-row-date" value="${rep.week_date || ''}" ${isLocked || !isReporterOrAdmin ? 'disabled' : ''} style="font-size:0.75rem; padding:4px;">`;
+                const planText = `<textarea class="form-control weekly-row-plan" style="height:45px; font-size:0.75rem; padding:4px;" ${isLocked || !isReporterOrAdmin ? 'disabled' : ''} placeholder="Kế hoạch...">${rep.ke_hoach_tuan || ''}</textarea>`;
+                const resText = `<textarea class="form-control weekly-row-result" style="height:45px; font-size:0.75rem; padding:4px;" ${isLocked || !isReporterOrAdmin ? 'disabled' : ''} placeholder="Kết quả...">${rep.ket_qua_tuan || ''}</textarea>`;
+                const issueText = `<textarea class="form-control weekly-row-issue" style="height:45px; font-size:0.75rem; padding:4px;" ${isLocked || !isReporterOrAdmin ? 'disabled' : ''} placeholder="Vướng mắc...">${rep.vuong_mac_tuan || ''}</textarea>`;
+                const progressInput = `<input type="number" class="form-control weekly-row-progress" value="${rep.tien_do_tang_them || 0}" min="0" max="100" ${isLocked || !isReporterOrAdmin ? 'disabled' : ''} style="text-align:center; font-size:0.75rem; padding:4px;">`;
+                const solutionText = `<textarea class="form-control weekly-row-solution" style="height:45px; font-size:0.75rem; padding:4px;" ${isLocked || !isManagerOrAdmin ? 'disabled' : ''} placeholder="Giải pháp...">${rep.cach_giai_quyet || ''}</textarea>`;
+                
+                const selectOptions = [
+                    { val: 'Chưa duyệt', text: '⏳ Chưa duyệt' },
+                    { val: 'Đã duyệt', text: '✅ Đã duyệt' },
+                    { val: 'Không duyệt', text: '❌ Không duyệt' }
+                ].map(opt => `<option value="${opt.val}" ${rep.duyet_tuan === opt.val ? 'selected' : ''}>${opt.text}</option>`).join('');
+                
+                const approvalSelect = `<select class="form-control weekly-row-approval" ${isLocked || !isManagerOrAdmin ? 'disabled' : ''} style="font-size:0.75rem; padding:4px;">${selectOptions}</select>`;
+                
+                const deleteBtn = `<button type="button" class="btn" onclick="deleteWeeklyRow(${idx})" ${isLocked ? 'disabled' : ''} style="background:var(--danger); padding:4px 8px; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
+                
+                tr.innerHTML = `
+                    <td>${dateInput}</td>
+                    <td>${planText}</td>
+                    <td>${resText}</td>
+                    <td>${issueText}</td>
+                    <td style="text-align:center;">${progressInput}</td>
+                    <td>${solutionText}</td>
+                    <td>${approvalSelect}</td>
+                    <td style="text-align:center;">${deleteBtn}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+        window.renderWeeklyReportsTable = renderWeeklyReportsTable;
+
         function showActualEditForm(id) {
             let task = null;
             if (window.currentTasks) {
@@ -3162,6 +3312,16 @@
             document.getElementById('edit-cach-giai-quyet').value = task.cach_giai_quyet || '';
             document.getElementById('edit-duyet-tuan').value = task.duyet_tuan || 'Chưa duyệt';
 
+            // Parse & render weekly reports table
+            let reports = [];
+            try {
+                reports = JSON.parse(task.weekly_reports_json || '[]');
+            } catch(e) {
+                console.error("Error parsing weekly reports JSON:", e);
+                reports = [];
+            }
+            renderWeeklyReportsTable(reports);
+
             // Populate new fields
             document.getElementById('edit-ngay-khoi-tao').value = task.ngay_khoi_tao || '';
             document.getElementById('edit-ngay-bat-dau').value = task.ngay_bat_dau || '';
@@ -3250,11 +3410,12 @@
             document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = !canEditStructure);
             document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = !canEditStructure);
 
-            // Show or hide weekly report section based on which tab is active
+            // Automatically select the active edit sub-tab based on which main tab is active
             const isWbsTabActive = window.currentActiveTab === 'wbs-tab';
-            const weeklySec = document.getElementById('edit-section-weekly-report');
-            if (weeklySec) {
-                weeklySec.style.display = isWbsTabActive ? 'none' : 'block';
+            if (isWbsTabActive) {
+                switchEditModalTab('info');
+            } else {
+                switchEditModalTab('weekly');
             }
 
             document.getElementById('edit-task-modal').style.display = 'flex';
@@ -3272,10 +3433,12 @@
             const deadline = document.getElementById('edit-deadline').value;
             const budgetStr = document.getElementById('edit-budget').value || '0';
             const budget = parseFloat(budgetStr.replace(/\./g, '').replace(/,/g, '')) || 0;
-            // Compute cumulative progress from input increment
-            const currentTienDo = window.editingTask ? (window.editingTask.tien_do || 0) : 0;
-            const progressIncrement = parseFloat(document.getElementById('edit-progress').value) || 0;
-            const progress = Math.min(100, Math.max(0, currentTienDo + progressIncrement));
+            // Gather weekly reports array from table and serialize to JSON
+            const weeklyReports = getWeeklyReportsFromTable();
+            const weeklyReportsJson = JSON.stringify(weeklyReports);
+            
+            // Calculate cumulative progress by summing up weekly progress increments
+            const progress = Math.min(100, Math.max(0, weeklyReports.reduce((acc, curr) => acc + (parseFloat(curr.tien_do_tang_them) || 0), 0)));
             const status = document.getElementById('edit-status').value;
 
             // Gather deliverables checkboxes and custom field
@@ -3300,12 +3463,21 @@
             }
             const cond = selectedConds.join(', ');
 
-            // Gather weekly tracking and approval fields
-            const keHoachTuan = document.getElementById('edit-ke-hoach-tuan').value.trim();
-            const ketQuaTuan = document.getElementById('edit-ket-qua-tuan').value.trim();
-            const vuongMacTuan = document.getElementById('edit-vuong-mac-tuan').value.trim();
-            const cachGiaiQuyet = document.getElementById('edit-cach-giai-quyet').value.trim();
-            const duyetTuan = document.getElementById('edit-duyet-tuan').value;
+            // Populate legacy weekly fields from the latest weekly report entry for dashboard views
+            let keHoachTuan = "";
+            let ketQuaTuan = "";
+            let vuongMacTuan = "";
+            let cachGiaiQuyet = "";
+            let duyetTuan = "Chưa duyệt";
+            
+            if (weeklyReports.length > 0) {
+                const latestRep = weeklyReports[weeklyReports.length - 1];
+                keHoachTuan = latestRep.ke_hoach_tuan || "";
+                ketQuaTuan = latestRep.ket_qua_tuan || "";
+                vuongMacTuan = latestRep.vuong_mac_tuan || "";
+                cachGiaiQuyet = latestRep.cach_giai_quyet || "";
+                duyetTuan = latestRep.duyet_tuan || "Chưa duyệt";
+            }
 
             // Gather new fields
             const ngayKhoiTao = document.getElementById('edit-ngay-khoi-tao').value.trim();
@@ -3366,7 +3538,8 @@
                 da_nghiem_thu: daNghiemThu,
                 da_thanh_toan: daThanhToan,
                 tam_ung: tamUng,
-                da_thu_hoi_tam_ung: daThuHoiTamUng
+                da_thu_hoi_tam_ung: daThuHoiTamUng,
+                weekly_reports_json: weeklyReportsJson
             };
 
             if (isOfflineMode) {

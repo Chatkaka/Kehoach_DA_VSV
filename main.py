@@ -1473,6 +1473,7 @@ class TaskUpdate(BaseModel):
     da_thanh_toan: Optional[float] = 0.0
     tam_ung: Optional[float] = 0.0
     da_thu_hoi_tam_ung: Optional[float] = 0.0
+    weekly_reports_json: Optional[str] = "[]"
 
 @app.put("/api/tasks/{task_id}")
 async def update_task_details(
@@ -1566,6 +1567,7 @@ async def update_task_details(
     task.da_thanh_toan = request.da_thanh_toan or 0.0
     task.tam_ung = request.tam_ung or 0.0
     task.da_thu_hoi_tam_ung = request.da_thu_hoi_tam_ung or 0.0
+    task.weekly_reports_json = request.weekly_reports_json.strip() if request.weekly_reports_json else "[]"
     
     if task.budget:
         task.budget.ngan_sach_tong = request.ngan_sach

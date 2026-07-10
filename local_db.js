@@ -6328,6 +6328,7 @@ class LocalDBManager {
                 da_thanh_toan: t.da_thanh_toan || 0,
                 tam_ung: t.tam_ung || 0,
                 da_thu_hoi_tam_ung: t.da_thu_hoi_tam_ung || 0,
+                weekly_reports_json: t.weekly_reports_json || '[]',
                 budget: t.budget
             });
         });
@@ -6500,6 +6501,7 @@ class LocalDBManager {
         task.da_thanh_toan = parseFloat(data.da_thanh_toan) || 0;
         task.tam_ung = parseFloat(data.tam_ung) || 0;
         task.da_thu_hoi_tam_ung = parseFloat(data.da_thu_hoi_tam_ung) || 0;
+        task.weekly_reports_json = data.weekly_reports_json ? data.weekly_reports_json.trim() : '[]';
         
         if (task.budget) {
             task.budget.ngan_sach_tong = parseFloat(data.ngan_sach) || 0;
@@ -6636,6 +6638,7 @@ class LocalDBManager {
             cach_giai_quyet: '',
             duyet_tuan: 'Chưa duyệt',
             ngay_khoi_tao: new Date().toISOString().split('T')[0],
+            weekly_reports_json: '[]',
             cong_trinh: '',
             doi_tac: '',
             so_dien_thoai: '',

@@ -39,6 +39,36 @@ class Task(Base):
     thoi_han_hoan_thanh = Column(String, nullable=True)
     tien_do = Column(Float, default=0.0)  # 0 to 100
     trang_thai = Column(String, default="Todo")  # Todo/In-Progress/Done/Delayed
+    
+    # Weekly Tracking and Approval
+    ke_hoach_tuan = Column(String, nullable=True)
+    ket_qua_tuan = Column(String, nullable=True)
+    vuong_mac_tuan = Column(String, nullable=True)
+    cach_giai_quyet = Column(String, nullable=True)
+    duyet_tuan = Column(String, default="Chưa duyệt")  # Chưa duyệt / Đã duyệt / Không duyệt
+
+    # New Operational and Financial fields
+    ngay_khoi_tao = Column(String, nullable=True)
+    cong_trinh = Column(String, nullable=True)
+    doi_tac = Column(String, nullable=True)
+    so_dien_thoai = Column(String, nullable=True)
+    ngay_bat_dau = Column(String, nullable=True)
+    ngay_ket_thuc = Column(String, nullable=True)
+    gia_han_den_ngay = Column(String, nullable=True)
+    thoi_gian_bao_hanh = Column(String, nullable=True)
+    mo_ta = Column(String, nullable=True)
+    dieu_khoan = Column(String, nullable=True)
+    
+    nguoi_phu_trach = Column(String, nullable=True)
+    nguoi_bao_cao = Column(String, nullable=True)
+    nguoi_duyet = Column(String, nullable=True)
+    
+    gia_tri_quyet_toan = Column(Float, default=0.0)
+    da_nghiem_thu = Column(Float, default=0.0)
+    da_thanh_toan = Column(Float, default=0.0)
+    tam_ung = Column(Float, default=0.0)
+    da_thu_hoi_tam_ung = Column(Float, default=0.0)
+    weekly_reports_json = Column(String, default="[]", nullable=True)
 
     # Relationships
     project = relationship("Project", back_populates="tasks")
@@ -79,3 +109,23 @@ class ActualSpending(Base):
 
     # Relationships
     task = relationship("Task", back_populates="actual_spendings")
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, default="123456", nullable=False)
+    ho_ten = Column(String, nullable=False)
+    phong_ban = Column(String, nullable=False)  # PTDA, QHTK, BQLDA, GPMB, KTKH, All
+    role = Column(String, nullable=False)  # Admin, PM, TruongPhong, NhanVien
+
+class ActionLog(Base):
+    __tablename__ = "action_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, nullable=False)
+    ho_ten = Column(String, nullable=False)
+    hanh_dong = Column(String, nullable=False)  # e.g., "Them moi", "Sua", "Duyet", "Xoa"
+    chi_tiet = Column(String, nullable=True)
+    thoi_gian = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
