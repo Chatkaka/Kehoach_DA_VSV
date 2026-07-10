@@ -633,7 +633,7 @@
             <!-- SECTION 4: Thời gian & Bảo hành (Timeline & Warranty) -->
             <div style="border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
                 <h4 style="font-size: 0.8rem; color: #a855f7; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #a855f7; padding-left: 6px; margin-bottom: 8px;">Mốc Thời Gian & Bảo Hành</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                     <div class="form-group">
                         <label for="edit-ngay-bat-dau">Ngày bắt đầu</label>
                         <input type="date" id="edit-ngay-bat-dau" class="form-control">
@@ -645,10 +645,6 @@
                     <div class="form-group">
                         <label for="edit-gia-han-den-ngay">Gia hạn hoàn thành</label>
                         <input type="date" id="edit-gia-han-den-ngay" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-thoi-gian-bao-hanh">Thời gian bảo hành</label>
-                        <input type="text" id="edit-thoi-gian-bao-hanh" class="form-control" placeholder="Ví dụ: 12 tháng">
                     </div>
                 </div>
             </div>
@@ -735,17 +731,7 @@
                 </div>
             </div>
 
-            <!-- SECTION 7: Mô tả chi tiết & Điều khoản hợp đồng -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
-                <div class="form-group">
-                    <label for="edit-mo-ta">Mô tả công việc chi tiết</label>
-                    <textarea id="edit-mo-ta" class="form-control" style="height: 60px; font-size: 0.8rem;" placeholder="Nhập mô tả..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="edit-dieu-khoan">Điều khoản hợp đồng & Ghi chú</label>
-                    <textarea id="edit-dieu-khoan" class="form-control" style="height: 60px; font-size: 0.8rem;" placeholder="Nhập điều khoản..."></textarea>
-                </div>
-            </div>
+
 
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px; padding-bottom: 5px;">
                 <button class="btn secondary-btn" onclick="closeEditModal()">Hủy</button>
@@ -3093,9 +3079,6 @@
             document.getElementById('edit-ngay-bat-dau').value = task.ngay_bat_dau || '';
             document.getElementById('edit-ngay-ket-thuc').value = task.ngay_ket_thuc || '';
             document.getElementById('edit-gia-han-den-ngay').value = task.gia_han_den_ngay || '';
-            document.getElementById('edit-thoi-gian-bao-hanh').value = task.thoi_gian_bao_hanh || '';
-            document.getElementById('edit-mo-ta').value = task.mo_ta || '';
-            document.getElementById('edit-dieu-khoan').value = task.dieu_khoan || '';
             
             document.getElementById('edit-nguoi-phu-trach').value = task.nguoi_phu_trach || '';
             document.getElementById('edit-nguoi-bao-cao').value = task.nguoi_bao_cao || '';
@@ -3162,14 +3145,11 @@
             document.getElementById('edit-ngay-khoi-tao').disabled = !canEditStructure;
             document.getElementById('edit-ngay-bat-dau').disabled = !canEditStructure;
             document.getElementById('edit-ngay-ket-thuc').disabled = !canEditStructure;
-            document.getElementById('edit-thoi-gian-bao-hanh').disabled = !canEditStructure;
-            document.getElementById('edit-dieu-khoan').disabled = !canEditStructure;
             document.getElementById('edit-nguoi-duyet').disabled = !canEditStructure;
             
             document.getElementById('edit-deliverables-custom').disabled = !canEditStructure;
             document.getElementById('edit-cond-custom').disabled = !canEditStructure;
             document.getElementById('edit-gia-han-den-ngay').disabled = !canEditStructure;
-            document.getElementById('edit-mo-ta').disabled = !canEditStructure;
             
             document.getElementById('edit-nguoi-phu-trach').disabled = !canEditStructure;
             document.getElementById('edit-nguoi-bao-cao').disabled = !canEditStructure;
@@ -3235,9 +3215,9 @@
             const ngayBatDau = document.getElementById('edit-ngay-bat-dau').value;
             const ngayKetThuc = document.getElementById('edit-ngay-ket-thuc').value;
             const giaHanDenNgay = document.getElementById('edit-gia-han-den-ngay').value;
-            const thoiGianBaoHanh = document.getElementById('edit-thoi-gian-bao-hanh').value.trim();
-            const moTa = document.getElementById('edit-mo-ta').value.trim();
-            const dieuKhoan = document.getElementById('edit-dieu-khoan').value.trim();
+            const thoiGianBaoHanh = "";
+            const moTa = "";
+            const dieuKhoan = "";
             
             const nguoiPhuTrach = document.getElementById('edit-nguoi-phu-trach').value.trim();
             const nguoiBaoCao = document.getElementById('edit-nguoi-bao-cao').value.trim();
