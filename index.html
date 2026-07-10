@@ -753,6 +753,27 @@
                         <input type="text" id="edit-cach-giai-quyet" class="form-control" placeholder="-">
                     </div>
                 </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
+                    <div class="form-group">
+                        <label for="edit-progress" style="font-weight: 600;">Báo cáo tiến độ tăng thêm tuần này (%)</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" id="edit-progress" class="form-control" placeholder="0" min="0" max="100" style="flex: 1;" oninput="updateExpectedProgress()">
+                            <span style="font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; background: rgba(255,255,255,0.03); padding: 6px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05);">
+                                Hiện tại: <strong id="current-progress-label" style="color: var(--secondary);">0%</strong> 
+                                &rarr; Dự kiến: <strong id="expected-progress-label" style="color: var(--primary);">0%</strong>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-duyet-tuan" style="font-weight: 600;">Cấp quản lý duyệt tuần</label>
+                        <select id="edit-duyet-tuan" class="form-control">
+                            <option value="Chưa duyệt">⏳ Chưa duyệt</option>
+                            <option value="Đã duyệt">✅ Đã duyệt</option>
+                            <option value="Không duyệt">❌ Không duyệt</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <!-- SECTION 7: Mô tả chi tiết & Điều khoản hợp đồng -->
@@ -2560,7 +2581,7 @@
                 const statusBadge = `<span class="badge ${task.trang_thai.toLowerCase()}">${getStatusTextVietnamese(task.trang_thai)}</span>`;
                 const approvalBadge = `<span class="badge ${task.duyet_tuan === 'Đã duyệt' ? 'done' : (task.duyet_tuan === 'Không duyệt' ? 'delayed' : 'todo')}">${task.duyet_tuan || 'Chưa duyệt'}</span>`;
                 
-                const editBtn = `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa nhanh" style="background:var(--primary); color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem;"><i class="fa-solid fa-pen-to-square"></i></button>`;
+                const editBtn = `<button class="action-btn" onclick="openEditModal(${task.id})" title="Báo cáo tuần" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-calendar-check"></i> BC Tuần</button>`;
 
                 tr.innerHTML = `
                     <td style="text-align:center; font-weight:bold;">${task.stt}</td>
@@ -2699,12 +2720,11 @@
                                 hasDeletePermission = true;
                                 hasAddPermission = true;
                             } else {
-                                // Rule 2: non-Admin/PM has no permission for Level 1 & 2 tasks
-                                if (task.level > 2) {
-                                    const userDept = String(activeUser.phong_ban).toUpperCase().trim();
-                                    const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
-                                    if (userDept === taskDept) {
-                                        hasEditPermission = true;
+                                const userDept = String(activeUser.phong_ban).toUpperCase().trim();
+                                const taskDept = String(task.phong_ban_thuc_hien).toUpperCase().trim();
+                                if (userDept === taskDept || userDept === 'ALL') {
+                                    hasEditPermission = true;
+                                    if (task.level > 2) {
                                         hasDeletePermission = true;
                                         hasAddPermission = true;
                                     }
@@ -2717,7 +2737,7 @@
                         }
                         
                         const addBtn = hasAddPermission ? `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-plus"></i></button>` : '';
-                        const editBtn = hasEditPermission ? `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-pen-to-square"></i></button>` : '';
+                        const editBtn = hasEditPermission ? `<button class="action-btn" onclick="openEditModal(${task.id})" title="Báo cáo tuần" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; margin-right:4px; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-calendar-check"></i> BC Tuần</button>` : '';
                         const deleteBtn = hasDeletePermission ? `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem;"><i class="fa-solid fa-trash"></i></button>` : '';
 
                         tr.innerHTML = `
@@ -2953,6 +2973,15 @@
             showActualEditForm(currentDetailTaskId);
         }
 
+        function updateExpectedProgress() {
+            const currentText = document.getElementById('current-progress-label').innerText || '0%';
+            const current = parseFloat(currentText.replace('%', '')) || 0;
+            const increment = parseFloat(document.getElementById('edit-progress').value) || 0;
+            const expected = Math.min(100, Math.max(0, current + increment));
+            document.getElementById('expected-progress-label').innerText = expected + '%';
+        }
+        window.updateExpectedProgress = updateExpectedProgress;
+
         function showActualEditForm(id) {
             let task = null;
             if (window.currentTasks) {
@@ -2962,6 +2991,7 @@
                 task = window.allProjectTasks.find(t => t.id === id);
             }
             if (!task) return;
+            window.editingTask = task;
             
             // Client-side permission checks
             const activeUsername = localStorage.getItem('active_username');
@@ -3044,7 +3074,11 @@
 
             const budgetRaw = (task.budget ? task.budget.ngan_sach_tong : 0) || 0;
             document.getElementById('edit-budget').value = budgetRaw ? Number(budgetRaw).toLocaleString('vi-VN') : '0';
-            document.getElementById('edit-progress').value = task.tien_do || 0;
+            
+            // Set current and expected progress preview labels
+            document.getElementById('current-progress-label').innerText = (task.tien_do || 0) + '%';
+            document.getElementById('expected-progress-label').innerText = (task.tien_do || 0) + '%';
+            document.getElementById('edit-progress').value = 0;
             document.getElementById('edit-status').value = task.trang_thai || 'Todo';
 
             // Disable status editing for all roles except Admin
@@ -3151,16 +3185,27 @@
             const isDeptManager = (currentActiveUser && (currentActiveUser.role === 'TruongPhong' || currentActiveUser.role === 'CBQL') && isDeptMember) || isAdmin || isPM;
             const isManagerOrAdmin = isDeptManager || isAdmin || isPM;
 
-            // Set weekly planning and reporting accessibility
-            document.getElementById('edit-ke-hoach-tuan').disabled = !isReporterOrAdmin;
-            document.getElementById('edit-ket-qua-tuan').disabled = !isReporterOrAdmin;
-            document.getElementById('edit-vuong-mac-tuan').disabled = !isReporterOrAdmin;
-            document.getElementById('edit-progress').disabled = !isReporterOrAdmin;
-
-            // Set CBQL weekly approval and feedback solution accessibility
-            document.getElementById('edit-duyet-tuan').disabled = !isManagerOrAdmin;
-            document.getElementById('edit-cach-giai-quyet').disabled = !isManagerOrAdmin;
-            document.getElementById('edit-cach-giai-quyet').disabled = !isManagerOrAdmin;
+            // Enforce "Lock after approval" rule (duyet_tuan == 'Đã duyệt')
+            const isLockedByApproval = task.duyet_tuan === 'Đã duyệt';
+            
+            if (isLockedByApproval && !isAdmin) {
+                // Lock everything from editing
+                document.getElementById('edit-ke-hoach-tuan').disabled = true;
+                document.getElementById('edit-ket-qua-tuan').disabled = true;
+                document.getElementById('edit-vuong-mac-tuan').disabled = true;
+                document.getElementById('edit-progress').disabled = true;
+                document.getElementById('edit-duyet-tuan').disabled = true;
+                document.getElementById('edit-cach-giai-quyet').disabled = true;
+            } else {
+                // Normal role-based permissions
+                document.getElementById('edit-ke-hoach-tuan').disabled = !isReporterOrAdmin;
+                document.getElementById('edit-ket-qua-tuan').disabled = !isReporterOrAdmin;
+                document.getElementById('edit-vuong-mac-tuan').disabled = !isReporterOrAdmin;
+                document.getElementById('edit-progress').disabled = !isReporterOrAdmin;
+                
+                document.getElementById('edit-duyet-tuan').disabled = !isManagerOrAdmin;
+                document.getElementById('edit-cach-giai-quyet').disabled = !isManagerOrAdmin;
+            }
 
             // Standard fields settings
             document.getElementById('edit-deliverables-custom').disabled = false;
@@ -3195,7 +3240,10 @@
             const deadline = document.getElementById('edit-deadline').value;
             const budgetStr = document.getElementById('edit-budget').value || '0';
             const budget = parseFloat(budgetStr.replace(/\./g, '').replace(/,/g, '')) || 0;
-            const progress = parseFloat(document.getElementById('edit-progress').value) || 0;
+            // Compute cumulative progress from input increment
+            const currentTienDo = window.editingTask ? (window.editingTask.tien_do || 0) : 0;
+            const progressIncrement = parseFloat(document.getElementById('edit-progress').value) || 0;
+            const progress = Math.min(100, Math.max(0, currentTienDo + progressIncrement));
             const status = document.getElementById('edit-status').value;
 
             // Gather deliverables checkboxes and custom field
