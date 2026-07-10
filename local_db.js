@@ -6635,7 +6635,7 @@ class LocalDBManager {
             vuong_mac_tuan: '',
             cach_giai_quyet: '',
             duyet_tuan: 'Chưa duyệt',
-            ngay_khoi_tao: new Date().toLocaleDateString('vi-VN'),
+            ngay_khoi_tao: new Date().toISOString().split('T')[0],
             cong_trinh: '',
             doi_tac: '',
             so_dien_thoai: '',

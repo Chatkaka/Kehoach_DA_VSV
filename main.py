@@ -314,81 +314,68 @@ def check_task_update_permissions(user, task, request_data, is_partial=False):
     # Check task level dynamically based on STT formatting
     task_level = task.stt.count('.') + 1
     
-    # Rule 2: Structure edits for Level 1 and 2 tasks are Admin or PM only.
-    # However, allow weekly status updates and progress reporting by department members.
-    if task_level in (1, 2):
-        if not user or user.role not in ("Admin", "PM"):
-            # Check for structural changes
-            has_structural_changes = False
-            if request_data.ma_ngan_sach != task.ma_ngan_sach: has_structural_changes = True
-            if request_data.ten_cong_viec != task.ten_cong_viec: has_structural_changes = True
-            if request_data.phong_ban_thuc_hien != task.phong_ban_thuc_hien: has_structural_changes = True
-            if request_data.co_quan_giai_quyet != task.co_quan_giai_quyet: has_structural_changes = True
-            if request_data.ho_so_dau_ra != task.ho_so_dau_ra: has_structural_changes = True
-            if request_data.dieu_kien_ghi_nhan != task.dieu_kien_ghi_nhan: has_structural_changes = True
-            if request_data.thoi_han_hoan_thanh != task.thoi_han_hoan_thanh: has_structural_changes = True
-            if request_data.duyet_tuan != task.duyet_tuan: has_structural_changes = True
-            if request_data.cach_giai_quyet != task.cach_giai_quyet: has_structural_changes = True
-            
-            # Check department membership
-            user_dept = str(user.phong_ban).upper().strip() if user else ""
-            task_dept = str(task.phong_ban_thuc_hien).upper().strip()
-            if user_dept != task_dept and user_dept != "ALL":
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban if user else ''}) không trùng khớp với phòng thực hiện công việc ({task.phong_ban_thuc_hien})."
-                )
-            
-            if has_structural_changes:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Chỉ có Admin hoặc Giám đốc dự án mới được sửa đổi cấu trúc công việc cấp 1, cấp 2."
-                )
-            return
-        return
+    # Check if there are structural changes in the request
+    has_structural_changes = False
+    if request_data.ma_ngan_sach != task.ma_ngan_sach: has_structural_changes = True
+    if request_data.ten_cong_viec != task.ten_cong_viec: has_structural_changes = True
+    if request_data.phong_ban_thuc_hien != task.phong_ban_thuc_hien: has_structural_changes = True
+    if request_data.co_quan_giai_quyet != task.co_quan_giai_quyet: has_structural_changes = True
+    if request_data.ho_so_dau_ra != task.ho_so_dau_ra: has_structural_changes = True
+    if request_data.dieu_kien_ghi_nhan != task.dieu_kien_ghi_nhan: has_structural_changes = True
+    if request_data.thoi_han_hoan_thanh != task.thoi_han_hoan_thanh: has_structural_changes = True
+    
+    # Check if there are weekly CBQL fields changed (cach_giai_quyet or duyet_tuan)
+    has_manager_changes = False
+    if request_data.cach_giai_quyet != task.cach_giai_quyet: has_manager_changes = True
+    if request_data.duyet_tuan != task.duyet_tuan: has_manager_changes = True
 
-    # If no user is specified, we default to Admin permissions (for backward compatibility and ease of testing)
+    # If no user is logged in, restrict
     if not user:
-        return
-        
-    # If user is Admin or PM, they have global permission
-    if user.role in ("Admin", "PM"):
-        return
-        
-    # Rule 1: Department-based check for Level 3 and 4 tasks:
-    # User's phong_ban must match the task's phong_ban_thuc_hien (case insensitive).
+        raise HTTPException(status_code=403, detail="Yêu cầu đăng nhập để chỉnh sửa.")
+
+    user_role = user.role
     user_dept = str(user.phong_ban).upper().strip()
     task_dept = str(task.phong_ban_thuc_hien).upper().strip()
-    
-    if user_dept != task_dept:
+    is_same_dept = user_dept == task_dept or user_dept == "ALL"
+
+    # Admin has all permissions on all levels
+    if user_role == "Admin":
+        return
+
+    # Check department membership first (all non-admin roles must belong to the task's department)
+    if not is_same_dept:
         raise HTTPException(
-            status_code=403, 
-            detail=f"Quyền hạn bị từ chối: Bạn thuộc phòng ban {user.phong_ban}, không thể chỉnh sửa công việc của phòng {task.phong_ban_thuc_hien}."
+            status_code=403,
+            detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban}) không trùng khớp với phòng thực hiện công việc ({task.phong_ban_thuc_hien})."
         )
-        
-    # Role-based check for NhanVien:
-    if user.role == "NhanVien":
-        # A NhanVien can update: ke_hoach_tuan, ket_qua_tuan, vuong_mac_tuan, tien_do, trang_thai.
-        # They cannot update structure, deliverables, solutions, or approvals.
-        if is_partial:
-            pass
-        else:
-            has_forbidden_changes = False
-            if request_data.ma_ngan_sach != task.ma_ngan_sach: has_forbidden_changes = True
-            if request_data.ten_cong_viec != task.ten_cong_viec: has_forbidden_changes = True
-            if request_data.phong_ban_thuc_hien != task.phong_ban_thuc_hien: has_forbidden_changes = True
-            if request_data.co_quan_giai_quyet != task.co_quan_giai_quyet: has_forbidden_changes = True
-            if request_data.ho_so_dau_ra != task.ho_so_dau_ra: has_forbidden_changes = True
-            if request_data.dieu_kien_ghi_nhan != task.dieu_kien_ghi_nhan: has_forbidden_changes = True
-            if request_data.thoi_han_hoan_thanh != task.thoi_han_hoan_thanh: has_forbidden_changes = True
-            if request_data.cach_giai_quyet != task.cach_giai_quyet: has_forbidden_changes = True
-            if request_data.duyet_tuan != task.duyet_tuan: has_forbidden_changes = True
-            
-            if has_forbidden_changes:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Quyền hạn bị từ chối: Nhân viên chỉ có quyền cập nhật Kế hoạch tuần, Kết quả tuần, Vướng mắc tuần và Tiến độ."
-                )
+
+    # Manager / Trưởng phòng permissions:
+    if user_role in ("TruongPhong", "CBQL", "PM"):
+        # Trưởng phòng can edit structure of Level 3, 4, 5.
+        # But they CANNOT edit structure of Level 1 and 2 tasks!
+        if task_level in (1, 2) and has_structural_changes:
+            raise HTTPException(
+                status_code=403,
+                detail="Chỉ có Admin mới được phép sửa đổi cấu trúc công việc cấp 1, cấp 2."
+            )
+        return
+
+    # Employee / Nhân viên permissions:
+    if user_role == "NhanVien":
+        # Nhân viên can edit structure of Level 4 & 5.
+        # But they CANNOT edit structure of Level 1, 2, 3 tasks!
+        if task_level in (1, 2, 3) and has_structural_changes:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Nhân viên không có quyền chỉnh sửa cấu trúc của công việc cấp {task_level}."
+            )
+        # Nhân viên cannot update manager weekly approval/feedback fields at any level
+        if has_manager_changes:
+            raise HTTPException(
+                status_code=403,
+                detail="Nhân viên không có quyền phê duyệt tuần hoặc cập nhật ý kiến giải quyết của quản lý."
+            )
+        return
 
 class UserCreate(BaseModel):
     username: str
@@ -1333,26 +1320,38 @@ async def create_task(
     if username:
         user = db.query(models.User).filter(models.User.username == username).first()
         
-    # Rule 2: Admin or PM only for Level 1 & 2 tasks
+    # Rule 1: Only Admin can add Level 1 & 2 tasks (child_level <= 2)
     if child_level <= 2:
-        if not user or user.role not in ("Admin", "PM"):
+        if not user or user.role != "Admin":
             raise HTTPException(
                 status_code=403,
-                detail="Chỉ có Admin hoặc Giám đốc dự án mới được phép thêm công việc cấp 1, cấp 2."
+                detail="Chỉ có Admin mới được phép thêm công việc cấp 1, cấp 2."
             )
             
-    # Rule 1: Department-based check for Level 3 & 4 tasks
+    # Rule 2 & 3: Level >= 3 tasks
     if child_level >= 3:
         if not user:
             raise HTTPException(status_code=403, detail="Yêu cầu đăng nhập để thêm công việc con.")
-        if user.role not in ("Admin", "PM"):
-            user_dept = str(user.phong_ban).upper().strip()
-            parent_dept = str(parent.phong_ban_thuc_hien).upper().strip()
-            if user_dept != parent_dept:
+            
+        user_dept = str(user.phong_ban).upper().strip()
+        parent_dept = str(parent.phong_ban_thuc_hien).upper().strip()
+        
+        # Non-admins must belong to the department of the parent task
+        if user.role != "Admin" and user_dept != parent_dept and user_dept != "ALL":
+            raise HTTPException(
+                status_code=403,
+                detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban}) không trùng khớp với phòng thực hiện công việc cha ({parent.phong_ban_thuc_hien})."
+            )
+            
+        # Level 3 tasks: only Admin or Trưởng phòng (TruongPhong/CBQL) can create
+        if child_level == 3 and user.role != "Admin":
+            if user.role not in ("TruongPhong", "CBQL", "PM"):
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban}) không trùng khớp với phòng thực hiện công việc cha ({parent.phong_ban_thuc_hien})."
+                    detail="Chỉ có Admin hoặc Trưởng phòng mới được phép thêm công việc cấp 3."
                 )
+            
+        # Level 4 and 5 tasks: Admin, Trưởng phòng, or NhanVien of the same department can create (all are allowed if department matches)
         
     siblings = db.query(models.Task).filter(models.Task.stt.like(f"{request.parent_stt}.%")).all()
     sibling_indices = []
@@ -1390,7 +1389,8 @@ async def create_task(
         trang_thai="Todo",
         nguoi_phu_trach=creator_name,
         nguoi_bao_cao=creator_name,
-        nguoi_duyet=cbql_name
+        nguoi_duyet=cbql_name,
+        ngay_khoi_tao=datetime.date.today().isoformat()
     )
     db.add(new_task)
     db.flush()
@@ -1688,25 +1688,38 @@ async def delete_task_route(
     task_level = task.stt.count('.') + 1
     
     # Rule 2: Admin or PM only for Level 1 & 2 tasks
+    # Rule 1: Only Admin can delete Level 1 & 2 tasks
     if task_level <= 2:
-        if not user or user.role not in ("Admin", "PM"):
+        if not user or user.role != "Admin":
             raise HTTPException(
                 status_code=403,
-                detail="Chỉ có Admin hoặc Giám đốc dự án mới được phép xóa công việc cấp 1, cấp 2."
+                detail="Chỉ có Admin mới được phép xóa công việc cấp 1, cấp 2."
             )
             
-    # Rule 1: Department-based check for Level 3 & 4 tasks
+    # Rule 2 & 3: Level >= 3 tasks
     if task_level >= 3:
         if not user:
             raise HTTPException(status_code=403, detail="Yêu cầu đăng nhập để thực hiện xóa công việc.")
-        if user.role not in ("Admin", "PM"):
-            user_dept = str(user.phong_ban).upper().strip()
-            task_dept = str(task.phong_ban_thuc_hien).upper().strip()
-            if user_dept != task_dept:
+            
+        user_dept = str(user.phong_ban).upper().strip()
+        task_dept = str(task.phong_ban_thuc_hien).upper().strip()
+        
+        # Non-admins must belong to the department of the task
+        if user.role != "Admin" and user_dept != task_dept and user_dept != "ALL":
+            raise HTTPException(
+                status_code=403,
+                detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban}) không trùng khớp với phòng thực hiện công việc này ({task.phong_ban_thuc_hien})."
+            )
+            
+        # Level 3 tasks: only Admin or Trưởng phòng (TruongPhong/CBQL) can delete
+        if task_level == 3 and user.role != "Admin":
+            if user.role not in ("TruongPhong", "CBQL", "PM"):
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Quyền hạn bị từ chối: Phòng ban của bạn ({user.phong_ban}) không trùng khớp với phòng thực hiện công việc này ({task.phong_ban_thuc_hien})."
+                    detail="Chỉ có Admin hoặc Trưởng phòng mới được phép xóa công việc cấp 3."
                 )
+            
+        # Level 4 and 5 tasks: Admin, Trưởng phòng, or NhanVien of the same department can delete (all are allowed if department matches)
         
     stt = task.stt
     children = db.query(models.Task).filter(

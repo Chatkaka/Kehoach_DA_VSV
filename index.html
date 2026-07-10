@@ -628,48 +628,7 @@
                 </div>
             </div>
 
-            <!-- SECTION 3: Thông Tin Đối Tác & Tài Chính Nghiệm Thu (Financial Dashboard Fields) -->
-            <div style="border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
-                <h4 style="font-size: 0.8rem; color: var(--warning); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--warning); padding-left: 6px; margin-bottom: 8px;">Hợp Đồng, Đối Tác & Tiến Độ Tài Chính</h4>
-                
-                <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                        <label for="edit-cong-trinh">Công trình / Hạng mục</label>
-                        <input type="text" id="edit-cong-trinh" class="form-control" placeholder="Tên công trình dự án">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-doi-tac">Đối tác / Nhà thầu</label>
-                        <input type="text" id="edit-doi-tac" class="form-control" placeholder="Tên đối tác">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-so-dien-thoai">Số điện thoại liên hệ</label>
-                        <input type="text" id="edit-so-dien-thoai" class="form-control" placeholder="SĐT đối tác">
-                    </div>
-                </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 4px;">
-                    <div class="form-group">
-                        <label for="edit-da-nghiem-thu">Đã Nghiệm Thu / Sản Lượng</label>
-                        <input type="text" id="edit-da-nghiem-thu" class="form-control" placeholder="Giá trị sản lượng">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-tam-ung">Tạm Ứng HĐ</label>
-                        <input type="text" id="edit-tam-ung" class="form-control" placeholder="Số tiền tạm ứng">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-da-thanh-toan">Đã Thanh Toán</label>
-                        <input type="text" id="edit-da-thanh-toan" class="form-control" placeholder="Số tiền đã trả">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-da-thu-hoi-tam-ung">Đã Thu Hồi Tạm Ứng</label>
-                        <input type="text" id="edit-da-thu-hoi-tam-ung" class="form-control" placeholder="Số đã cấn trừ">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-gia-tri-quyet-toan">Giá Trị Quyết Toán</label>
-                        <input type="text" id="edit-gia-tri-quyet-toan" class="form-control" placeholder="Giá trị quyết toán cuối cùng">
-                    </div>
-                </div>
-            </div>
 
             <!-- SECTION 4: Thời gian & Bảo hành (Timeline & Warranty) -->
             <div style="border-top: 1px solid rgba(255,255,255,0.06); margin-top: 12px; padding-top: 10px;">
@@ -1430,14 +1389,6 @@
                 addBudgetEl.addEventListener('input', formatInput);
             }
             
-            // Format new financial input fields
-            const financialFields = ['edit-da-nghiem-thu', 'edit-tam-ung', 'edit-da-thanh-toan', 'edit-da-thu-hoi-tam-ung', 'edit-gia-tri-quyet-toan'];
-            financialFields.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.addEventListener('input', formatInput);
-                }
-            });
         });
 
         async function exportToExcel() {
@@ -3139,9 +3090,6 @@
 
             // Populate new fields
             document.getElementById('edit-ngay-khoi-tao').value = task.ngay_khoi_tao || '';
-            document.getElementById('edit-cong-trinh').value = task.cong_trinh || '';
-            document.getElementById('edit-doi-tac').value = task.doi_tac || '';
-            document.getElementById('edit-so-dien-thoai').value = task.so_dien_thoai || '';
             document.getElementById('edit-ngay-bat-dau').value = task.ngay_bat_dau || '';
             document.getElementById('edit-ngay-ket-thuc').value = task.ngay_ket_thuc || '';
             document.getElementById('edit-gia-han-den-ngay').value = task.gia_han_den_ngay || '';
@@ -3152,12 +3100,6 @@
             document.getElementById('edit-nguoi-phu-trach').value = task.nguoi_phu_trach || '';
             document.getElementById('edit-nguoi-bao-cao').value = task.nguoi_bao_cao || '';
             document.getElementById('edit-nguoi-duyet').value = task.nguoi_duyet || '';
-            
-            document.getElementById('edit-gia-tri-quyet-toan').value = task.gia_tri_quyet_toan ? Number(task.gia_tri_quyet_toan).toLocaleString('vi-VN') : '0';
-            document.getElementById('edit-da-nghiem-thu').value = task.da_nghiem_thu ? Number(task.da_nghiem_thu).toLocaleString('vi-VN') : '0';
-            document.getElementById('edit-da-thanh-toan').value = task.da_thanh_toan ? Number(task.da_thanh_toan).toLocaleString('vi-VN') : '0';
-            document.getElementById('edit-tam-ung').value = task.tam_ung ? Number(task.tam_ung).toLocaleString('vi-VN') : '0';
-            document.getElementById('edit-da-thu-hoi-tam-ung').value = task.da_thu_hoi_tam_ung ? Number(task.da_thu_hoi_tam_ung).toLocaleString('vi-VN') : '0';
 
             // Apply role permissions to form fields (consolidated below)
 
@@ -3218,9 +3160,6 @@
             document.getElementById('edit-deadline').disabled = !canEditStructure;
             document.getElementById('edit-budget').disabled = !canEditStructure;
             document.getElementById('edit-ngay-khoi-tao').disabled = !canEditStructure;
-            document.getElementById('edit-cong-trinh').disabled = !canEditStructure;
-            document.getElementById('edit-doi-tac').disabled = !canEditStructure;
-            document.getElementById('edit-so-dien-thoai').disabled = !canEditStructure;
             document.getElementById('edit-ngay-bat-dau').disabled = !canEditStructure;
             document.getElementById('edit-ngay-ket-thuc').disabled = !canEditStructure;
             document.getElementById('edit-thoi-gian-bao-hanh').disabled = !canEditStructure;
@@ -3234,12 +3173,6 @@
             
             document.getElementById('edit-nguoi-phu-trach').disabled = !canEditStructure;
             document.getElementById('edit-nguoi-bao-cao').disabled = !canEditStructure;
-            
-            document.getElementById('edit-gia-tri-quyet-toan').disabled = !canEditStructure;
-            document.getElementById('edit-da-nghiem-thu').disabled = !canEditStructure;
-            document.getElementById('edit-da-thanh-toan').disabled = !canEditStructure;
-            document.getElementById('edit-tam-ung').disabled = !canEditStructure;
-            document.getElementById('edit-da-thu-hoi-tam-ung').disabled = !canEditStructure;
             
             document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = !canEditStructure);
             document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = !canEditStructure);
@@ -3296,9 +3229,9 @@
 
             // Gather new fields
             const ngayKhoiTao = document.getElementById('edit-ngay-khoi-tao').value.trim();
-            const congTrinh = document.getElementById('edit-cong-trinh').value.trim();
-            const doiTac = document.getElementById('edit-doi-tac').value.trim();
-            const soDienThoai = document.getElementById('edit-so-dien-thoai').value.trim();
+            const congTrinh = "";
+            const doiTac = "";
+            const soDienThoai = "";
             const ngayBatDau = document.getElementById('edit-ngay-bat-dau').value;
             const ngayKetThuc = document.getElementById('edit-ngay-ket-thuc').value;
             const giaHanDenNgay = document.getElementById('edit-gia-han-den-ngay').value;
@@ -3310,11 +3243,11 @@
             const nguoiBaoCao = document.getElementById('edit-nguoi-bao-cao').value.trim();
             const nguoiDuyet = document.getElementById('edit-nguoi-duyet').value.trim();
             
-            const giaTriQuyetToan = parseFloat(document.getElementById('edit-gia-tri-quyet-toan').value.replace(/\./g, '').replace(/,/g, '')) || 0;
-            const daNghiemThu = parseFloat(document.getElementById('edit-da-nghiem-thu').value.replace(/\./g, '').replace(/,/g, '')) || 0;
-            const daThanhToan = parseFloat(document.getElementById('edit-da-thanh-toan').value.replace(/\./g, '').replace(/,/g, '')) || 0;
-            const tamUng = parseFloat(document.getElementById('edit-tam-ung').value.replace(/\./g, '').replace(/,/g, '')) || 0;
-            const daThuHoiTamUng = parseFloat(document.getElementById('edit-da-thu-hoi-tam-ung').value.replace(/\./g, '').replace(/,/g, '')) || 0;
+            const giaTriQuyetToan = 0;
+            const daNghiemThu = 0;
+            const daThanhToan = 0;
+            const tamUng = 0;
+            const daThuHoiTamUng = 0;
 
             const activeUsername = localStorage.getItem('active_username') || 'admin';
             
