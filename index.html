@@ -161,17 +161,13 @@
                                 <th style="width: 145px;">Ngân Sách Tổng</th>
                                 <th style="width: 120px;">Tiến Độ</th>
                                 <th style="width: 120px;">Trạng Thái</th>
-                                <th style="width: 150px;">Kế hoạch tuần</th>
-                                <th style="width: 150px;">Kết quả tuần</th>
-                                <th style="width: 150px;">Vướng mắc tuần</th>
-                                <th style="width: 150px;">Giải quyết</th>
                                 <th style="width: 110px;">Duyệt tuần</th>
                                 <th style="width: 130px;">Hành động</th>
                             </tr>
                         </thead>
                         <tbody id="tasks-table-body">
                             <tr>
-                                <td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                <td colspan="11" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                                     <i class="fa-solid fa-spinner fa-spin"></i> Đang tải cơ sở dữ liệu công việc...
                                 </td>
                             </tr>
@@ -2737,7 +2733,7 @@
                         }
                         
                         const addBtn = hasAddPermission ? `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-plus"></i></button>` : '';
-                        const editBtn = hasEditPermission ? `<button class="action-btn" onclick="openEditModal(${task.id})" title="Báo cáo tuần" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; margin-right:4px; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-calendar-check"></i> BC Tuần</button>` : '';
+                        const editBtn = hasEditPermission ? `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa công việc" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; margin-right:4px; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>` : '';
                         const deleteBtn = hasDeletePermission ? `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem;"><i class="fa-solid fa-trash"></i></button>` : '';
 
                         tr.innerHTML = `
@@ -2759,11 +2755,8 @@
                             <td class="status-cell">
                                 <span class="badge ${task.trang_thai.toLowerCase()}">${getStatusTextVietnamese(task.trang_thai)}</span>
                             </td>
-                            <td>${task.ke_hoach_tuan || '-'}</td>
-                            <td>${task.ket_qua_tuan || '-'}</td>
-                            <td>${task.vuong_mac_tuan || '-'}</td>
-                            <td>${task.cach_giai_quyet || '-'}</td>
-                                </span>
+                            <td>
+                                <span class="badge ${task.duyet_tuan === 'Đã duyệt' ? 'done' : (task.duyet_tuan === 'Không duyệt' ? 'delayed' : 'todo')}">${task.duyet_tuan || 'Chưa duyệt'}</span>
                             </td>
                             <td style="display:flex; align-items:center;">
                                 ${addBtn}
@@ -2785,7 +2778,7 @@
                 })
                 .catch(err => {
                     console.error("Error loading tasks:", err);
-                    tableBody.innerHTML = `<tr><td colspan="15" style="text-align: center; padding: 40px; color: var(--danger);">Không thể kết nối tới cơ sở dữ liệu.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 40px; color: var(--danger);">Không thể kết nối tới cơ sở dữ liệu.</td></tr>`;
                 });
         }
 
@@ -3143,23 +3136,7 @@
             document.getElementById('edit-tam-ung').value = task.tam_ung ? Number(task.tam_ung).toLocaleString('vi-VN') : '0';
             document.getElementById('edit-da-thu-hoi-tam-ung').value = task.da_thu_hoi_tam_ung ? Number(task.da_thu_hoi_tam_ung).toLocaleString('vi-VN') : '0';
 
-            // Apply role permissions to form fields
-            const isAdminOrPM = activeUser && (activeUser.role === 'Admin' || activeUser.role === 'PM');
-            
-            document.getElementById('edit-wbs').disabled = !isAdminOrPM;
-            document.getElementById('edit-name').disabled = !isAdminOrPM;
-            document.getElementById('edit-dept').disabled = !isAdminOrPM;
-            document.getElementById('edit-deadline').disabled = !isAdminOrPM;
-            document.getElementById('edit-budget').disabled = !isAdminOrPM;
-            document.getElementById('edit-ngay-khoi-tao').disabled = !isAdminOrPM;
-            document.getElementById('edit-cong-trinh').disabled = !isAdminOrPM;
-            document.getElementById('edit-doi-tac').disabled = !isAdminOrPM;
-            document.getElementById('edit-so-dien-thoai').disabled = !isAdminOrPM;
-            document.getElementById('edit-ngay-bat-dau').disabled = !isAdminOrPM;
-            document.getElementById('edit-ngay-ket-thuc').disabled = !isAdminOrPM;
-            document.getElementById('edit-thoi-gian-bao-hanh').disabled = !isAdminOrPM;
-            document.getElementById('edit-dieu-khoan').disabled = !isAdminOrPM;
-            document.getElementById('edit-nguoi-duyet').disabled = !isAdminOrPM;
+            // Apply role permissions to form fields (consolidated below)
 
             // Determine active user permissions
             const currentActiveUsername = activeUsername || 'admin';
@@ -3207,23 +3184,42 @@
                 document.getElementById('edit-cach-giai-quyet').disabled = !isManagerOrAdmin;
             }
 
-            // Standard fields settings
-            document.getElementById('edit-deliverables-custom').disabled = false;
-            document.getElementById('edit-cond-custom').disabled = false;
-            document.getElementById('edit-gia-han-den-ngay').disabled = false;
-            document.getElementById('edit-mo-ta').disabled = false;
+            // Standard and financial fields settings:
+            // Only Admin/PM can edit level 1 & 2 tasks structure.
+            // Department members can edit level 3 & 4 tasks structure.
+            const canEditStructure = isAdmin || isPM || (taskLevel > 2 && isDeptMember);
             
-            document.getElementById('edit-nguoi-phu-trach').disabled = false;
-            document.getElementById('edit-nguoi-bao-cao').disabled = false;
+            document.getElementById('edit-wbs').disabled = !canEditStructure;
+            document.getElementById('edit-name').disabled = !canEditStructure;
+            document.getElementById('edit-dept').disabled = !canEditStructure;
+            document.getElementById('edit-deadline').disabled = !canEditStructure;
+            document.getElementById('edit-budget').disabled = !canEditStructure;
+            document.getElementById('edit-ngay-khoi-tao').disabled = !canEditStructure;
+            document.getElementById('edit-cong-trinh').disabled = !canEditStructure;
+            document.getElementById('edit-doi-tac').disabled = !canEditStructure;
+            document.getElementById('edit-so-dien-thoai').disabled = !canEditStructure;
+            document.getElementById('edit-ngay-bat-dau').disabled = !canEditStructure;
+            document.getElementById('edit-ngay-ket-thuc').disabled = !canEditStructure;
+            document.getElementById('edit-thoi-gian-bao-hanh').disabled = !canEditStructure;
+            document.getElementById('edit-dieu-khoan').disabled = !canEditStructure;
+            document.getElementById('edit-nguoi-duyet').disabled = !canEditStructure;
             
-            document.getElementById('edit-gia-tri-quyet-toan').disabled = false;
-            document.getElementById('edit-da-nghiem-thu').disabled = false;
-            document.getElementById('edit-da-thanh-toan').disabled = false;
-            document.getElementById('edit-tam-ung').disabled = false;
-            document.getElementById('edit-da-thu-hoi-tam-ung').disabled = false;
+            document.getElementById('edit-deliverables-custom').disabled = !canEditStructure;
+            document.getElementById('edit-cond-custom').disabled = !canEditStructure;
+            document.getElementById('edit-gia-han-den-ngay').disabled = !canEditStructure;
+            document.getElementById('edit-mo-ta').disabled = !canEditStructure;
             
-            document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = false);
-            document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = false);
+            document.getElementById('edit-nguoi-phu-trach').disabled = !canEditStructure;
+            document.getElementById('edit-nguoi-bao-cao').disabled = !canEditStructure;
+            
+            document.getElementById('edit-gia-tri-quyet-toan').disabled = !canEditStructure;
+            document.getElementById('edit-da-nghiem-thu').disabled = !canEditStructure;
+            document.getElementById('edit-da-thanh-toan').disabled = !canEditStructure;
+            document.getElementById('edit-tam-ung').disabled = !canEditStructure;
+            document.getElementById('edit-da-thu-hoi-tam-ung').disabled = !canEditStructure;
+            
+            document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = !canEditStructure);
+            document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = !canEditStructure);
 
             document.getElementById('edit-task-modal').style.display = 'flex';
         }
