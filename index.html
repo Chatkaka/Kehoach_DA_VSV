@@ -5182,8 +5182,12 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
         }
 
         async function syncPullGoogleSheets() {
-            const googleUrl = localStorage.getItem('google_sheets_url');
+            let googleUrl = String(localStorage.getItem('google_sheets_url') || '').trim();
             if (!googleUrl) return false;
+            
+            if (!googleUrl.startsWith('http://') && !googleUrl.startsWith('https://')) {
+                googleUrl = 'https://' + googleUrl;
+            }
             
             try {
                 const response = await originalFetch(googleUrl);
@@ -5212,8 +5216,12 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
         }
 
         async function autoSyncGoogleSheets() {
-            const googleUrl = localStorage.getItem('google_sheets_url');
+            let googleUrl = String(localStorage.getItem('google_sheets_url') || '').trim();
             if (!googleUrl) return;
+            
+            if (!googleUrl.startsWith('http://') && !googleUrl.startsWith('https://')) {
+                googleUrl = 'https://' + googleUrl;
+            }
             
             try {
                 const payload = {
@@ -5243,11 +5251,15 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
         }
 
         async function syncGoogleSheetsManual() {
-            const googleUrl = localStorage.getItem('google_sheets_url');
+            let googleUrl = String(localStorage.getItem('google_sheets_url') || '').trim();
             if (!googleUrl) {
                 alert("Vui lòng vào Cài Đặt và cấu hình Đường dẫn Google Web App URL trước!");
                 openSettingsModal();
                 return;
+            }
+            
+            if (!googleUrl.startsWith('http://') && !googleUrl.startsWith('https://')) {
+                googleUrl = 'https://' + googleUrl;
             }
             
             const btn = document.getElementById('btn-sync-sheets');
@@ -5260,7 +5272,10 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
             try {
                 // 1. Pull latest from sheet
                 console.log("Pulling latest data from Google Sheets...");
-                await syncPullGoogleSheets();
+                const pullOk = await syncPullGoogleSheets();
+                if (!pullOk) {
+                    throw new Error("Không thể tải dữ liệu từ Google Sheets. Vui lòng kiểm tra lại cấu hình Web App URL.");
+                }
                 
                 // 2. Push current local state to sheet
                 console.log("Pushing local data to Google Sheets...");
@@ -5287,7 +5302,16 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
                     alert("Ghi dữ liệu lên Google Sheets thất bại (HTTP " + postResponse.status + ")");
                 }
             } catch (err) {
-                alert("Lỗi đồng bộ Google Sheets: " + err.message);
+                let msg = err.message || String(err);
+                if (msg.includes("Failed to fetch") || msg.toLowerCase().includes("fetch")) {
+                    msg = "Failed to fetch (Lỗi kết nối hoặc chặn CORS).\n\n" +
+                          "Vui lòng kiểm tra kỹ 2 lỗi thường gặp sau:\n" +
+                          "1. Bạn đã cấu hình đúng URL triển khai (có đuôi /exec, KHÔNG DÙNG ĐUÔI /dev).\n" +
+                          "2. Trong phần triển khai Apps Script (Deploy -> New Deployment), bạn cần cấu hình:\n" +
+                          "   - 'Thực thi dưới danh nghĩa' (Execute as): 'Tôi (Me)'\n" +
+                          "   - 'Ai có quyền truy cập' (Who has access): 'Mọi người (Anyone)' - điều này vô cùng quan trọng để trình duyệt cho phép truy cập liên kết mạng.";
+                }
+                alert("Lỗi đồng bộ Google Sheets: " + msg);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
