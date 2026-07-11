@@ -3319,12 +3319,23 @@
             fetch((backendUrl || '') + '/api/logs')
                 .then(res => res.json())
                 .then(logs => {
+                    const stt = String(task.stt || '').toLowerCase().trim();
+                    const wbs = String(task.ma_ngan_sach || '').toLowerCase().trim();
+                    
+                    const sttEscaped = stt.replace(/\./g, '\\.');
+                    const sttRegex = new RegExp('(?:^|[^0-9.])' + sttEscaped + '(?:$|[^0-9.])');
+                    
+                    let wbsRegex = null;
+                    if (wbs && wbs !== '-') {
+                        const wbsEscaped = wbs.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                        wbsRegex = new RegExp('(?:^|[^a-zA-Z0-9_.\u00C0-\u1EF9])' + wbsEscaped + '(?:$|[^a-zA-Z0-9_.\u00C0-\u1EF9])');
+                    }
+                    
                     const taskLogs = logs.filter(l => {
                         const detail = (l.chi_tiet || '').toLowerCase();
-                        const stt = String(task.stt || '').toLowerCase();
-                        const wbs = String(task.ma_ngan_sach || '').toLowerCase();
-                        
-                        return detail.includes(stt) || (wbs && detail.includes(wbs));
+                        if (sttRegex.test(detail)) return true;
+                        if (wbsRegex && wbsRegex.test(detail)) return true;
+                        return false;
                     });
                     
                     if (taskLogs.length === 0) {
