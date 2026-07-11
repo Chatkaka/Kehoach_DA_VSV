@@ -185,32 +185,6 @@
                         </tbody>
                     </table>
                 </div>
-
-                <!-- Edit History Audit Log Section -->
-                <div style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px;">
-                    <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; color: var(--warning); display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Nhật ký hoạt động & Lịch sử chỉnh sửa của các tài khoản
-                    </h3>
-                    <div class="table-wrapper" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.2);">
-                        <table>
-                            <thead>
-                                <tr style="position: sticky; top: 0; background: var(--panel-bg); z-index: 1;">
-                                    <th style="width: 150px; text-align: center;">Thời gian</th>
-                                    <th style="width: 180px;">Tài khoản</th>
-                                    <th style="width: 150px; text-align: center;">Hành động</th>
-                                    <th>Chi tiết thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="wbs-logs-table-body">
-                                <tr>
-                                    <td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                                        Đang tải lịch sử chỉnh sửa...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -452,29 +426,6 @@
                                     <!-- Populated dynamically -->
                                 </tbody>
                             </table>
-                        <!-- Audit Log History Section -->
-                        <h3 style="margin-top: 25px; margin-bottom: 15px; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; color: var(--warning);">
-                            <i class="fa-solid fa-clock-rotate-left"></i> Nhật ký hoạt động & Lịch sử thao tác
-                        </h3>
-                        
-                        <div class="table-wrapper" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.2);">
-                            <table>
-                                <thead>
-                                    <tr style="position: sticky; top: 0; background: var(--panel-bg); z-index: 1;">
-                                        <th style="width: 150px; text-align: center;">Thời gian</th>
-                                        <th style="width: 160px;">Nhân sự</th>
-                                        <th style="width: 140px; text-align: center;">Hành động</th>
-                                        <th>Chi tiết thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="logs-table-body">
-                                    <tr>
-                                        <td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                                            Đang tải nhật ký...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
@@ -703,6 +654,7 @@
             <div class="edit-modal-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-top: 10px; margin-bottom: 15px; padding-bottom: 8px;">
                 <button type="button" class="edit-tab-btn active" onclick="switchEditModalTab('info')" id="edit-tab-btn-info" style="background: none; border: none; color: var(--primary); font-weight: 700; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; border-bottom: 2px solid var(--primary); transition: all 0.2s;">Thông tin công việc</button>
                 <button type="button" class="edit-tab-btn" onclick="switchEditModalTab('weekly')" id="edit-tab-btn-weekly" style="background: none; border: none; color: var(--text-secondary); font-weight: 500; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; border-bottom: 2px solid transparent; transition: all 0.2s;">Lịch sử báo cáo tuần & Ý kiến CBQL</button>
+                <button type="button" class="edit-tab-btn" onclick="switchEditModalTab('logs')" id="edit-tab-btn-logs" style="background: none; border: none; color: var(--text-secondary); font-weight: 500; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; border-bottom: 2px solid transparent; transition: all 0.2s;">Nhật ký hoạt động & Lịch sử thao tác</button>
             </div>
             
             <!-- TAB 1: THÔNG TIN CÔNG VIỆC CONTAINER -->
@@ -863,6 +815,30 @@
                 <input type="hidden" id="edit-cach-giai-quyet">
                 <input type="hidden" id="edit-duyet-tuan">
                 <input type="hidden" id="edit-progress" value="0">
+            </div>
+
+            <!-- TAB 3: NHẬT KÝ HOẠT ĐỘNG CONTAINER -->
+            <div id="edit-tab-content-logs" style="display: none; border-top: 1px solid var(--panel-border); margin-top: 12px; padding-top: 10px;">
+                <h4 style="font-size: 0.8rem; color: var(--warning); text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid var(--warning); padding-left: 6px; margin-bottom: 12px;"><i class="fa-solid fa-clock-rotate-left"></i> Nhật ký hoạt động & Lịch sử thao tác của công việc</h4>
+                <div class="table-wrapper" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">
+                    <table class="table" style="width: 100%; margin: 0; font-size: 0.8rem;">
+                        <thead>
+                            <tr style="position: sticky; top: 0; background: var(--panel-bg); z-index: 1;">
+                                <th style="width: 150px; text-align: center;">Thời gian</th>
+                                <th style="width: 180px;">Tài khoản</th>
+                                <th style="width: 130px; text-align: center;">Hành động</th>
+                                <th>Chi tiết thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="edit-logs-table-body">
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                                    Chưa có nhật ký hoạt động nào cho công việc này.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
 
@@ -3288,29 +3264,104 @@
         }
         window.updateExpectedProgress = updateExpectedProgress;
 
+        function renderTaskEditLogs(task) {
+            const tbody = document.getElementById('edit-logs-table-body');
+            if (!tbody) return;
+            
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải nhật ký...</td></tr>`;
+            
+            fetch((backendUrl || '') + '/api/logs')
+                .then(res => res.json())
+                .then(logs => {
+                    const taskLogs = logs.filter(l => {
+                        const detail = (l.chi_tiet || '').toLowerCase();
+                        const stt = String(task.stt || '').toLowerCase();
+                        const wbs = String(task.ma_ngan_sach || '').toLowerCase();
+                        
+                        return detail.includes(stt) || (wbs && detail.includes(wbs));
+                    });
+                    
+                    if (taskLogs.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">Chưa có nhật ký thao tác nào cho công việc này.</td></tr>`;
+                        return;
+                    }
+                    
+                    tbody.innerHTML = '';
+                    taskLogs.forEach(l => {
+                        const tr = document.createElement('tr');
+                        const actionName = l.hanh_dong || '';
+                        let badgeClass = 'todo';
+                        if (actionName.toLowerCase().includes('xóa')) badgeClass = 'delayed';
+                        else if (actionName.toLowerCase().includes('thêm') || actionName.toLowerCase().includes('tạo') || actionName.toLowerCase().includes('cập nhật')) badgeClass = 'done';
+                        
+                        tr.innerHTML = `
+                            <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian || ''}</td>
+                            <td style="font-weight:600;">${l.ho_ten} (<code>${l.username}</code>)</td>
+                            <td style="text-align:center;"><span class="badge ${badgeClass}">${actionName}</span></td>
+                            <td style="color:var(--text-primary); font-size:0.85rem;">${l.chi_tiet || '-'}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => {
+                    console.error("Error loading task specific logs:", err);
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--danger);">Lỗi tải nhật ký hoạt động.</td></tr>`;
+                });
+        }
+        window.renderTaskEditLogs = renderTaskEditLogs;
+
         function switchEditModalTab(tabId) {
+            // Hide all tab contents
+            document.getElementById('edit-tab-content-info').style.display = 'none';
+            document.getElementById('edit-tab-content-weekly').style.display = 'none';
+            document.getElementById('edit-tab-content-logs').style.display = 'none';
+            
+            // Get all buttons
+            const btnInfo = document.getElementById('edit-tab-btn-info');
+            const btnWeekly = document.getElementById('edit-tab-btn-weekly');
+            const btnLogs = document.getElementById('edit-tab-btn-logs');
+            
+            // Reset styles
+            if (btnInfo) {
+                btnInfo.style.color = 'var(--text-secondary)';
+                btnInfo.style.borderBottomColor = 'transparent';
+                btnInfo.style.fontWeight = '500';
+            }
+            if (btnWeekly) {
+                btnWeekly.style.color = 'var(--text-secondary)';
+                btnWeekly.style.borderBottomColor = 'transparent';
+                btnWeekly.style.fontWeight = '500';
+            }
+            if (btnLogs) {
+                btnLogs.style.color = 'var(--text-secondary)';
+                btnLogs.style.borderBottomColor = 'transparent';
+                btnLogs.style.fontWeight = '500';
+            }
+            
             if (tabId === 'info') {
                 document.getElementById('edit-tab-content-info').style.display = 'block';
-                document.getElementById('edit-tab-content-weekly').style.display = 'none';
-                
-                document.getElementById('edit-tab-btn-info').style.color = 'var(--primary)';
-                document.getElementById('edit-tab-btn-info').style.borderBottomColor = 'var(--primary)';
-                document.getElementById('edit-tab-btn-info').style.fontWeight = '700';
-                
-                document.getElementById('edit-tab-btn-weekly').style.color = 'var(--text-secondary)';
-                document.getElementById('edit-tab-btn-weekly').style.borderBottomColor = 'transparent';
-                document.getElementById('edit-tab-btn-weekly').style.fontWeight = '500';
-            } else {
-                document.getElementById('edit-tab-content-info').style.display = 'none';
+                if (btnInfo) {
+                    btnInfo.style.color = 'var(--primary)';
+                    btnInfo.style.borderBottomColor = 'var(--primary)';
+                    btnInfo.style.fontWeight = '700';
+                }
+            } else if (tabId === 'weekly') {
                 document.getElementById('edit-tab-content-weekly').style.display = 'block';
-                
-                document.getElementById('edit-tab-btn-weekly').style.color = 'var(--success)';
-                document.getElementById('edit-tab-btn-weekly').style.borderBottomColor = 'var(--success)';
-                document.getElementById('edit-tab-btn-weekly').style.fontWeight = '700';
-                
-                document.getElementById('edit-tab-btn-info').style.color = 'var(--text-secondary)';
-                document.getElementById('edit-tab-btn-info').style.borderBottomColor = 'transparent';
-                document.getElementById('edit-tab-btn-info').style.fontWeight = '500';
+                if (btnWeekly) {
+                    btnWeekly.style.color = 'var(--success)';
+                    btnWeekly.style.borderBottomColor = 'var(--success)';
+                    btnWeekly.style.fontWeight = '700';
+                }
+            } else if (tabId === 'logs') {
+                document.getElementById('edit-tab-content-logs').style.display = 'block';
+                if (btnLogs) {
+                    btnLogs.style.color = 'var(--warning)';
+                    btnLogs.style.borderBottomColor = 'var(--warning)';
+                    btnLogs.style.fontWeight = '700';
+                }
+                if (window.editingTask) {
+                    renderTaskEditLogs(window.editingTask);
+                }
             }
         }
         window.switchEditModalTab = switchEditModalTab;
@@ -3824,6 +3875,9 @@
             } else {
                 switchEditModalTab('weekly');
             }
+            
+            // Populate task specific logs
+            renderTaskEditLogs(task);
 
             document.getElementById('edit-task-modal').style.display = 'flex';
         }
