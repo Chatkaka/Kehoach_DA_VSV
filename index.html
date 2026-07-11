@@ -4235,20 +4235,187 @@
         }
         window.triggerImportExcelAI = triggerImportExcelAI;
 
+        async function importExcelOffline(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        if (rows.length < 2) {
+                            throw new Error("File Excel rỗng hoặc không đúng định dạng.");
+                        }
+                        
+                        const headers = rows[0].map(h => String(h || '').trim().toLowerCase());
+                        
+                        const wbsIdx = headers.findIndex(h => h.includes('mã ngân sách') || h.includes('wbs') || h.includes('mã'));
+                        const sttIdx = headers.findIndex(h => h.includes('stt') || h.includes('số thứ tự'));
+                        const nameIdx = headers.findIndex(h => h.includes('tên công việc') || h.includes('tên việc') || h.includes('nội dung'));
+                        const deptIdx = headers.findIndex(h => h.includes('phòng ban') || h.includes('bộ phận') || h.includes('thực hiện'));
+                        const coQuanIdx = headers.findIndex(h => h.includes('cơ quan') || h.includes('đơn vị giải quyết'));
+                        const hoSoIdx = headers.findIndex(h => h.includes('hồ sơ') || h.includes('kết quả') || h.includes('đầu ra'));
+                        const condIdx = headers.findIndex(h => h.includes('điều kiện') || h.includes('ghi nhận'));
+                        const deadlineIdx = headers.findIndex(h => h.includes('thời hạn') || h.includes('ngày hoàn thành') || h.includes('hạn'));
+                        const progressIdx = headers.findIndex(h => h.includes('tiến độ') || h.includes('%') || h.includes('hoàn thành'));
+                        const nganSachIdx = headers.findIndex(h => h.includes('ngân sách') || h.includes('chi phí') || h.includes('tổng'));
+                        
+                        if (wbsIdx === -1 || sttIdx === -1 || nameIdx === -1) {
+                            throw new Error("Không tìm thấy các cột bắt buộc trong Excel: 'Mã ngân sách (WBS)', 'STT', 'Tên công việc'.");
+                        }
+                        
+                        let added = 0;
+                        let updated = 0;
+                        const allTasks = LocalDBManager.getTasks();
+                        const taskMap = new Map();
+                        allTasks.forEach(t => {
+                            if (t.ma_ngan_sach) {
+                                taskMap.set(String(t.ma_ngan_sach).trim().toLowerCase(), t);
+                            }
+                        });
+                        
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        
+                        for (let i = 1; i < rows.length; i++) {
+                            const row = rows[i];
+                            if (!row || row.length === 0) continue;
+                            
+                            const wbsVal = String(row[wbsIdx] || '').trim();
+                            const sttVal = String(row[sttIdx] || '').trim();
+                            const nameVal = String(row[nameIdx] || '').trim();
+                            
+                            if (!wbsVal || !sttVal || !nameVal) continue;
+                            
+                            const deptVal = deptIdx !== -1 ? String(row[deptIdx] || '').trim() : "PTDA";
+                            const coQuanVal = coQuanIdx !== -1 ? String(row[coQuanIdx] || '').trim() : "-";
+                            const hoSoVal = hoSoIdx !== -1 ? String(row[hoSoIdx] || '').trim() : "-";
+                            const condVal = condIdx !== -1 ? String(row[condIdx] || '').trim() : "-";
+                            const deadlineVal = deadlineIdx !== -1 ? String(row[deadlineIdx] || '').trim() : "Tháng 06/2026";
+                            
+                            let progressVal = 0;
+                            if (progressIdx !== -1 && row[progressIdx] !== undefined) {
+                                let val = parseFloat(row[progressIdx]);
+                                if (!isNaN(val)) {
+                                    if (val <= 1.0 && String(row[progressIdx]).includes('.')) {
+                                        progressVal = val * 100;
+                                    } else {
+                                        progressVal = val;
+                                    }
+                                }
+                            }
+                            
+                            let budgetVal = 0;
+                            if (nganSachIdx !== -1 && row[nganSachIdx] !== undefined) {
+                                let val = parseFloat(String(row[nganSachIdx]).replace(/[^0-9.-]/g, ''));
+                                if (!isNaN(val)) budgetVal = val;
+                            }
+                            
+                            let phaseId = 1;
+                            if (sttVal.startsWith('2')) phaseId = 2;
+                            else if (sttVal.startsWith('3')) phaseId = 3;
+                            else if (sttVal.startsWith('4')) phaseId = 4;
+                            
+                            const normWbs = wbsVal.toLowerCase();
+                            const existing = taskMap.get(normWbs);
+                            
+                            if (existing) {
+                                existing.stt = sttVal;
+                                existing.ten_cong_viec = nameVal;
+                                existing.phong_ban_thuc_hien = deptVal;
+                                existing.co_quan_giai_quyet = coQuanVal;
+                                existing.ho_so_dau_ra = hoSoVal;
+                                existing.dieu_kien_ghi_nhan = condVal;
+                                existing.thoi_han_hoan_thanh = deadlineVal;
+                                existing.tien_do = progressVal;
+                                existing.phase_id = phaseId;
+                                existing.ngan_sach = budgetVal;
+                                
+                                if (!existing.ngay_khoi_tao) {
+                                    existing.ngay_khoi_tao = todayStr;
+                                }
+                                
+                                let computedEnd = deadlineVal;
+                                if (existing.gia_han_den_ngay && deadlineVal) {
+                                    if (existing.gia_han_den_ngay > deadlineVal) {
+                                        computedEnd = existing.gia_han_den_ngay;
+                                    }
+                                }
+                                existing.ngay_ket_thuc = computedEnd;
+                                
+                                LocalDBManager.updateTask(existing.id, existing, "Hệ thống AI (Offline)");
+                                updated++;
+                            } else {
+                                const newId = allTasks.length > 0 ? Math.max(...allTasks.map(t => t.id)) + 1 : 1;
+                                const newTask = {
+                                    id: newId,
+                                    ma_ngan_sach: wbsVal,
+                                    stt: sttVal,
+                                    phase_id: phaseId,
+                                    ten_cong_viec: nameVal,
+                                    phong_ban_thuc_hien: deptVal,
+                                    co_quan_giai_quyet: coQuanVal,
+                                    ho_so_dau_ra: hoSoVal,
+                                    dieu_kien_ghi_nhan: condVal,
+                                    thoi_han_hoan_thanh: deadlineVal,
+                                    tien_do: progressVal,
+                                    trang_thai: progressVal >= 100 ? "Done" : "Todo",
+                                    ngay_khoi_tao: todayStr,
+                                    ngay_ket_thuc: deadlineVal,
+                                    ngan_sach: budgetVal,
+                                    ke_hoach_tuan: "",
+                                    ket_qua_tuan: "",
+                                    vuong_mac_tuan: "",
+                                    cach_giai_quyet: "",
+                                    duyet_tuan: "Chưa duyệt",
+                                    weekly_reports_json: "[]"
+                                };
+                                LocalDBManager.addTask(newTask, "Hệ thống AI (Offline)");
+                                added++;
+                            }
+                        }
+                        
+                        resolve({ success: true, message: `Nhập dữ liệu Excel Ngoại tuyến thành công!\n- Thêm mới: ${added} công việc\n- Cập nhật: ${updated} công việc.` });
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = () => reject(new Error("Lỗi đọc file Excel."));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
         async function importExcelAI(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            if (!confirm(`Bạn có chắc chắn muốn tải lên file "${file.name}" để AI bóc tách dữ liệu và cập nhật trực tiếp vào cơ sở dữ liệu không?\n\nChú ý: Các công việc trùng mã ngân sách sẽ được cập nhật thông tin mới nhất, các công việc mới sẽ được thêm vào cấu trúc.`)) {
+            if (!confirm(`Bạn có chắc chắn muốn tải lên file "${file.name}" để bóc tách dữ liệu và cập nhật trực tiếp vào cơ sở dữ liệu không?\n\nChú ý: Các công việc trùng mã ngân sách sẽ được cập nhật thông tin mới nhất, các công việc mới sẽ được thêm vào cấu trúc.`)) {
+                return;
+            }
+
+            const loadingIndicator = document.getElementById('ai-import-loading');
+            if (loadingIndicator) loadingIndicator.style.display = 'block';
+
+            if (isOfflineMode) {
+                try {
+                    const result = await importExcelOffline(file);
+                    alert(result.message);
+                    if (typeof initApp === 'function') await initApp();
+                    else location.reload();
+                } catch (error) {
+                    console.error("Lỗi khi nhập Excel Offline:", error);
+                    alert("Lỗi nhập Excel ngoại tuyến: " + error.message);
+                } finally {
+                    if (loadingIndicator) loadingIndicator.style.display = 'none';
+                }
                 return;
             }
 
             const formData = new FormData();
             formData.append("file", file);
-
             const activeUsername = localStorage.getItem('active_username') || '';
-            const loadingIndicator = document.getElementById('ai-import-loading');
-            if (loadingIndicator) loadingIndicator.style.display = 'block';
 
             try {
                 const response = await fetch(backendUrl + `/api/tasks/import-excel-ai?username=${encodeURIComponent(activeUsername)}`, {
@@ -4256,19 +4423,24 @@
                     body: formData
                 });
 
+                const contentType = response.headers.get("content-type") || "";
                 if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.detail || "Không thể tải lên hoặc bóc tách dữ liệu.");
+                    if (contentType.includes("application/json")) {
+                        const errData = await response.json();
+                        throw new Error(errData.detail || "Không thể tải lên hoặc bóc tách dữ liệu.");
+                    } else {
+                        throw new Error(`Máy chủ trả về mã lỗi HTTP ${response.status}. Vui lòng chạy máy chủ Python FastAPI cục bộ.`);
+                    }
+                }
+
+                if (!contentType.includes("application/json")) {
+                    throw new Error("Phản hồi của máy chủ không hợp lệ (không phải JSON). Kiểm tra Mixed Content hoặc trạng thái server.");
                 }
 
                 const result = await response.json();
                 alert(result.message || "Bóc tách dữ liệu thành công!");
-                
-                if (typeof initApp === 'function') {
-                    await initApp();
-                } else {
-                    location.reload();
-                }
+                if (typeof initApp === 'function') await initApp();
+                else location.reload();
             } catch (error) {
                 console.error("Lỗi khi nhập Excel AI:", error);
                 alert("Lỗi nhập Excel AI: " + error.message);
@@ -4288,13 +4460,21 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            if (isOfflineMode) {
+                alert("TÍNH NĂNG NGOẠI TUYẾN (OFFLINE):\n\n" +
+                      "Tính năng bóc tách PDF bằng AI (Gemini) yêu cầu kết nối với máy chủ Python FastAPI.\n\n" +
+                      "Để tiếp tục, vui lòng:\n" +
+                      "1. Khởi động máy chủ Python FastAPI cục bộ trên máy tính của bạn.\n" +
+                      "2. Hoặc chuyển đổi file PDF thành Excel (.xlsx) để sử dụng chức năng nhập dữ liệu ngoại tuyến.");
+                return;
+            }
+
             if (!confirm(`Bạn có chắc chắn muốn tải lên file PDF "${file.name}" để AI bóc tách dữ liệu và cập nhật trực tiếp vào cơ sở dữ liệu không?\n\nChú ý: Các công việc trùng mã ngân sách sẽ được cập nhật thông tin mới nhất, các công việc mới sẽ được thêm vào cấu trúc.`)) {
                 return;
             }
 
             const formData = new FormData();
             formData.append("file", file);
-
             const activeUsername = localStorage.getItem('active_username') || '';
             const loadingIndicator = document.getElementById('ai-pdf-import-loading');
             if (loadingIndicator) loadingIndicator.style.display = 'block';
@@ -4305,19 +4485,24 @@
                     body: formData
                 });
 
+                const contentType = response.headers.get("content-type") || "";
                 if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.detail || "Không thể tải lên hoặc bóc tách dữ liệu PDF.");
+                    if (contentType.includes("application/json")) {
+                        const errData = await response.json();
+                        throw new Error(errData.detail || "Không thể tải lên hoặc bóc tách dữ liệu PDF.");
+                    } else {
+                        throw new Error(`Máy chủ trả về mã lỗi HTTP ${response.status}. Vui lòng chạy máy chủ Python FastAPI cục bộ.`);
+                    }
+                }
+
+                if (!contentType.includes("application/json")) {
+                    throw new Error("Phản hồi của máy chủ không hợp lệ (không phải JSON). Kiểm tra Mixed Content hoặc trạng thái server.");
                 }
 
                 const result = await response.json();
                 alert(result.message || "Bóc tách PDF thành công!");
-                
-                if (typeof initApp === 'function') {
-                    await initApp();
-                } else {
-                    location.reload();
-                }
+                if (typeof initApp === 'function') await initApp();
+                else location.reload();
             } catch (error) {
                 console.error("Lỗi khi nhập PDF AI:", error);
                 alert("Lỗi nhập PDF AI: " + error.message);
