@@ -5184,6 +5184,9 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
         async function syncPullGoogleSheets() {
             let googleUrl = String(localStorage.getItem('google_sheets_url') || '').trim();
             if (!googleUrl) return { success: false, error: "Đường dẫn Google Web App URL trống." };
+            if (googleUrl.toLowerCase().includes('/dev')) {
+                return { success: false, error: "Lỗi đường dẫn: Bạn đang cấu hình link thử nghiệm (/dev) không hỗ trợ CORS. Vui lòng chuyển sang link triển khai chính thức (/exec)." };
+            }
             
             if (!googleUrl.startsWith('http://') && !googleUrl.startsWith('https://')) {
                 googleUrl = 'https://' + googleUrl;
@@ -5571,6 +5574,16 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
 
         function saveSettings() {
             let url = document.getElementById('settings-google-sheets-url').value.trim();
+            if (url) {
+                if (url.toLowerCase().includes('/dev')) {
+                    alert("LỖI CẤU HÌNH ĐƯỜNG DẪN:\n\nBạn đang dán đường dẫn thử nghiệm có đuôi /dev.\n\nVui lòng sử dụng đường dẫn triển khai chính thức có đuôi /exec.\n\nCách lấy link chính xác:\n1. Vào Apps Script -> Chọn 'Triển khai (Deploy)' -> 'Triển khai mới (New deployment)'.\n2. Chọn Ứng dụng Web, thiết lập 'Execute as = Me', 'Who has access = Anyone'.\n3. Bấm Deploy và sao chép link Web App URL nhận được (phải có đuôi /exec).");
+                    return;
+                }
+                if (!url.toLowerCase().includes('script.google.com')) {
+                    alert("LỖI CẤU HÌNH ĐƯỜNG DẪN:\n\nĐường dẫn không hợp lệ. Đường dẫn Google Web App URL phải chứa 'script.google.com'.");
+                    return;
+                }
+            }
             localStorage.setItem('google_sheets_url', url);
 
             // Save Gemini
