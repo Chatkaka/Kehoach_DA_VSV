@@ -185,6 +185,32 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Edit History Audit Log Section -->
+                <div style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px;">
+                    <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; color: var(--warning); display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Nhật ký hoạt động & Lịch sử chỉnh sửa của các tài khoản
+                    </h3>
+                    <div class="table-wrapper" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.2);">
+                        <table>
+                            <thead>
+                                <tr style="position: sticky; top: 0; background: var(--panel-bg); z-index: 1;">
+                                    <th style="width: 150px; text-align: center;">Thời gian</th>
+                                    <th style="width: 180px;">Tài khoản</th>
+                                    <th style="width: 150px; text-align: center;">Hành động</th>
+                                    <th>Chi tiết thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="wbs-logs-table-body">
+                                <tr>
+                                    <td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                                        Đang tải lịch sử chỉnh sửa...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -735,15 +761,15 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                     <div class="form-group">
                         <label for="edit-nguoi-phu-trach">Người phụ trách thực hiện</label>
-                        <input type="text" id="edit-nguoi-phu-trach" class="form-control" placeholder="Họ và tên">
+                        <select id="edit-nguoi-phu-trach" class="form-control"></select>
                     </div>
                     <div class="form-group">
                         <label for="edit-nguoi-bao-cao">Người báo cáo tuần</label>
-                        <input type="text" id="edit-nguoi-bao-cao" class="form-control" placeholder="Họ và tên">
+                        <select id="edit-nguoi-bao-cao" class="form-control"></select>
                     </div>
                     <div class="form-group">
                         <label for="edit-nguoi-duyet">Người duyệt chốt chặn (Admin/CBQL)</label>
-                        <input type="text" id="edit-nguoi-duyet" class="form-control" placeholder="Họ và tên">
+                        <select id="edit-nguoi-duyet" class="form-control"></select>
                     </div>
                 </div>
             </div>
@@ -1483,6 +1509,18 @@
                 addBudgetEl.addEventListener('input', formatInput);
             }
             
+            // Listen to date changes to dynamically calculate end date
+            const deadlineInput = document.getElementById('edit-deadline');
+            const giaHanInput = document.getElementById('edit-gia-han-den-ngay');
+            if (deadlineInput) {
+                deadlineInput.addEventListener('change', updateComputedNgayKetThuc);
+            }
+            if (giaHanInput) {
+                giaHanInput.addEventListener('change', updateComputedNgayKetThuc);
+            }
+            
+            // Fetch edit history logs on page load
+            fetchActionLogs();
         });
 
         async function exportToExcel() {
@@ -2250,28 +2288,53 @@
                 .then(res => res.json())
                 .then(logs => {
                     const tbody = document.getElementById('logs-table-body');
-                    if (!tbody) return;
-                    if (logs.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">Chưa có nhật ký hoạt động nào.</td></tr>`;
-                        return;
+                    const wbsTbody = document.getElementById('wbs-logs-table-body');
+                    
+                    if (tbody) {
+                        if (logs.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">Chưa có nhật ký hoạt động nào.</td></tr>`;
+                        } else {
+                            tbody.innerHTML = '';
+                            logs.forEach(l => {
+                                const tr = document.createElement('tr');
+                                const actionName = l.hanh_dong || '';
+                                let badgeClass = 'todo';
+                                if (actionName.toLowerCase().includes('xóa')) badgeClass = 'delayed';
+                                else if (actionName.toLowerCase().includes('thêm') || actionName.toLowerCase().includes('tạo') || actionName.toLowerCase().includes('cập nhật')) badgeClass = 'done';
+                                
+                                tr.innerHTML = `
+                                    <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian || ''}</td>
+                                    <td style="font-weight:600;">${l.ho_ten} (<code>${l.username}</code>)</td>
+                                    <td style="text-align:center;"><span class="badge ${badgeClass}">${actionName}</span></td>
+                                    <td style="color:var(--text-primary); font-size:0.85rem;">${l.chi_tiet || '-'}</td>
+                                `;
+                                tbody.appendChild(tr);
+                            });
+                        }
                     }
-                    tbody.innerHTML = '';
-                    logs.forEach(l => {
-                        const tr = document.createElement('tr');
-                        
-                        const actionName = l.hanh_dong || '';
-                        let badgeClass = 'todo';
-                        if (actionName.toLowerCase().includes('xóa')) badgeClass = 'delayed';
-                        else if (actionName.toLowerCase().includes('thêm') || actionName.toLowerCase().includes('tạo') || actionName.toLowerCase().includes('cập nhật')) badgeClass = 'done';
-                        
-                        tr.innerHTML = `
-                            <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian || ''}</td>
-                            <td style="font-weight:600;">${l.ho_ten} (<code>${l.username}</code>)</td>
-                            <td style="text-align:center;"><span class="badge ${badgeClass}">${actionName}</span></td>
-                            <td style="color:var(--text-primary); font-size:0.85rem;">${l.chi_tiet || '-'}</td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
+                    
+                    if (wbsTbody) {
+                        if (logs.length === 0) {
+                            wbsTbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">Chưa có nhật ký hoạt động nào.</td></tr>`;
+                        } else {
+                            wbsTbody.innerHTML = '';
+                            logs.forEach(l => {
+                                const tr = document.createElement('tr');
+                                const actionName = l.hanh_dong || '';
+                                let badgeClass = 'todo';
+                                if (actionName.toLowerCase().includes('xóa')) badgeClass = 'delayed';
+                                else if (actionName.toLowerCase().includes('thêm') || actionName.toLowerCase().includes('tạo') || actionName.toLowerCase().includes('cập nhật')) badgeClass = 'done';
+                                
+                                tr.innerHTML = `
+                                    <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian || ''}</td>
+                                    <td style="font-weight:600;">${l.ho_ten} (<code>${l.username}</code>)</td>
+                                    <td style="text-align:center;"><span class="badge ${badgeClass}">${actionName}</span></td>
+                                    <td style="color:var(--text-primary); font-size:0.85rem;">${l.chi_tiet || '-'}</td>
+                                `;
+                                wbsTbody.appendChild(tr);
+                            });
+                        }
+                    }
                 })
                 .catch(err => console.error("Error fetching action logs:", err));
         }
@@ -3380,6 +3443,78 @@
         }
         window.renderWeeklyReportsTable = renderWeeklyReportsTable;
 
+        function populatePersonnelDropdowns(task) {
+            const phutrachSelect = document.getElementById('edit-nguoi-phu-trach');
+            const baocaoSelect = document.getElementById('edit-nguoi-bao-cao');
+            const duyetSelect = document.getElementById('edit-nguoi-duyet');
+            
+            if (!phutrachSelect || !baocaoSelect || !duyetSelect) return;
+            
+            // Clean lists
+            phutrachSelect.innerHTML = '<option value="-">-</option>';
+            baocaoSelect.innerHTML = '<option value="-">-</option>';
+            duyetSelect.innerHTML = '<option value="-">-</option>';
+            
+            if (window.allUsers && window.allUsers.length > 0) {
+                window.allUsers.forEach(u => {
+                    const opt1 = document.createElement('option');
+                    opt1.value = u.ho_ten;
+                    const roleText = u.role === 'Admin' ? 'Admin' : (u.role === 'PM' ? 'PM' : (u.role === 'TruongPhong' ? 'Trưởng phòng' : 'Nhân viên'));
+                    opt1.text = `${u.ho_ten} (${roleText})`;
+                    phutrachSelect.appendChild(opt1);
+                    
+                    const opt2 = opt1.cloneNode(true);
+                    baocaoSelect.appendChild(opt2);
+                    
+                    const opt3 = opt1.cloneNode(true);
+                    duyetSelect.appendChild(opt3);
+                });
+            }
+            
+            setSelectValueCaseInsensitive(phutrachSelect, task.nguoi_phu_trach);
+            setSelectValueCaseInsensitive(baocaoSelect, task.nguoi_bao_cao);
+            setSelectValueCaseInsensitive(duyetSelect, task.nguoi_duyet);
+        }
+
+        function setSelectValueCaseInsensitive(selectEl, val) {
+            if (!val || val === '-') {
+                selectEl.value = '-';
+                return;
+            }
+            const cleanedVal = val.trim().toLowerCase();
+            for (let opt of selectEl.options) {
+                if (opt.value.trim().toLowerCase() === cleanedVal) {
+                    selectEl.value = opt.value;
+                    return;
+                }
+            }
+            // If not found in user list, append dynamically so we don't lose existing data
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.text = val;
+            selectEl.appendChild(opt);
+            selectEl.value = val;
+        }
+
+        function updateComputedNgayKetThuc() {
+            const deadlineVal = document.getElementById('edit-deadline').value;
+            const giaHanVal = document.getElementById('edit-gia-han-den-ngay').value;
+            const ketThucInput = document.getElementById('edit-ngay-ket-thuc');
+            
+            if (!ketThucInput) return;
+            
+            if (!deadlineVal) {
+                ketThucInput.value = giaHanVal || '';
+                return;
+            }
+            
+            if (giaHanVal && new Date(giaHanVal) > new Date(deadlineVal)) {
+                ketThucInput.value = giaHanVal;
+            } else {
+                ketThucInput.value = deadlineVal;
+            }
+        }
+
         function showActualEditForm(id) {
             let task = null;
             if (window.currentTasks) {
@@ -3582,14 +3717,11 @@
             // Populate new fields
             document.getElementById('edit-ngay-khoi-tao').value = task.ngay_khoi_tao || '';
             document.getElementById('edit-ngay-bat-dau').value = task.ngay_bat_dau || '';
-            document.getElementById('edit-ngay-ket-thuc').value = task.ngay_ket_thuc || '';
             document.getElementById('edit-gia-han-den-ngay').value = task.gia_han_den_ngay || '';
             
-            document.getElementById('edit-nguoi-phu-trach').value = task.nguoi_phu_trach || '';
-            document.getElementById('edit-nguoi-bao-cao').value = task.nguoi_bao_cao || '';
-            document.getElementById('edit-nguoi-duyet').value = task.nguoi_duyet || '';
-
-            // Apply role permissions to form fields (consolidated below)
+            // Populate dropdown options and set values
+            populatePersonnelDropdowns(task);
+            updateComputedNgayKetThuc();
 
             // Determine active user permissions
             const currentActiveUsername = activeUsername || 'admin';
@@ -3653,16 +3785,34 @@
             document.getElementById('edit-deadline').disabled = !canEditStructure;
             document.getElementById('edit-budget').disabled = !canEditStructure;
             document.getElementById('edit-ngay-khoi-tao').disabled = !canEditStructure;
-            document.getElementById('edit-ngay-bat-dau').disabled = !canEditStructure;
-            document.getElementById('edit-ngay-ket-thuc').disabled = !canEditStructure;
-            document.getElementById('edit-nguoi-duyet').disabled = !canEditStructure;
+            
+            // Personnel selection dropdown permissions:
+            // 4. Người phụ trách thực hiện: Công việc cấp 1, 2 do Admin chọn; Công việc cấp 3, 4 do Trưởng phòng (CBQL) / Admin chọn.
+            let canChoosePhuTrach = false;
+            if (taskLevel <= 2) {
+                canChoosePhuTrach = isAdmin;
+            } else {
+                canChoosePhuTrach = isAdmin || isDeptManager;
+            }
+            document.getElementById('edit-nguoi-phu-trach').disabled = !canChoosePhuTrach;
+
+            // 5. Người báo cáo tuần: Do người tạo ra công việc con cấp 4 (isCreator) hoặc Trưởng phòng (CBQL) / Admin chọn.
+            const canChooseBaoCao = isCreator || isDeptManager || isAdmin;
+            document.getElementById('edit-nguoi-bao-cao').disabled = !canChooseBaoCao;
+
+            // Người duyệt chốt chặn: Admin or Trưởng phòng (CBQL) can choose.
+            document.getElementById('edit-nguoi-duyet').disabled = !isDeptManager && !isAdmin;
+
+            // 6. Ngày bắt đầu: Do Trưởng phòng (CBQL) / Admin điền.
+            const canEditNgayBatDau = isDeptManager || isAdmin;
+            document.getElementById('edit-ngay-bat-dau').disabled = !canEditNgayBatDau;
+
+            // Ngày kết thúc: Computed and disabled.
+            document.getElementById('edit-ngay-ket-thuc').disabled = true;
             
             document.getElementById('edit-deliverables-custom').disabled = !canEditStructure;
             document.getElementById('edit-cond-custom').disabled = !canEditStructure;
             document.getElementById('edit-gia-han-den-ngay').disabled = !canEditStructure;
-            
-            document.getElementById('edit-nguoi-phu-trach').disabled = !canEditStructure;
-            document.getElementById('edit-nguoi-bao-cao').disabled = !canEditStructure;
             
             document.querySelectorAll('.deliverable-chk').forEach(chk => chk.disabled = !canEditStructure);
             document.querySelectorAll('.cond-chk').forEach(chk => chk.disabled = !canEditStructure);
@@ -4775,6 +4925,8 @@
                 loadWeeklyTabContent();
             } else if (tabId === 'users-tab') {
                 fetchUsersList();
+                fetchActionLogs();
+            } else if (tabId === 'wbs-tab') {
                 fetchActionLogs();
             }
         }

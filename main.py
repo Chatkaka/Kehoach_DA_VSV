@@ -1485,6 +1485,21 @@ async def import_excel_ai(
                 existing_task.tien_do = tien_do_val
                 existing_task.trang_thai = trang_thai_val
                 existing_task.phase_id = phase_id
+                if not existing_task.ngay_khoi_tao:
+                    existing_task.ngay_khoi_tao = datetime.date.today().isoformat()
+                
+                # Calculate computed ngay_ket_thuc
+                computed_ket_thuc = deadline_val
+                gia_han_val = existing_task.gia_han_den_ngay
+                if gia_han_val and deadline_val:
+                    try:
+                        if gia_han_val > deadline_val:
+                            computed_ket_thuc = gia_han_val
+                    except Exception:
+                        pass
+                elif gia_han_val:
+                    computed_ket_thuc = gia_han_val
+                existing_task.ngay_ket_thuc = computed_ket_thuc
                 
                 if existing_task.budget:
                     existing_task.budget.ngan_sach_tong = budget_val
@@ -1519,6 +1534,7 @@ async def import_excel_ai(
                     tien_do=tien_do_val,
                     trang_thai=trang_thai_val,
                     ngay_khoi_tao=datetime.date.today().isoformat(),
+                    ngay_ket_thuc=deadline_val,
                     weekly_reports_json="[]"
                 )
                 db.add(new_task)
@@ -1660,6 +1676,21 @@ async def import_pdf_ai(
                     existing_task.tien_do = tien_do_val
                     existing_task.trang_thai = trang_thai_val
                     existing_task.phase_id = phase_id
+                    if not existing_task.ngay_khoi_tao:
+                        existing_task.ngay_khoi_tao = datetime.date.today().isoformat()
+                    
+                    # Calculate computed ngay_ket_thuc
+                    computed_ket_thuc = deadline_val
+                    gia_han_val = existing_task.gia_han_den_ngay
+                    if gia_han_val and deadline_val:
+                        try:
+                            if gia_han_val > deadline_val:
+                                computed_ket_thuc = gia_han_val
+                        except Exception:
+                            pass
+                    elif gia_han_val:
+                        computed_ket_thuc = gia_han_val
+                    existing_task.ngay_ket_thuc = computed_ket_thuc
                     
                     if existing_task.budget:
                         existing_task.budget.ngan_sach_tong = budget_val
@@ -1694,6 +1725,7 @@ async def import_pdf_ai(
                         tien_do=tien_do_val,
                         trang_thai=trang_thai_val,
                         ngay_khoi_tao=datetime.date.today().isoformat(),
+                        ngay_ket_thuc=deadline_val,
                         weekly_reports_json="[]"
                     )
                     db.add(new_task)
@@ -1835,6 +1867,21 @@ async def import_pdf_ai(
                     existing_task.tien_do = tien_do_val
                     existing_task.trang_thai = trang_thai_val
                     existing_task.phase_id = phase_id
+                    if not existing_task.ngay_khoi_tao:
+                        existing_task.ngay_khoi_tao = datetime.date.today().isoformat()
+                    
+                    # Calculate computed ngay_ket_thuc
+                    computed_ket_thuc = deadline_val
+                    gia_han_val = existing_task.gia_han_den_ngay
+                    if gia_han_val and deadline_val:
+                        try:
+                            if gia_han_val > deadline_val:
+                                computed_ket_thuc = gia_han_val
+                        except Exception:
+                            pass
+                    elif gia_han_val:
+                        computed_ket_thuc = gia_han_val
+                    existing_task.ngay_ket_thuc = computed_ket_thuc
                     
                     if existing_task.budget:
                         existing_task.budget.ngan_sach_tong = budget_val
@@ -1869,6 +1916,7 @@ async def import_pdf_ai(
                         tien_do=tien_do_val,
                         trang_thai=trang_thai_val,
                         ngay_khoi_tao=datetime.date.today().isoformat(),
+                        ngay_ket_thuc=deadline_val,
                         weekly_reports_json="[]"
                     )
                     db.add(new_task)
@@ -2152,14 +2200,27 @@ async def update_task_details(
     task.cach_giai_quyet = request.cach_giai_quyet.strip() if request.cach_giai_quyet else ""
     task.duyet_tuan = request.duyet_tuan.strip() if request.duyet_tuan else "Chưa duyệt"
     
-    # Map new fields
-    task.ngay_khoi_tao = request.ngay_khoi_tao.strip() if request.ngay_khoi_tao else ""
+    # Map new fields with computed timeline and defaulted creation date
+    task.ngay_khoi_tao = request.ngay_khoi_tao.strip() if request.ngay_khoi_tao else (task.ngay_khoi_tao or datetime.date.today().isoformat())
     task.cong_trinh = request.cong_trinh.strip() if request.cong_trinh else ""
     task.doi_tac = request.doi_tac.strip() if request.doi_tac else ""
     task.so_dien_thoai = request.so_dien_thoai.strip() if request.so_dien_thoai else ""
     task.ngay_bat_dau = request.ngay_bat_dau.strip() if request.ngay_bat_dau else ""
-    task.ngay_ket_thuc = request.ngay_ket_thuc.strip() if request.ngay_ket_thuc else ""
     task.gia_han_den_ngay = request.gia_han_den_ngay.strip() if request.gia_han_den_ngay else ""
+    
+    # Calculate computed ngay_ket_thuc
+    deadline_val = request.thoi_han_hoan_thanh.strip() if request.thoi_han_hoan_thanh else ""
+    gia_han_val = task.gia_han_den_ngay
+    computed_ngay_ket_thuc = deadline_val
+    if gia_han_val and deadline_val:
+        try:
+            if gia_han_val > deadline_val:
+                computed_ngay_ket_thuc = gia_han_val
+        except Exception:
+            pass
+    elif gia_han_val:
+        computed_ngay_ket_thuc = gia_han_val
+    task.ngay_ket_thuc = computed_ngay_ket_thuc
     task.thoi_gian_bao_hanh = request.thoi_gian_bao_hanh.strip() if request.thoi_gian_bao_hanh else ""
     task.mo_ta = request.mo_ta.strip() if request.mo_ta else ""
     task.dieu_khoan = request.dieu_khoan.strip() if request.dieu_khoan else ""
