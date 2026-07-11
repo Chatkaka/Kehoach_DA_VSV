@@ -1807,7 +1807,13 @@
                     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
                     const link = document.createElement("a");
                     link.href = URL.createObjectURL(blob);
-                    link.download = "Danh_Sach_Cong_Viec_VSV.xlsx";
+                    
+                    const today = new Date();
+                    const dd = String(today.getDate()).padStart(2, '0');
+                    const mm = String(today.getMonth() + 1).padStart(2, '0');
+                    const yyyy = today.getFullYear();
+                    const dateStr = `${dd}_${mm}_${yyyy}`;
+                    link.download = `Danh_Sach_Cong_Viec_VSV_${dateStr}.xlsx`;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -1970,7 +1976,13 @@
                 const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = "Bao_Cao_Ke_Hoach_Tuan.xlsx";
+                
+                const today = new Date();
+                const dd = String(today.getDate()).padStart(2, '0');
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const yyyy = today.getFullYear();
+                const dateStr = `${dd}_${mm}_${yyyy}`;
+                link.download = `Bao_Cao_Ke_Hoach_Tuan_${dateStr}.xlsx`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -3008,9 +3020,9 @@
                     hasAddPermission = true;
                 }
                 
-                const addBtn = hasAddPermission ? `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin-right:4px;"><i class="fa-solid fa-plus"></i></button>` : '';
-                const editBtn = hasEditPermission ? `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa công việc" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; margin-right:4px; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>` : '';
-                const deleteBtn = hasDeletePermission ? `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem;"><i class="fa-solid fa-trash"></i></button>` : '';
+                const addBtn = hasAddPermission ? `<button class="action-btn" onclick="openAddModal('${task.stt}', ${task.level})" title="Thêm công việc con" style="background:#10b981; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin:0;"><i class="fa-solid fa-plus"></i></button>` : '';
+                const editBtn = hasEditPermission ? `<button class="action-btn" onclick="openEditModal(${task.id})" title="Chỉnh sửa công việc" style="background:#f59e0b; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; margin:0; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>` : '';
+                const deleteBtn = hasDeletePermission ? `<button class="action-btn" onclick="deleteTask(${task.id}, '${task.stt}')" title="Xóa công việc" style="background:#ef4444; color:#fff; border-radius:4px; padding:4px 8px; font-size:0.8rem; margin:0;"><i class="fa-solid fa-trash"></i></button>` : '';
 
                 // Expand/Collapse toggle icon
                 let caretHtml = '';
@@ -3047,10 +3059,12 @@
                     <td>
                         <span class="badge ${task.duyet_tuan === 'Đã duyệt' ? 'done' : (task.duyet_tuan === 'Không duyệt' ? 'delayed' : 'todo')}">${task.duyet_tuan || 'Chưa duyệt'}</span>
                     </td>
-                    <td style="display:flex; align-items:center;">
-                        ${addBtn}
-                        ${editBtn}
-                        ${deleteBtn}
+                    <td style="vertical-align: middle;">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            ${addBtn}
+                            ${editBtn}
+                            ${deleteBtn}
+                        </div>
                     </td>
                 `;
                 tableBody.appendChild(tr);
