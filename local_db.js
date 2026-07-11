@@ -6108,7 +6108,34 @@ class LocalDBManager {
 
     static getTasks() {
         this.init();
-        return JSON.parse(localStorage.getItem('vsv_tasks') || '[]');
+        const data = localStorage.getItem('vsv_tasks');
+        if (!data) return [];
+        try {
+            const parsed = JSON.parse(data);
+            let needsSave = false;
+            parsed.forEach(t => {
+                let pId = parseInt(t.phase_id);
+                if (isNaN(pId)) {
+                    let inferredPhase = 1;
+                    const sttStr = String(t.stt || '').trim();
+                    if (sttStr.startsWith('2')) inferredPhase = 2;
+                    else if (sttStr.startsWith('3')) inferredPhase = 3;
+                    else if (sttStr.startsWith('4')) inferredPhase = 4;
+                    t.phase_id = inferredPhase;
+                    needsSave = true;
+                } else if (t.phase_id !== pId) {
+                    t.phase_id = pId;
+                    needsSave = true;
+                }
+            });
+            if (needsSave) {
+                localStorage.setItem('vsv_tasks', JSON.stringify(parsed));
+            }
+            return parsed;
+        } catch(e) {
+            console.error("Error parsing tasks in getTasks:", e);
+            return [];
+        }
     }
 
     static saveTasks(tasks) {
