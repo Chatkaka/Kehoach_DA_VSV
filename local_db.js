@@ -6113,6 +6113,59 @@ class LocalDBManager {
         try {
             const parsed = JSON.parse(data);
             let needsSave = false;
+            
+            // Auto-restore 9.6.1 and 9.6.1.1 if they are missing from localStorage tasks
+            const has961 = parsed.some(t => t.stt === '9.6.1');
+            const has9611 = parsed.some(t => t.stt === '9.6.1.1');
+            if (!has961 || !has9611) {
+                let maxId = parsed.length > 0 ? Math.max(...parsed.map(t => t.id)) : 1000;
+                let deletedIds = JSON.parse(localStorage.getItem('vsv_deleted_task_ids') || '[]');
+                
+                if (!has961) {
+                    const id961 = ++maxId;
+                    parsed.push({
+                        id: id961,
+                        stt: '9.6.1',
+                        ma_ngan_sach: 'TD.BĐS.9.6.1',
+                        phase_id: 1,
+                        ten_cong_viec: 'Trích lục điều chỉnh giao đất',
+                        phong_ban_thuc_hien: 'PTDA',
+                        co_quan_giai_quyet: '-',
+                        ho_so_dau_ra: '-',
+                        dieu_kien_ghi_nhan: '-',
+                        thoi_han_hoan_thanh: '30/07/2026',
+                        tien_do: 0,
+                        trang_thai: 'Todo',
+                        budget: { ngan_sach_tong: 173.0, kh_2026: 173.0, is_locked: 0 }
+                    });
+                    deletedIds = deletedIds.filter(id => id !== id961);
+                    needsSave = true;
+                }
+                
+                if (!has9611) {
+                    const id9611 = ++maxId;
+                    parsed.push({
+                        id: id9611,
+                        stt: '9.6.1.1',
+                        ma_ngan_sach: '9.6.1.1',
+                        phase_id: 1,
+                        ten_cong_viec: 'Trích lục điều chỉnh giao đất (theo đợt)',
+                        phong_ban_thuc_hien: 'PTDA',
+                        co_quan_giai_quyet: 'CQPD',
+                        ho_so_dau_ra: 'Hồ sơ trích lục ban hành',
+                        dieu_kien_ghi_nhan: 'GCN QSDĐ',
+                        thoi_han_hoan_thanh: '30/07/2026',
+                        tien_do: 0,
+                        trang_thai: 'Todo',
+                        budget: { ngan_sach_tong: 21.0, kh_2026: 21.0, is_locked: 0 }
+                    });
+                    deletedIds = deletedIds.filter(id => id !== id9611);
+                    needsSave = true;
+                }
+                
+                localStorage.setItem('vsv_deleted_task_ids', JSON.stringify(deletedIds));
+            }
+            
             parsed.forEach(t => {
                 let pId = parseInt(t.phase_id);
                 if (isNaN(pId)) {
@@ -6128,7 +6181,9 @@ class LocalDBManager {
                     needsSave = true;
                 }
             });
+            
             if (needsSave) {
+                this.recalculateBudgets(parsed);
                 localStorage.setItem('vsv_tasks', JSON.stringify(parsed));
             }
             return parsed;
