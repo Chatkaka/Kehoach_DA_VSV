@@ -2279,7 +2279,7 @@
                                 else if (actionName.toLowerCase().includes('thêm') || actionName.toLowerCase().includes('tạo') || actionName.toLowerCase().includes('cập nhật')) badgeClass = 'done';
                                 
                                 tr.innerHTML = `
-                                    <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian || ''}</td>
+                                    <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${formatVietnamTime(l.thoi_gian)}</td>
                                     <td style="font-weight:600;">${l.ho_ten} (<code>${l.username}</code>)</td>
                                     <td style="text-align:center;"><span class="badge ${badgeClass}">${actionName}</span></td>
                                     <td style="color:var(--text-primary); font-size:0.85rem;">${l.chi_tiet || '-'}</td>
@@ -2302,7 +2302,7 @@
                                 else if (actionName.toLowerCase().includes('thêm') || actionName.toLowerCase().includes('tạo') || actionName.toLowerCase().includes('cập nhật')) badgeClass = 'done';
                                 
                                 tr.innerHTML = `
-                                    <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian || ''}</td>
+                                    <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${formatVietnamTime(l.thoi_gian)}</td>
                                     <td style="font-weight:600;">${l.ho_ten} (<code>${l.username}</code>)</td>
                                     <td style="text-align:center;"><span class="badge ${badgeClass}">${actionName}</span></td>
                                     <td style="color:var(--text-primary); font-size:0.85rem;">${l.chi_tiet || '-'}</td>
@@ -3233,12 +3233,58 @@
                 overviewTab.classList.remove('active');
                 overviewTab.style.borderBottomColor = 'transparent';
                 overviewTab.style.color = 'var(--text-muted)';
-                
                 overviewContent.style.display = 'none';
                 historyContent.style.display = 'block';
             }
         }
         
+        function formatVietnamTime(timeStr) {
+            if (!timeStr) return '';
+            let cleanStr = timeStr.trim();
+            if (cleanStr.includes('T') || cleanStr.includes('Z')) {
+                try {
+                    const d = new Date(cleanStr);
+                    if (!isNaN(d.getTime())) {
+                        return formatLocalDateToGMT7Str(d);
+                    }
+                } catch(e) {}
+            }
+            const match = cleanStr.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+            if (match) {
+                try {
+                    const iso = `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}Z`;
+                    const d = new Date(iso);
+                    if (!isNaN(d.getTime())) {
+                        return formatLocalDateToGMT7Str(d);
+                    }
+                } catch(e) {}
+            }
+            return timeStr;
+        }
+
+        function formatLocalDateToGMT7Str(d) {
+            const options = {
+                timeZone: 'Asia/Ho_Chi_Minh',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            try {
+                const formatter = new Intl.DateTimeFormat('sv-SE', options);
+                return formatter.format(d);
+            } catch (err) {
+                const tzOffset = 7 * 60;
+                const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+                const nd = new Date(utc + (3600000 * 7));
+                const pad = (n) => String(n).padStart(2, '0');
+                return `${nd.getFullYear()}-${pad(nd.getMonth() + 1)}-${pad(nd.getDate())} ${pad(nd.getHours())}:${pad(nd.getMinutes())}:${pad(nd.getSeconds())}`;
+            }
+        }
+
         function formatCurrency(val) {
             if (val === undefined || val === null) return '0đ';
             if (typeof val === 'string') return val;
@@ -3295,7 +3341,7 @@
                         else if (actionName.toLowerCase().includes('thêm') || actionName.toLowerCase().includes('tạo') || actionName.toLowerCase().includes('cập nhật')) badgeClass = 'done';
                         
                         tr.innerHTML = `
-                            <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${l.thoi_gian || ''}</td>
+                            <td style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">${formatVietnamTime(l.thoi_gian)}</td>
                             <td style="font-weight:600;">${l.ho_ten} (<code>${l.username}</code>)</td>
                             <td style="text-align:center;"><span class="badge ${badgeClass}">${actionName}</span></td>
                             <td style="color:var(--text-primary); font-size:0.85rem;">${l.chi_tiet || '-'}</td>

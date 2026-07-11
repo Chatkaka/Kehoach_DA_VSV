@@ -6465,6 +6465,29 @@ class LocalDBManager {
             }
         }
         
+        const isTypeAChanged = (
+            oldWbs !== data.ma_ngan_sach.trim() ||
+            oldName !== data.ten_cong_viec.trim() ||
+            oldDept !== data.phong_ban_thuc_hien.trim() ||
+            oldDeliverables !== data.ho_so_dau_ra.trim() ||
+            oldCond !== data.dieu_kien_ghi_nhan.trim() ||
+            oldDeadline !== data.thoi_han_hoan_thanh.trim() ||
+            oldProgress !== parseFloat(data.tien_do) ||
+            oldStatus !== targetStatus ||
+            (task.budget && oldBudget !== parseFloat(data.ngan_sach))
+        );
+        
+        const isTypeBChanged = (
+            oldPlan !== (data.ke_hoach_tuan ? data.ke_hoach_tuan.trim() : '') ||
+            oldResult !== (data.ket_qua_tuan ? data.ket_qua_tuan.trim() : '') ||
+            oldIssues !== (data.vuong_mac_tuan ? data.vuong_mac_tuan.trim() : '')
+        );
+        
+        const isTypeCChanged = (
+            oldSolution !== (data.cach_giai_quyet ? data.cach_giai_quyet.trim() : '') ||
+            oldApproval !== (data.duyet_tuan ? data.duyet_tuan.trim() : 'Chưa duyệt')
+        );
+
         task.ma_ngan_sach = data.ma_ngan_sach.trim();
         task.ten_cong_viec = data.ten_cong_viec.trim();
         task.phong_ban_thuc_hien = data.phong_ban_thuc_hien.trim();
