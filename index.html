@@ -5190,7 +5190,10 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
             }
             
             try {
-                const response = await originalFetch(googleUrl);
+                const response = await originalFetch(googleUrl, {
+                    method: 'GET',
+                    credentials: 'omit'
+                });
                 if (response.ok) {
                     const data = await response.json();
                     if (data) {
@@ -5239,6 +5242,7 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
                 
                 const response = await originalFetch(googleUrl, {
                     method: 'POST',
+                    credentials: 'omit',
                     headers: {
                         'Content-Type': 'text/plain;charset=utf-8'
                     },
@@ -5294,6 +5298,7 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
                 
                 const postResponse = await originalFetch(googleUrl, {
                     method: 'POST',
+                    credentials: 'omit',
                     headers: {
                         'Content-Type': 'text/plain;charset=utf-8'
                     },
