@@ -5154,15 +5154,34 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
                 let mergedSpendings = localSpendings;
                 let mergedLogs = localLogs;
                 
+                let mergedDeletedList = LocalDBManager.getDeletedTaskIds();
                 if (remoteData && remoteData.tasks) {
                     const remoteTasks = typeof remoteData.tasks === 'string' ? JSON.parse(remoteData.tasks) : remoteData.tasks;
                     const remoteUsers = typeof remoteData.users === 'string' ? JSON.parse(remoteData.users) : (remoteData.users || []);
                     const remoteSpendings = typeof remoteData.spendings === 'string' ? JSON.parse(remoteData.spendings) : (remoteData.spendings || []);
                     const remoteLogs = typeof remoteData.logs === 'string' ? JSON.parse(remoteData.logs) : (remoteData.logs || []);
                     
+                    let remoteDeleted = [];
+                    if (remoteData.deleted_task_ids) {
+                        remoteDeleted = typeof remoteData.deleted_task_ids === 'string' ? JSON.parse(remoteData.deleted_task_ids) : remoteData.deleted_task_ids;
+                    } else if (remoteData.deleted_tasks) {
+                        remoteDeleted = typeof remoteData.deleted_tasks === 'string' ? JSON.parse(remoteData.deleted_tasks) : remoteData.deleted_tasks;
+                    }
+                    const mergedDeletedSet = new Set([...mergedDeletedList, ...remoteDeleted]);
+                    mergedDeletedList = Array.from(mergedDeletedSet);
+                    LocalDBManager.saveDeletedTaskIds(mergedDeletedList);
+                    
                     const mergedTasksMap = new Map();
-                    localTasks.forEach(t => mergedTasksMap.set(t.id, t));
+                    localTasks.forEach(t => {
+                        if (!mergedDeletedSet.has(t.id)) {
+                            mergedTasksMap.set(t.id, t);
+                        }
+                    });
+                    
                     remoteTasks.forEach(remTask => {
+                        if (mergedDeletedSet.has(remTask.id)) {
+                            return;
+                        }
                         const localTask = mergedTasksMap.get(remTask.id);
                         if (!localTask) {
                             mergedTasksMap.set(remTask.id, remTask);
@@ -5198,6 +5217,7 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
                     users: JSON.stringify(mergedUsers),
                     spendings: JSON.stringify(mergedSpendings),
                     logs: JSON.stringify(mergedLogs),
+                    deleted_task_ids: JSON.stringify(mergedDeletedList),
                     version: localStorage.getItem('vsv_db_version') || '2',
                     timestamp: new Date().toISOString()
                 };
@@ -5261,12 +5281,32 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
                         const localSpendings = LocalDBManager.getSpendings();
                         const localLogs = LocalDBManager.getLogs();
                         
-                        let hasChanges = false;
+                        // Sync deleted task IDs lists
+                        let localDeleted = LocalDBManager.getDeletedTaskIds();
+                        let remoteDeleted = [];
+                        if (remoteData && remoteData.deleted_task_ids) {
+                            remoteDeleted = typeof remoteData.deleted_task_ids === 'string' ? JSON.parse(remoteData.deleted_task_ids) : remoteData.deleted_task_ids;
+                        } else if (remoteData && remoteData.deleted_tasks) {
+                            remoteDeleted = typeof remoteData.deleted_tasks === 'string' ? JSON.parse(remoteData.deleted_tasks) : remoteData.deleted_tasks;
+                        }
+                        const mergedDeletedSet = new Set([...localDeleted, ...remoteDeleted]);
+                        const mergedDeletedList = Array.from(mergedDeletedSet);
+                        LocalDBManager.saveDeletedTaskIds(mergedDeletedList);
                         
+                        let hasChanges = false;
                         const mergedTasksMap = new Map();
-                        localTasks.forEach(t => mergedTasksMap.set(t.id, t));
+                        localTasks.forEach(t => {
+                            if (!mergedDeletedSet.has(t.id)) {
+                                mergedTasksMap.set(t.id, t);
+                            } else {
+                                hasChanges = true;
+                            }
+                        });
                         
                         remoteTasks.forEach(remTask => {
+                            if (mergedDeletedSet.has(remTask.id)) {
+                                return;
+                            }
                             const localTask = mergedTasksMap.get(remTask.id);
                             if (!localTask) {
                                 mergedTasksMap.set(remTask.id, remTask);
@@ -5281,8 +5321,13 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
                             }
                         });
                         
+                        const finalTasks = Array.from(mergedTasksMap.values());
+                        if (finalTasks.length !== localTasks.length) {
+                            hasChanges = true;
+                        }
+                        
                         if (hasChanges) {
-                            localStorage.setItem('vsv_tasks', JSON.stringify(Array.from(mergedTasksMap.values())));
+                            localStorage.setItem('vsv_tasks', JSON.stringify(finalTasks));
                             
                             const mergedUsersMap = new Map();
                             localUsers.forEach(u => mergedUsersMap.set(u.username, u));

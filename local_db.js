@@ -6507,32 +6507,7 @@ class LocalDBManager {
             task.budget.ngan_sach_tong = parseFloat(data.ngan_sach) || 0;
         }
         
-        const isTypeAChanged = (
-            oldWbs !== data.ma_ngan_sach.trim() ||
-            oldName !== data.ten_cong_viec.trim() ||
-            oldDept !== data.phong_ban_thuc_hien.trim() ||
-            oldDeliverables !== data.ho_so_dau_ra.trim() ||
-            oldCond !== data.dieu_kien_ghi_nhan.trim() ||
-            oldDeadline !== data.thoi_han_hoan_thanh.trim() ||
-            oldProgress !== parseFloat(data.tien_do) ||
-            oldStatus !== targetStatus ||
-            (task.budget && oldBudget !== parseFloat(data.ngan_sach))
-        );
-        
-        const isTypeBChanged = (
-            oldPlan !== (data.ke_hoach_tuan ? data.ke_hoach_tuan.trim() : '') ||
-            oldResult !== (data.ket_qua_tuan ? data.ket_qua_tuan.trim() : '') ||
-            oldIssues !== (data.vuong_mac_tuan ? data.vuong_mac_tuan.trim() : '')
-        );
-        
-        const isTypeCChanged = (
-            oldSolution !== (data.cach_giai_quyet ? data.cach_giai_quyet.trim() : '') ||
-            oldApproval !== (data.duyet_tuan ? data.duyet_tuan.trim() : 'Chưa duyệt')
-        );
-        
-        if (isTypeAChanged || isTypeBChanged || isTypeCChanged) {
-            task.last_updated = new Date().toISOString();
-        }
+        task.last_updated = new Date().toISOString();
         
         this.recalculateBudgets(tasks);
         this.saveTasks(tasks);
@@ -6681,12 +6656,33 @@ class LocalDBManager {
         return newTask;
     }
 
+    static getDeletedTaskIds() {
+        return JSON.parse(localStorage.getItem('vsv_deleted_task_ids') || '[]');
+    }
+
+    static saveDeletedTaskIds(ids) {
+        localStorage.setItem('vsv_deleted_task_ids', JSON.stringify(ids));
+    }
+
     static deleteTask(taskId, username) {
         const tasks = this.getTasks();
         const task = tasks.find(t => t.id === parseInt(taskId));
         if (!task) return false;
         
+        const deletedIds = this.getDeletedTaskIds();
+        if (!deletedIds.includes(task.id)) {
+            deletedIds.push(task.id);
+        }
+        
         const targetPrefix = task.stt + '.';
+        const children = tasks.filter(t => t.stt.startsWith(targetPrefix));
+        children.forEach(c => {
+            if (!deletedIds.includes(c.id)) {
+                deletedIds.push(c.id);
+            }
+        });
+        this.saveDeletedTaskIds(deletedIds);
+        
         const updatedTasks = tasks.filter(t => t.id !== task.id && !t.stt.startsWith(targetPrefix));
         
         this.recalculateBudgets(updatedTasks);
