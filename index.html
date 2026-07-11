@@ -4456,28 +4456,315 @@
         }
         window.triggerImportPdfAI = triggerImportPdfAI;
 
+        async function loadPdfJS() {
+            if (window.pdfjsLib) return window.pdfjsLib;
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+                script.onload = () => {
+                    const pdfjs = window['pdfjs-dist/build/pdf'];
+                    pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                    window.pdfjsLib = pdfjs;
+                    resolve(pdfjs);
+                };
+                script.onerror = () => reject(new Error("Không thể tải thư viện pdf.js từ CDN."));
+                document.head.appendChild(script);
+            });
+        }
+
+        async function extractTextFromPdf(file) {
+            const pdfjs = await loadPdfJS();
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+            
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                const items = textContent.items;
+                
+                const linesMap = new Map();
+                items.forEach(item => {
+                    const y = Math.round(item.transform[5] * 10) / 10;
+                    if (!linesMap.has(y)) {
+                        linesMap.set(y, []);
+                    }
+                    linesMap.get(y).push(item);
+                });
+                
+                const sortedY = Array.from(linesMap.keys()).sort((a, b) => b - a);
+                sortedY.forEach(y => {
+                    const lineItems = linesMap.get(y).sort((a, b) => a.transform[4] - b.transform[4]);
+                    const lineText = lineItems.map(item => item.str).join(' ');
+                    fullText += lineText + '\n';
+                });
+            }
+            return fullText;
+        }
+
+        function parsePdfTextHeuristically(text) {
+            const lines = text.split('\n');
+            const tasks = [];
+            
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                
+                const match = line.match(/^\s*([1234]\.(\d+\.?)*)\s+(.*)$/);
+                if (match) {
+                    const stt = match[1].replace(/\.$/, '');
+                    const rest = match[3].trim();
+                    
+                    const wbsMatch = rest.match(/^([A-Z0-9\._-]+)\s+(.*)$/);
+                    let wbs = '';
+                    let name = rest;
+                    if (wbsMatch) {
+                        if (wbsMatch[1].startsWith('TD') || wbsMatch[1].startsWith('WBS') || wbsMatch[1].includes('.')) {
+                            wbs = wbsMatch[1];
+                            name = wbsMatch[2].trim();
+                        }
+                    }
+                    
+                    const parts = name.split(/\s{2,}/);
+                    let taskName = parts[0];
+                    let dept = 'PTDA';
+                    let coQuan = '-';
+                    let hoSo = '-';
+                    let cond = '-';
+                    let deadline = 'Tháng 06/2026';
+                    let budget = 0;
+                    let progress = 0;
+                    
+                    if (parts.length > 1) {
+                        parts.slice(1).forEach((part, idx) => {
+                            const clean = part.trim();
+                            if (clean.includes('%')) {
+                                progress = parseFloat(clean.replace('%', '')) || 0;
+                            } else if (clean.includes('Tháng') || clean.match(/^\d{4}-\d{2}/) || clean.match(/^\d{2}\/\d{2}/)) {
+                                deadline = clean;
+                            } else if (clean.match(/^\d+([.,]\d+)*$/) && clean.length > 4) {
+                                budget = parseFloat(clean.replace(/[.,]/g, '')) || 0;
+                            } else if (idx === 0) {
+                                dept = clean;
+                            } else if (idx === 1) {
+                                coQuan = clean;
+                            } else if (idx === 2) {
+                                hoSo = clean;
+                            } else if (idx === 3) {
+                                cond = clean;
+                            }
+                        });
+                    }
+                    
+                    let phaseId = 1;
+                    if (stt.startsWith('2')) phaseId = 2;
+                    else if (stt.startsWith('3')) phaseId = 3;
+                    else if (stt.startsWith('4')) phaseId = 4;
+                    
+                    if (!wbs) {
+                        wbs = `TD.BĐS.GEN.${stt}`;
+                    }
+                    
+                    tasks.push({
+                        ma_ngan_sach: wbs,
+                        stt: stt,
+                        phase_id: phaseId,
+                        ten_cong_viec: taskName,
+                        phong_ban_thuc_hien: dept,
+                        co_quan_giai_quyet: coQuan,
+                        ho_so_dau_ra: hoSo,
+                        dieu_kien_ghi_nhan: cond,
+                        thoi_han_hoan_thanh: deadline,
+                        tien_do: progress,
+                        ngan_sach: budget
+                    });
+                }
+            }
+            return tasks;
+        }
+
+        async function parsePdfTextWithGemini(text) {
+            const service = new GeminiAIService();
+            const systemPrompt = `Bạn là trợ lý AI quản lý dự án xây dựng. Hãy đọc văn bản được trích xuất từ file PDF danh mục công việc dự án và bóc tách thành danh sách các công việc chi tiết.
+Trả về dữ liệu dưới dạng JSON Array, mỗi đối tượng công việc có cấu trúc chính xác sau:
+{
+  "ma_ngan_sach": "Mã WBS (ví dụ TD.BS.1.1)",
+  "stt": "Số thứ tự cấp (ví dụ 1.1)",
+  "ten_cong_viec": "Tên công việc",
+  "phong_ban_thuc_hien": "Phòng ban thực hiện (ví dụ BQLDA, PTDA, Ban TGĐ, Ban KT, Ban HC...)",
+  "co_quan_giai_quyet": "Cơ quan giải quyết",
+  "ho_so_dau_ra": "Hồ sơ đầu ra",
+  "dieu_kien_ghi_nhan": "Điều kiện ghi nhận",
+  "thoi_han_hoan_thanh": "Thời hạn hoàn thành (ví dụ Tháng 06/2026)",
+  "tien_do": 0,
+  "ngan_sach": 0
+}
+Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng JSON Array.`;
+
+            const userPrompt = `Dưới đây là nội dung trích xuất từ PDF:\n\n${text}`;
+            const rawResponse = await service.callGeminiAPI(userPrompt, systemPrompt);
+            
+            let cleanJson = rawResponse;
+            if (cleanJson.includes("```json")) {
+                cleanJson = cleanJson.split("```json")[1].split("```")[0];
+            } else if (cleanJson.includes("```")) {
+                cleanJson = cleanJson.split("```")[1].split("```")[0];
+            }
+            cleanJson = cleanJson.trim();
+            
+            const tasks = JSON.parse(cleanJson);
+            if (!Array.isArray(tasks)) {
+                throw new Error("Phản hồi từ Gemini không phải là danh sách công việc hợp lệ.");
+            }
+            return tasks;
+        }
+
+        async function importPdfOffline(file) {
+            const text = await extractTextFromPdf(file);
+            if (!text || text.trim() === '') {
+                throw new Error("Không thể trích xuất văn bản từ file PDF.");
+            }
+            
+            let tasks = [];
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if (apiKey && apiKey.trim() !== '') {
+                try {
+                    tasks = await parsePdfTextWithGemini(text);
+                } catch (geminiError) {
+                    console.warn("Lỗi bóc tách PDF bằng Gemini Client, chuyển sang bóc tách heuristic:", geminiError);
+                    tasks = parsePdfTextHeuristically(text);
+                }
+            } else {
+                tasks = parsePdfTextHeuristically(text);
+            }
+            
+            if (tasks.length === 0) {
+                throw new Error("Không bóc tách được công việc nào từ file PDF.");
+            }
+            
+            let added = 0;
+            let updated = 0;
+            const allTasks = LocalDBManager.getTasks();
+            const taskMap = new Map();
+            allTasks.forEach(t => {
+                if (t.ma_ngan_sach) {
+                    taskMap.set(String(t.ma_ngan_sach).trim().toLowerCase(), t);
+                }
+            });
+            
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            tasks.forEach(t => {
+                const wbsVal = String(t.ma_ngan_sach || '').trim();
+                const sttVal = String(t.stt || '').trim();
+                const nameVal = String(t.ten_cong_viec || '').trim();
+                
+                if (!wbsVal || !sttVal || !nameVal) return;
+                
+                const deptVal = String(t.phong_ban_thuc_hien || 'PTDA').trim();
+                const coQuanVal = String(t.co_quan_giai_quyet || '-').trim();
+                const hoSoVal = String(t.ho_so_dau_ra || '-').trim();
+                const condVal = String(t.dieu_kien_ghi_nhan || '-').trim();
+                const deadlineVal = String(t.thoi_han_hoan_thanh || 'Tháng 06/2026').trim();
+                const progressVal = parseFloat(t.tien_do) || 0;
+                const budgetVal = parseFloat(t.ngan_sach) || 0;
+                
+                let phaseId = 1;
+                if (sttVal.startsWith('2')) phaseId = 2;
+                else if (sttVal.startsWith('3')) phaseId = 3;
+                else if (sttVal.startsWith('4')) phaseId = 4;
+                
+                const normWbs = wbsVal.toLowerCase();
+                const existing = taskMap.get(normWbs);
+                
+                if (existing) {
+                    existing.stt = sttVal;
+                    existing.ten_cong_viec = nameVal;
+                    existing.phong_ban_thuc_hien = deptVal;
+                    existing.co_quan_giai_quyet = coQuanVal;
+                    existing.ho_so_dau_ra = hoSoVal;
+                    existing.dieu_kien_ghi_nhan = condVal;
+                    existing.thoi_han_hoan_thanh = deadlineVal;
+                    existing.tien_do = progressVal;
+                    existing.phase_id = phaseId;
+                    existing.ngan_sach = budgetVal;
+                    
+                    if (!existing.ngay_khoi_tao) {
+                        existing.ngay_khoi_tao = todayStr;
+                    }
+                    
+                    let computedEnd = deadlineVal;
+                    if (existing.gia_han_den_ngay && deadlineVal) {
+                        if (existing.gia_han_den_ngay > deadlineVal) {
+                            computedEnd = existing.gia_han_den_ngay;
+                        }
+                    }
+                    existing.ngay_ket_thuc = computedEnd;
+                    
+                    LocalDBManager.updateTask(existing.id, existing, "Hệ thống AI PDF (Offline)");
+                    updated++;
+                } else {
+                    const newId = allTasks.length > 0 ? Math.max(...allTasks.map(t => t.id)) + 1 : 1;
+                    const newTask = {
+                        id: newId,
+                        ma_ngan_sach: wbsVal,
+                        stt: sttVal,
+                        phase_id: phaseId,
+                        ten_cong_viec: nameVal,
+                        phong_ban_thuc_hien: deptVal,
+                        co_quan_giai_quyet: coQuanVal,
+                        ho_so_dau_ra: hoSoVal,
+                        dieu_kien_ghi_nhan: condVal,
+                        thoi_han_hoan_thanh: deadlineVal,
+                        tien_do: progressVal,
+                        trang_thai: progressVal >= 100 ? "Done" : "Todo",
+                        ngay_khoi_tao: todayStr,
+                        ngay_ket_thuc: deadlineVal,
+                        ngan_sach: budgetVal,
+                        ke_hoach_tuan: "",
+                        ket_qua_tuan: "",
+                        vuong_mac_tuan: "",
+                        cach_giai_quyet: "",
+                        duyet_tuan: "Chưa duyệt",
+                        weekly_reports_json: "[]"
+                    };
+                    LocalDBManager.addTask(newTask, "Hệ thống AI PDF (Offline)");
+                    added++;
+                }
+            });
+            
+            return { success: true, message: `Nhập dữ liệu PDF Ngoại tuyến thành công!\n- Thêm mới: ${added} công việc\n- Cập nhật: ${updated} công việc.` };
+        }
+
         async function importPdfAI(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            if (isOfflineMode) {
-                alert("TÍNH NĂNG NGOẠI TUYẾN (OFFLINE):\n\n" +
-                      "Tính năng bóc tách PDF bằng AI (Gemini) yêu cầu kết nối với máy chủ Python FastAPI.\n\n" +
-                      "Để tiếp tục, vui lòng:\n" +
-                      "1. Khởi động máy chủ Python FastAPI cục bộ trên máy tính của bạn.\n" +
-                      "2. Hoặc chuyển đổi file PDF thành Excel (.xlsx) để sử dụng chức năng nhập dữ liệu ngoại tuyến.");
+            if (!confirm(`Bạn có chắc chắn muốn tải lên file PDF "${file.name}" để bóc tách dữ liệu và cập nhật trực tiếp vào cơ sở dữ liệu không?\n\nChú ý: Các công việc trùng mã ngân sách sẽ được cập nhật thông tin mới nhất, các công việc mới sẽ được thêm vào cấu trúc.`)) {
                 return;
             }
 
-            if (!confirm(`Bạn có chắc chắn muốn tải lên file PDF "${file.name}" để AI bóc tách dữ liệu và cập nhật trực tiếp vào cơ sở dữ liệu không?\n\nChú ý: Các công việc trùng mã ngân sách sẽ được cập nhật thông tin mới nhất, các công việc mới sẽ được thêm vào cấu trúc.`)) {
+            const loadingIndicator = document.getElementById('ai-pdf-import-loading');
+            if (loadingIndicator) loadingIndicator.style.display = 'block';
+
+            if (isOfflineMode) {
+                try {
+                    const result = await importPdfOffline(file);
+                    alert(result.message);
+                    if (typeof initApp === 'function') await initApp();
+                    else location.reload();
+                } catch (error) {
+                    console.error("Lỗi khi nhập PDF Offline:", error);
+                    alert("Lỗi nhập PDF ngoại tuyến: " + error.message);
+                } finally {
+                    if (loadingIndicator) loadingIndicator.style.display = 'none';
+                }
                 return;
             }
 
             const formData = new FormData();
             formData.append("file", file);
             const activeUsername = localStorage.getItem('active_username') || '';
-            const loadingIndicator = document.getElementById('ai-pdf-import-loading');
-            if (loadingIndicator) loadingIndicator.style.display = 'block';
 
             try {
                 const response = await fetch(backendUrl + `/api/tasks/import-pdf-ai?username=${encodeURIComponent(activeUsername)}`, {
