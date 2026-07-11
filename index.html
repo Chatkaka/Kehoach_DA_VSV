@@ -145,6 +145,7 @@
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()" style="margin: 0;" autocomplete="off">
                         <button class="btn" onclick="exportToExcel()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
+                        <button class="btn" id="btn-sync-sheets" onclick="syncGoogleSheetsManual()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; background: #10b981; color: #fff;"><i class="fa-solid fa-cloud-arrow-down"></i> Đồng bộ Sheets</button>
                     </div>
                 </div>
 
@@ -940,10 +941,10 @@
                 Cài đặt các thông số kỹ thuật và tích hợp trí tuệ nhân tạo Gemini AI
             </p>
 
-            <!-- 1. Backend URL & Profile -->
+            <!-- 1. Google Sheets Web App URL & Profile -->
             <div class="form-group" style="margin-bottom: 15px;">
-                <label for="settings-backend-url" style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Địa chỉ Backend API</label>
-                <input type="text" id="settings-backend-url" class="form-control" placeholder="Ví dụ: http://127.0.0.1:8000" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff;">
+                <label for="settings-google-sheets-url" style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: #10b981;">Đường dẫn Google Web App URL (Đồng bộ Google Sheets)</label>
+                <input type="text" id="settings-google-sheets-url" class="form-control" placeholder="Ví dụ: https://script.google.com/macros/s/XXXXX/exec" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(16,185,129,0.3); border-radius: 6px; color: #fff;">
             </div>
             <div class="form-group" style="margin-bottom: 15px;">
                 <label for="settings-user-profile" style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Hồ sơ Nhân sự & Phân quyền</label>
@@ -1429,28 +1430,20 @@
             fetchStats();
             fetchTasks(currentPhase);
             loadUserProfiles();
-            setupWebSocket();
-            
-            // Check asynchronously in the background for a working online backend
-            autoDiscoverBackend().then(isOnline => {
-                if (isOnline) {
-                    console.log("Working backend discovered! Switching to Online mode...");
-                    isOfflineMode = false;
-                    
-                    // Re-initialize WebSocket connection online
-                    setupWebSocket();
-                    
-                    // Re-fetch live data from online DB
+            // Asynchronously pull latest from Google Sheets in the background on startup
+            syncPullGoogleSheets().then(pulled => {
+                if (pulled) {
+                    console.log("Successfully pulled latest data from Google Sheets on startup!");
                     checkLoginState();
                     fetchStats();
                     fetchTasks(currentPhase);
                     loadUserProfiles();
                 } else {
-                    console.log("Backend offline. Remaining in client-side offline mode.");
+                    // Fallback to GitHub pull if Sheets sync is not configured/failed
                     silentPullFromGitHub();
                 }
             }).catch(err => {
-                console.warn("Background auto-discovery error:", err);
+                console.warn("Google Sheets background pull error:", err);
                 silentPullFromGitHub();
             });
 
@@ -4219,7 +4212,7 @@
         }
 
         function openSettingsModal() {
-            document.getElementById('settings-backend-url').value = localStorage.getItem('backend_url') || 'http://127.0.0.1:8000';
+            document.getElementById('settings-google-sheets-url').value = localStorage.getItem('google_sheets_url') || '';
             
             // Load Gemini config
             document.getElementById('settings-gemini-key').value = localStorage.getItem('gemini_api_key') || '';
@@ -5188,6 +5181,119 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
             }
         }
 
+        async function syncPullGoogleSheets() {
+            const googleUrl = localStorage.getItem('google_sheets_url');
+            if (!googleUrl) return false;
+            
+            try {
+                const response = await originalFetch(googleUrl);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data) {
+                        if (data.tasks) {
+                            localStorage.setItem('vsv_tasks', JSON.stringify(data.tasks));
+                        }
+                        if (data.users) {
+                            localStorage.setItem('vsv_users', JSON.stringify(data.users));
+                        }
+                        if (data.logs) {
+                            localStorage.setItem('vsv_logs', JSON.stringify(data.logs));
+                        }
+                        if (data.spendings) {
+                            localStorage.setItem('vsv_spendings', JSON.stringify(data.spendings));
+                        }
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.error("Google Sheets pull failed:", err);
+            }
+            return false;
+        }
+
+        async function autoSyncGoogleSheets() {
+            const googleUrl = localStorage.getItem('google_sheets_url');
+            if (!googleUrl) return;
+            
+            try {
+                const payload = {
+                    action: "syncAll",
+                    tasks: LocalDBManager.getTasks(),
+                    users: LocalDBManager.getUsers(),
+                    logs: LocalDBManager.getLogs(),
+                    spendings: LocalDBManager.getSpendings()
+                };
+                
+                const response = await originalFetch(googleUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    console.log("Successfully auto-synced to Google Sheets!");
+                } else {
+                    console.warn("Auto-sync to Google Sheets failed with status:", response.status);
+                }
+            } catch (err) {
+                console.error("Auto-sync to Google Sheets failed:", err);
+            }
+        }
+
+        async function syncGoogleSheetsManual() {
+            const googleUrl = localStorage.getItem('google_sheets_url');
+            if (!googleUrl) {
+                alert("Vui lòng vào Cài Đặt và cấu hình Đường dẫn Google Web App URL trước!");
+                openSettingsModal();
+                return;
+            }
+            
+            const btn = document.getElementById('btn-sync-sheets');
+            if (!btn) return;
+            
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang đồng bộ...`;
+            
+            try {
+                // 1. Pull latest from sheet
+                console.log("Pulling latest data from Google Sheets...");
+                await syncPullGoogleSheets();
+                
+                // 2. Push current local state to sheet
+                console.log("Pushing local data to Google Sheets...");
+                const payload = {
+                    action: "syncAll",
+                    tasks: LocalDBManager.getTasks(),
+                    users: LocalDBManager.getUsers(),
+                    logs: LocalDBManager.getLogs(),
+                    spendings: LocalDBManager.getSpendings()
+                };
+                
+                const postResponse = await originalFetch(googleUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (postResponse.ok) {
+                    alert("Đồng bộ dữ liệu với Google Sheets thành công!");
+                    window.location.reload();
+                } else {
+                    alert("Ghi dữ liệu lên Google Sheets thất bại (HTTP " + postResponse.status + ")");
+                }
+            } catch (err) {
+                alert("Lỗi đồng bộ Google Sheets: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
         async function autoSyncGitHub() {
             const config = getGitHubConfig();
             const token = config.token;
@@ -5430,11 +5536,8 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
         }
 
         function saveSettings() {
-            let url = document.getElementById('settings-backend-url').value.trim();
-            if (url.endsWith('/')) {
-                url = url.slice(0, -1);
-            }
-            localStorage.setItem('backend_url', url);
+            let url = document.getElementById('settings-google-sheets-url').value.trim();
+            localStorage.setItem('google_sheets_url', url);
 
             // Save Gemini
             const geminiKey = document.getElementById('settings-gemini-key').value.trim();
