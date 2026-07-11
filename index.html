@@ -1432,7 +1432,7 @@
             loadUserProfiles();
             // Asynchronously pull latest from Google Sheets in the background on startup
             syncPullGoogleSheets().then(pulled => {
-                if (pulled) {
+                if (pulled && pulled.success) {
                     console.log("Successfully pulled latest data from Google Sheets on startup!");
                     checkLoginState();
                     fetchStats();
@@ -5183,7 +5183,7 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
 
         async function syncPullGoogleSheets() {
             let googleUrl = String(localStorage.getItem('google_sheets_url') || '').trim();
-            if (!googleUrl) return false;
+            if (!googleUrl) return { success: false, error: "Đường dẫn Google Web App URL trống." };
             
             if (!googleUrl.startsWith('http://') && !googleUrl.startsWith('https://')) {
                 googleUrl = 'https://' + googleUrl;
@@ -5194,25 +5194,30 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
                 if (response.ok) {
                     const data = await response.json();
                     if (data) {
-                        if (data.tasks) {
+                        // Safety: Only overwrite local storage if there is actual data inside the spreadsheet
+                        if (data.tasks && data.tasks.length > 0) {
                             localStorage.setItem('vsv_tasks', JSON.stringify(data.tasks));
                         }
-                        if (data.users) {
+                        if (data.users && data.users.length > 0) {
                             localStorage.setItem('vsv_users', JSON.stringify(data.users));
                         }
-                        if (data.logs) {
+                        if (data.logs && data.logs.length > 0) {
                             localStorage.setItem('vsv_logs', JSON.stringify(data.logs));
                         }
-                        if (data.spendings) {
+                        if (data.spendings && data.spendings.length > 0) {
                             localStorage.setItem('vsv_spendings', JSON.stringify(data.spendings));
                         }
-                        return true;
+                        return { success: true };
                     }
+                    return { success: false, error: "Dữ liệu trả về từ Google Sheets không hợp lệ." };
+                } else {
+                    const txt = await response.text().catch(() => "");
+                    return { success: false, error: `HTTP ${response.status}: ${txt.substring(0, 150)}` };
                 }
             } catch (err) {
                 console.error("Google Sheets pull failed:", err);
+                return { success: false, error: err.message || String(err) };
             }
-            return false;
         }
 
         async function autoSyncGoogleSheets() {
@@ -5272,9 +5277,9 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
             try {
                 // 1. Pull latest from sheet
                 console.log("Pulling latest data from Google Sheets...");
-                const pullOk = await syncPullGoogleSheets();
-                if (!pullOk) {
-                    throw new Error("Không thể tải dữ liệu từ Google Sheets. Vui lòng kiểm tra lại cấu hình Web App URL.");
+                const pullResult = await syncPullGoogleSheets();
+                if (!pullResult.success) {
+                    throw new Error(pullResult.error);
                 }
                 
                 // 2. Push current local state to sheet
