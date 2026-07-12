@@ -135,25 +135,36 @@
                     <span class="panel-title"><i class="fa-solid fa-sitemap"></i> Cấu trúc Phân rã Công việc (WBS) & Tiến độ 4 Giai đoạn</span>
                 </div>
                 
-                <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-                    <div class="phase-filters" id="phase-filters-container" style="display: flex; gap: 8px;">
-                        <button class="filter-btn active" onclick="changePhase(1)">Giai đoạn 1: Pháp lý & Thiết kế</button>
-                        <button class="filter-btn" onclick="changePhase(2)">Giai đoạn 2: Thi công xây dựng</button>
-                        <button class="filter-btn" onclick="changePhase(3)">Giai đoạn 3: Nghiệm thu bàn giao</button>
-                        <button class="filter-btn" onclick="changePhase(4)">Giai đoạn 4: Cấp bìa sổ hồng</button>
+                <div class="filter-bar" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px;">
+                    <!-- Phase Selection Row -->
+                    <div class="phase-filters" id="phase-filters-container" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
+                        <button class="filter-btn active" onclick="changePhase(1)" style="flex: 1; min-width: 150px; text-align: center; white-space: nowrap;">Giai đoạn 1: Pháp lý & Thiết kế</button>
+                        <button class="filter-btn" onclick="changePhase(2)" style="flex: 1; min-width: 150px; text-align: center; white-space: nowrap;">Giai đoạn 2: Thi công xây dựng</button>
+                        <button class="filter-btn" onclick="changePhase(3)" style="flex: 1; min-width: 150px; text-align: center; white-space: nowrap;">Giai đoạn 3: Nghiệm thu bàn giao</button>
+                        <button class="filter-btn" onclick="changePhase(4)" style="flex: 1; min-width: 150px; text-align: center; white-space: nowrap;">Giai đoạn 4: Cấp bìa sổ hồng</button>
                     </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <select id="filter-dept" onchange="filterTasks()" class="search-input" style="margin: 0; min-width: 180px; height: 38px;">
-                            <option value="All">🏢 Tất cả phòng ban</option>
-                            <option value="PTDA">PTDA (Phát triển dự án)</option>
-                            <option value="QHTK">QHTK (Quy hoạch thiết kế)</option>
-                            <option value="BQLDA">BQLDA (Ban Quản lý Dự án)</option>
-                            <option value="GPMB">GPMB (Giải phóng mặt bằng)</option>
-                            <option value="KTKH">KTKH (Kinh tế kế hoạch)</option>
-                        </select>
-                        <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()" style="margin: 0;" autocomplete="off">
-                        <button class="btn" onclick="exportToExcel()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
-                        <button class="btn" id="btn-sync-sheets" onclick="syncGoogleSheetsManual()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; background: #10b981; color: #fff;"><i class="fa-solid fa-cloud-arrow-down"></i> Đồng bộ Sheets</button>
+                    
+                    <!-- Search & Action Controls Row -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; width: 100%;">
+                        <!-- Left: Filters -->
+                        <div style="display: flex; gap: 8px; align-items: center; flex-grow: 1; max-width: 650px; min-width: 280px;">
+                            <div style="width: 220px; flex-shrink: 0;">
+                                <select id="filter-dept" onchange="filterTasks()" class="search-input" style="margin: 0; width: 100%; height: 38px;">
+                                    <option value="All">🏢 Tất cả phòng ban</option>
+                                    <option value="PTDA">PTDA (Phát triển dự án)</option>
+                                    <option value="QHTK">QHTK (Quy hoạch thiết kế)</option>
+                                    <option value="BQLDA">BQLDA (Ban Quản lý Dự án)</option>
+                                    <option value="GPMB">GPMB (Giải phóng mặt bằng)</option>
+                                    <option value="KTKH">KTKH (Kinh tế kế hoạch)</option>
+                                </select>
+                            </div>
+                            <input type="text" class="search-input" id="search-input" placeholder="Tìm tên công việc..." onkeyup="filterTasks()" style="margin: 0; flex-grow: 1; height: 38px;" autocomplete="off">
+                        </div>
+                        <!-- Right: Actions -->
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn" onclick="exportToExcel()" style="padding: 0 16px; height: 38px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; white-space: nowrap;"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
+                            <button class="btn" id="btn-sync-sheets" onclick="syncGoogleSheetsManual()" style="padding: 0 16px; height: 38px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; background: #10b981; color: #fff; white-space: nowrap;"><i class="fa-solid fa-cloud-arrow-down"></i> Đồng bộ Sheets</button>
+                        </div>
                     </div>
                 </div>
 
@@ -3201,7 +3212,7 @@
 
         // Filter tasks dynamically using search bar and department dropdown
         function filterTasks() {
-            const val = document.getElementById('search-input').value.toLowerCase();
+            const val = document.getElementById('search-input').value.toLowerCase().trim();
             const deptVal = document.getElementById('filter-dept') ? document.getElementById('filter-dept').value : 'All';
             const rows = document.querySelectorAll('#tasks-table-body tr');
             
@@ -3209,12 +3220,10 @@
                 // Indeterminate rows or spacing might not have cells
                 if (!row.cells || row.cells.length < 4) return;
                 
-                const wbs = row.cells[1].innerText.toLowerCase();
                 const name = row.cells[2].innerText.toLowerCase();
-                const stt = row.cells[0].innerText.toLowerCase();
                 const dept = row.cells[3].innerText.trim();
                 
-                const matchesSearch = wbs.includes(val) || name.includes(val) || stt.includes(val);
+                const matchesSearch = name.includes(val);
                 const matchesDept = (deptVal === 'All') || (dept.toUpperCase() === deptVal.toUpperCase());
                 
                 if (matchesSearch && matchesDept) {
