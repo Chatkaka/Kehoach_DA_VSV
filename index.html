@@ -143,6 +143,14 @@
                         <button class="filter-btn" onclick="changePhase(4)">Giai đoạn 4: Cấp bìa sổ hồng</button>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="filter-dept" onchange="filterTasks()" class="search-input" style="margin: 0; min-width: 180px; height: 38px;">
+                            <option value="All">🏢 Tất cả phòng ban</option>
+                            <option value="PTDA">PTDA (Phát triển dự án)</option>
+                            <option value="QHTK">QHTK (Quy hoạch thiết kế)</option>
+                            <option value="BQLDA">BQLDA (Ban Quản lý Dự án)</option>
+                            <option value="GPMB">GPMB (Giải phóng mặt bằng)</option>
+                            <option value="KTKH">KTKH (Kinh tế kế hoạch)</option>
+                        </select>
                         <input type="text" class="search-input" id="search-input" placeholder="Tìm mã WBS, tên công việc..." onkeyup="filterTasks()" style="margin: 0;" autocomplete="off">
                         <button class="btn" onclick="exportToExcel()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
                         <button class="btn" id="btn-sync-sheets" onclick="syncGoogleSheetsManual()" style="padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; background: #10b981; color: #fff;"><i class="fa-solid fa-cloud-arrow-down"></i> Đồng bộ Sheets</button>
@@ -1085,6 +1093,226 @@
 
     <!-- Frontend logic with WS and APIs -->
     <script>
+        // Searchable Select Component
+        class SearchableSelect {
+            constructor(selectElement) {
+                this.select = selectElement;
+                if (!this.select) return;
+                
+                // Check if already initialized
+                if (this.select.dataset.searchableSelectInitialized) {
+                    this.rebuild();
+                    return;
+                }
+                
+                this.select.dataset.searchableSelectInitialized = "true";
+                this.select.style.display = "none"; // Hide original select
+                
+                this.container = document.createElement('div');
+                this.container.className = 'searchable-select-container';
+                
+                this.display = document.createElement('div');
+                this.display.className = 'searchable-select-display';
+                if (this.select.disabled) {
+                    this.display.classList.add('disabled');
+                }
+                
+                this.displayText = document.createElement('span');
+                this.displayIcon = document.createElement('i');
+                this.displayIcon.className = 'fa-solid fa-chevron-down';
+                this.displayIcon.style.fontSize = '0.75rem';
+                this.displayIcon.style.color = 'var(--text-secondary)';
+                
+                this.display.appendChild(this.displayText);
+                this.display.appendChild(this.displayIcon);
+                
+                this.dropdown = document.createElement('div');
+                this.dropdown.className = 'searchable-select-dropdown';
+                
+                this.searchContainer = document.createElement('div');
+                this.searchContainer.className = 'searchable-select-search-container';
+                
+                this.search = document.createElement('input');
+                this.search.type = 'text';
+                this.search.className = 'searchable-select-search';
+                this.search.placeholder = 'Tìm kiếm...';
+                
+                this.searchIcon = document.createElement('i');
+                this.searchIcon.className = 'fa-solid fa-magnifying-glass searchable-select-search-icon';
+                
+                this.searchContainer.appendChild(this.searchIcon);
+                this.searchContainer.appendChild(this.search);
+                
+                this.itemsContainer = document.createElement('div');
+                this.itemsContainer.className = 'searchable-select-items';
+                
+                this.dropdown.appendChild(this.searchContainer);
+                this.dropdown.appendChild(this.itemsContainer);
+                
+                this.container.appendChild(this.display);
+                this.container.appendChild(this.dropdown);
+                
+                this.select.parentNode.insertBefore(this.container, this.select.nextSibling);
+                
+                // Sync select change back to custom UI
+                this.select.addEventListener('change', () => this.syncDisplay());
+                
+                // Toggle dropdown on display click
+                this.display.addEventListener('click', (e) => {
+                    if (this.select.disabled) return;
+                    e.stopPropagation();
+                    this.toggleDropdown();
+                });
+                
+                // Input search filtering
+                this.search.addEventListener('input', () => this.filterOptions());
+                this.search.addEventListener('click', (e) => e.stopPropagation());
+                
+                // Click outside to close
+                document.addEventListener('click', (e) => {
+                    if (!this.container.contains(e.target)) {
+                        this.closeDropdown();
+                    }
+                });
+                
+                this.buildOptions();
+                
+                // Watch for dynamically loaded options/disabled states
+                this.observer = new MutationObserver(() => {
+                    this.buildOptions();
+                });
+                this.observer.observe(this.select, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+            }
+            
+            buildOptions() {
+                this.itemsContainer.innerHTML = '';
+                const options = Array.from(this.select.options);
+                
+                if (this.select.disabled) {
+                    this.display.classList.add('disabled');
+                } else {
+                    this.display.classList.remove('disabled');
+                }
+                
+                if (options.length === 0) {
+                    this.displayText.innerText = '-- Trống --';
+                    return;
+                }
+                
+                options.forEach(opt => {
+                    const item = document.createElement('div');
+                    item.className = 'searchable-select-item';
+                    item.innerText = opt.text;
+                    item.dataset.value = opt.value;
+                    
+                    if (opt.selected) {
+                        item.classList.add('selected');
+                        this.displayText.innerText = opt.text;
+                    }
+                    
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.select.value = opt.value;
+                        this.select.dispatchEvent(new Event('change'));
+                        this.closeDropdown();
+                    });
+                    
+                    this.itemsContainer.appendChild(item);
+                });
+                
+                this.syncDisplay();
+            }
+            
+            syncDisplay() {
+                const selectedOpt = this.select.options[this.select.selectedIndex];
+                if (selectedOpt) {
+                    this.displayText.innerText = selectedOpt.text;
+                } else {
+                    this.displayText.innerText = '-- Chọn --';
+                }
+                
+                const items = Array.from(this.itemsContainer.children);
+                items.forEach(item => {
+                    if (item.dataset.value === this.select.value) {
+                        item.classList.add('selected');
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+                
+                if (this.select.disabled) {
+                    this.display.classList.add('disabled');
+                } else {
+                    this.display.classList.remove('disabled');
+                }
+            }
+            
+            toggleDropdown() {
+                document.querySelectorAll('.searchable-select-dropdown').forEach(d => {
+                    if (d !== this.dropdown) d.style.display = 'none';
+                });
+                document.querySelectorAll('.searchable-select-display').forEach(d => {
+                    if (d !== this.display) d.classList.remove('active');
+                });
+                
+                if (this.dropdown.style.display === 'block') {
+                    this.closeDropdown();
+                } else {
+                    this.openDropdown();
+                }
+            }
+            
+            openDropdown() {
+                this.dropdown.style.display = 'block';
+                this.display.classList.add('active');
+                this.search.value = '';
+                this.filterOptions();
+                setTimeout(() => this.search.focus(), 50);
+            }
+            
+            closeDropdown() {
+                this.dropdown.style.display = 'none';
+                this.display.classList.remove('active');
+            }
+            
+            filterOptions() {
+                const query = this.search.value.toLowerCase().trim();
+                const items = Array.from(this.itemsContainer.children);
+                let hasVisible = false;
+                
+                const noRes = this.itemsContainer.querySelector('.searchable-select-no-results');
+                if (noRes) noRes.remove();
+                
+                items.forEach(item => {
+                    if (item.classList.contains('searchable-select-no-results')) return;
+                    const text = item.innerText.toLowerCase();
+                    if (text.includes(query)) {
+                        item.style.display = 'block';
+                        hasVisible = true;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                
+                if (!hasVisible) {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'searchable-select-no-results';
+                    noResults.innerText = 'Không tìm thấy kết quả';
+                    this.itemsContainer.appendChild(noResults);
+                }
+            }
+            
+            rebuild() {
+                this.buildOptions();
+            }
+        }
+
+        function makeSearchableSelect(selector) {
+            document.querySelectorAll(selector).forEach(el => {
+                if (el.classList.contains('weekly-row-approval')) return;
+                new SearchableSelect(el);
+            });
+        }
         // URL Parameter Auto-detection (allows passing ?api=... or ?backend=...)
         const urlParams = new URLSearchParams(window.location.search);
         const apiParam = urlParams.get('api') || urlParams.get('backend');
@@ -1491,6 +1719,9 @@
             
             // Fetch edit history logs on page load
             fetchActionLogs();
+            
+            // Initialize custom searchable selects for all dropdowns
+            makeSearchableSelect('select');
         });
 
         async function exportToExcel() {
@@ -2968,17 +3199,25 @@
             }
         }
 
-        // Filter tasks dynamically using search bar
+        // Filter tasks dynamically using search bar and department dropdown
         function filterTasks() {
             const val = document.getElementById('search-input').value.toLowerCase();
+            const deptVal = document.getElementById('filter-dept') ? document.getElementById('filter-dept').value : 'All';
             const rows = document.querySelectorAll('#tasks-table-body tr');
             
             rows.forEach(row => {
+                // Indeterminate rows or spacing might not have cells
+                if (!row.cells || row.cells.length < 4) return;
+                
                 const wbs = row.cells[1].innerText.toLowerCase();
                 const name = row.cells[2].innerText.toLowerCase();
                 const stt = row.cells[0].innerText.toLowerCase();
+                const dept = row.cells[3].innerText.trim();
                 
-                if (wbs.includes(val) || name.includes(val) || stt.includes(val)) {
+                const matchesSearch = wbs.includes(val) || name.includes(val) || stt.includes(val);
+                const matchesDept = (deptVal === 'All') || (dept.toUpperCase() === deptVal.toUpperCase());
+                
+                if (matchesSearch && matchesDept) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';
