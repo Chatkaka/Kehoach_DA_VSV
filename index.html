@@ -2502,21 +2502,30 @@
                         return diffDays < 0;
                     });
 
-                    // Filter 3: Chưa lên KH tuần (Công việc chưa hoàn thành, không có kế hoạch tuần)
+                    // Filter 3: Chưa lên KH tuần (Công việc chưa hoàn thành, không có kế hoạch tuần, cấp 3,4)
                     const noPlanTasks = tasks.filter(t => {
                         if (t.trang_thai === "Done") return false;
+                        const dotCount = (t.stt.match(/\./g) || []).length;
+                        const level = dotCount + 1;
+                        if (level !== 3 && level !== 4) return false;
                         return !t.ke_hoach_tuan || t.ke_hoach_tuan === "-" || t.ke_hoach_tuan.trim() === "";
                     });
 
-                    // Filter 4: Chưa phê duyệt KH tuần (Công việc chưa hoàn thành, trạng thái duyệt tuần là Chưa duyệt)
+                    // Filter 4: Chưa phê duyệt KH tuần (Công việc chưa hoàn thành, trạng thái duyệt tuần là Chưa duyệt, cấp 3,4)
                     const pendingApprovalTasks = tasks.filter(t => {
                         if (t.trang_thai === "Done") return false;
+                        const dotCount = (t.stt.match(/\./g) || []).length;
+                        const level = dotCount + 1;
+                        if (level !== 3 && level !== 4) return false;
                         return !t.duyet_tuan || t.duyet_tuan === "Chưa duyệt";
                     });
 
-                    // Filter 5: Chưa báo cáo KQ tuần (Công việc chưa hoàn thành, không có kết quả tuần)
+                    // Filter 5: Chưa báo cáo KQ tuần (Công việc chưa hoàn thành, không có kết quả tuần, cấp 3,4)
                     const noResultTasks = tasks.filter(t => {
                         if (t.trang_thai === "Done") return false;
+                        const dotCount = (t.stt.match(/\./g) || []).length;
+                        const level = dotCount + 1;
+                        if (level !== 3 && level !== 4) return false;
                         return !t.ket_qua_tuan || t.ket_qua_tuan === "-" || t.ket_qua_tuan.trim() === "";
                     });
 
