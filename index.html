@@ -278,11 +278,14 @@
                     </p>
                     
                     <div style="display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
-                        <button type="button" class="btn" onclick="exportOfflineDatabase()" style="flex: 1; padding: 12px 20px; background: var(--success); font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <button type="button" class="btn" onclick="exportOfflineDatabase()" style="flex: 1; padding: 12px 20px; background: var(--success); font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;">
                             <i class="fa-solid fa-download"></i> Tải Về File Sao Lưu (.json)
                         </button>
-                        <button type="button" class="btn" onclick="triggerImportDatabase()" style="flex: 1; padding: 12px 20px; background: var(--warning); color: #000; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <button type="button" class="btn" onclick="triggerImportDatabase()" style="flex: 1; padding: 12px 20px; background: var(--warning); color: #000; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;">
                             <i class="fa-solid fa-upload"></i> Nhập File Sao Lưu Dữ Liệu
+                        </button>
+                        <button type="button" class="btn" id="btn-recover-github" onclick="recoverDatabaseFromGitHub()" style="flex: 1; padding: 12px 20px; background: #3b82f6; color: #fff; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;" title="Phục hồi lại toàn bộ dữ liệu từ sao lưu GitHub gần nhất">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Phục hồi từ GitHub
                         </button>
                         <input type="file" id="tab-import-db-file" accept=".json" onchange="importOfflineDatabase(event)" style="display:none;">
                     </div>
@@ -4431,6 +4434,90 @@
                 alert("Lỗi xuất file sao lưu: " + error.message);
             }
         }
+
+        async function recoverDatabaseFromGitHub() {
+            if (!confirm("Bạn có chắc chắn muốn khôi phục toàn bộ dữ liệu từ sao lưu GitHub về trình duyệt và Google Sheets? Hành động này sẽ thay thế dữ liệu hiện tại.")) {
+                return;
+            }
+            
+            const btn = document.getElementById('btn-recover-github');
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang khôi phục...`;
+            }
+            
+            try {
+                const response = await originalFetch('https://raw.githubusercontent.com/chatkaka/Kehoach_DA_VSV/main/database.json');
+                if (!response.ok) {
+                    throw new Error("Không thể tải file sao lưu từ GitHub. HTTP Status " + response.status);
+                }
+                
+                const remoteData = await response.json();
+                if (remoteData && remoteData.tasks) {
+                    const tasks = typeof remoteData.tasks === 'string' ? JSON.parse(remoteData.tasks) : remoteData.tasks;
+                    const users = typeof remoteData.users === 'string' ? JSON.parse(remoteData.users) : (remoteData.users || []);
+                    const logs = typeof remoteData.logs === 'string' ? JSON.parse(remoteData.logs) : (remoteData.logs || []);
+                    const spendings = typeof remoteData.spendings === 'string' ? JSON.parse(remoteData.spendings) : (remoteData.spendings || []);
+                    
+                    let deleted = [];
+                    if (remoteData.deleted_task_ids) {
+                        deleted = typeof remoteData.deleted_task_ids === 'string' ? JSON.parse(remoteData.deleted_task_ids) : remoteData.deleted_task_ids;
+                    }
+                    
+                    // Save to local storage
+                    localStorage.setItem('vsv_tasks', JSON.stringify(tasks));
+                    localStorage.setItem('vsv_users', JSON.stringify(users));
+                    localStorage.setItem('vsv_logs', JSON.stringify(logs));
+                    localStorage.setItem('vsv_spendings', JSON.stringify(spendings));
+                    localStorage.setItem('vsv_deleted_task_ids', JSON.stringify(deleted));
+                    
+                    // Push to Google Sheets
+                    let googleUrl = String(localStorage.getItem('google_sheets_url') || '').trim();
+                    if (googleUrl) {
+                        if (!googleUrl.startsWith('http://') && !googleUrl.startsWith('https://')) {
+                            googleUrl = 'https://' + googleUrl;
+                        }
+                        
+                        const payload = {
+                            action: "syncAll",
+                            tasks: tasks,
+                            users: users,
+                            logs: logs,
+                            spendings: spendings
+                        };
+                        
+                        const postResponse = await originalFetch(googleUrl, {
+                            method: 'POST',
+                            credentials: 'omit',
+                            headers: {
+                                'Content-Type': 'text/plain;charset=utf-8'
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (!postResponse.ok) {
+                            alert("Dữ liệu trình duyệt đã được khôi phục, nhưng không thể đẩy lên Google Sheets. Vui lòng kiểm tra lại Google Web App.");
+                        } else {
+                            alert("Khôi phục dữ liệu từ GitHub về trình duyệt và Google Sheets thành công!");
+                        }
+                    } else {
+                        alert("Khôi phục dữ liệu về trình duyệt thành công!");
+                    }
+                    
+                    window.location.reload();
+                } else {
+                    throw new Error("Cấu trúc file sao lưu từ GitHub không hợp lệ.");
+                }
+            } catch (err) {
+                alert("Lỗi khôi phục: " + (err.message || String(err)));
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            }
+        }
         
         function triggerImportDatabase() {
             document.getElementById('tab-import-db-file').click();
@@ -5343,20 +5430,35 @@ Lưu ý: Không giải thích thêm, chỉ trả về chuỗi JSON thô dạng J
                 if (response.ok) {
                     const data = await response.json();
                     if (data) {
-                        // Safety: Only overwrite local storage if there is actual data inside the spreadsheet
-                        if (data.tasks && data.tasks.length > 0) {
-                            localStorage.setItem('vsv_tasks', JSON.stringify(data.tasks));
+                        // Filter out blank rows from the spreadsheet response
+                        const validTasks = (data.tasks || []).filter(t => t && (t.id || t.stt));
+                        const validUsers = (data.users || []).filter(u => u && (u.id || u.username));
+                        const validLogs = (data.logs || []).filter(l => l && (l.id || l.timestamp || l.thoi_gian));
+                        const validSpendings = (data.spendings || []).filter(s => s && (s.id || s.task_id));
+                        
+                        if (validTasks.length > 0) {
+                            localStorage.setItem('vsv_tasks', JSON.stringify(validTasks));
+                            if (validUsers.length > 0) {
+                                localStorage.setItem('vsv_users', JSON.stringify(validUsers));
+                            }
+                            if (validLogs.length > 0) {
+                                localStorage.setItem('vsv_logs', JSON.stringify(validLogs));
+                            }
+                            if (validSpendings.length > 0) {
+                                localStorage.setItem('vsv_spendings', JSON.stringify(validSpendings));
+                            }
+                            return { success: true };
+                        } else {
+                            // Google Sheet is empty. If local storage contains tasks, push them to initialize the Sheet
+                            const localTasks = JSON.parse(localStorage.getItem('vsv_tasks') || '[]');
+                            if (localTasks.length > 0) {
+                                console.log("Google Sheet is empty. Automatically initializing spreadsheet with local data...");
+                                setTimeout(() => {
+                                    autoSyncGoogleSheets();
+                                }, 1500);
+                            }
+                            return { success: true, warning: "Sheet trống, đã chuẩn bị đẩy dữ liệu Local lên." };
                         }
-                        if (data.users && data.users.length > 0) {
-                            localStorage.setItem('vsv_users', JSON.stringify(data.users));
-                        }
-                        if (data.logs && data.logs.length > 0) {
-                            localStorage.setItem('vsv_logs', JSON.stringify(data.logs));
-                        }
-                        if (data.spendings && data.spendings.length > 0) {
-                            localStorage.setItem('vsv_spendings', JSON.stringify(data.spendings));
-                        }
-                        return { success: true };
                     }
                     return { success: false, error: "Dữ liệu trả về từ Google Sheets không hợp lệ." };
                 } else {
