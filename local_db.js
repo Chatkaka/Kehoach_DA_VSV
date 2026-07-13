@@ -6167,6 +6167,22 @@ class LocalDBManager {
             }
             
             parsed.forEach(t => {
+                // Ensure id is a number
+                if (typeof t.id !== 'number') {
+                    t.id = Number(t.id) || 0;
+                    needsSave = true;
+                }
+                // Ensure stt is a string
+                if (typeof t.stt !== 'string') {
+                    t.stt = t.stt !== undefined && t.stt !== null ? String(t.stt).trim() : "";
+                    needsSave = true;
+                }
+                // Ensure ma_ngan_sach is a string
+                if (typeof t.ma_ngan_sach !== 'string') {
+                    t.ma_ngan_sach = t.ma_ngan_sach !== undefined && t.ma_ngan_sach !== null ? String(t.ma_ngan_sach).trim() : "";
+                    needsSave = true;
+                }
+                
                 let pId = parseInt(t.phase_id);
                 if (isNaN(pId)) {
                     let inferredPhase = 1;
